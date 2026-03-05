@@ -1,0 +1,8 @@
+{
+  "owner": "personal",
+  "client": "core",
+  "domain": "tooling",
+  "repo": "pythia",
+  "feature": "oracle-engine",
+  "description": "Persistent knowledge oracle engine — version control for latent space. Manages generational Gemini daemons across projects via spawn/checkpoint/reconstitute lifecycle."
+}
