@@ -1,10 +1,10 @@
 # PYTHIA: Persistent Knowledge Oracle — MCP Feature Design Brief
 
 **Created:** 2026-03-05
-**Revised:** 2026-03-05 (v3 — second twin review pass)
+**Revised:** 2026-03-05 (v4 — Ion + feedback loop)
 **Author:** Claude (design session with Mike Boscia) + Gemini + Codex review (×2)
-**Target repos:** `~/.claude/mcp-servers/inter-agent/` + `~/.claude/`
-**Status:** Design v3 — final design, ready for implementation
+**Target repos:** `~/pythia/` (engine) + project `oracle/` dirs (data)
+**Status:** Design v4 — final design, ready for implementation
 
 ---
 
@@ -13,6 +13,11 @@
 **Pythia** — the title of the Delphic Oracle. Each generation is a new Pythia,
 a new vessel channeling the same sacred accumulated wisdom. When one Pythia's
 context expires, the next is born already knowing everything the last one learned.
+
+**Ion** — in Euripides' *Ion*, the young male temple servant raised from birth at
+Delphi. He sweeps the sanctuary, tends the sacred grounds, and handles all the
+practical work the Pythia never touches. The oracle speaks; Ion does.
+In this system: Ion is Codex. Pythia reasons. Ion executes.
 
 The corpus is the Oracle. The daemon is the vessel. The vessel is replaceable.
 The corpus is eternal.
@@ -554,19 +559,31 @@ export interface OracleState {
   updated_at: string;
 }
 
+export type InteractionType = "consultation" | "feedback" | "sync_event" | "session_note";
+
 export interface InteractionEntry {
-  id: string;                           // "v<N>-q<NNN>"
+  id: string;                           // "v<N>-q<NNN>" or "v<N>-q<NNN>-fb"
+  type: InteractionType;
   oracle_name: string;
   version: number;
   query_count: number;
   timestamp: string;
   tokens_remaining_at_query: number;
   chars_in_at_query: number;
-  question: string;
-  counsel: string;                      // full raw Pythia response
-  decision: string;                     // what was decided based on counsel
-  quality_signal: number | null;        // 1-5 explicit rating, null if not rated
-  flags: string[];
+  // consultation fields
+  question?: string;
+  ion_delegated?: boolean;              // true if Pythia called Ion (Codex)
+  ion_query?: string;                   // the specific question sent to Ion
+  ion_response?: string;               // Ion's raw response
+  counsel?: string;                     // Pythia's synthesis (may incorporate Ion's answer)
+  decision?: string;                    // what was decided based on counsel
+  quality_signal?: number | null;       // 1-5 explicit rating, null if not rated
+  flags?: string[];
+  // feedback fields
+  references?: string;                  // consultation id this feedback closes
+  implemented?: boolean;
+  outcome?: string;                     // what actually happened
+  divergence?: string;                  // how reality differed from counsel
 }
 
 export interface DegradationFlag {
