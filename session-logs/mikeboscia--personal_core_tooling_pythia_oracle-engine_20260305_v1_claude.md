@@ -181,3 +181,72 @@ Four design iterations, two twin review passes:
 
 *"The corpus is the Oracle. The daemon is the vessel. The vessel is replaceable. The corpus is eternal."*
 | 12:27 | Staged: mikeboscia--personal_core_tooling_pythia_oracle-engine_20260305_v1_claude.md (+182/-0 (new)) | ✓ | |
+| 15:13 | Git commit aeb9ee5: session(claude): oracle-engine v1 — founding design session | COMMITTED | |
+| 10:12 | Staged: pythia-persistent-oracle-design.md (+483/-80) | ✓ | |
+
+---
+
+## SESSION UPDATE: 2026-03-06 ~11:30 EST
+
+### Summary
+Continued from v4 design. Ran three full rounds of `/ruthless-interrogator` against the design doc, surfacing and resolving 65+ architectural assumptions across three passes. Design advanced from v4 → v5 → v6 (current). Twin review sessions (Gemini `pythia-design-review` + Codex) answered all questions across all three rounds.
+
+### What Was Accomplished
+
+- **Round 1 interrogation (31 questions):** Twins answered all 31. Four divergences resolved: oracle data location → `project/oracle/` (Option A, visible/committed); `max_total_bytes` → `max_sync_bytes` at 5MB default; self-contradiction detection cut to v2; `IonHandoffRequest`/`IonHandoffResponse` interfaces defined.
+- **Design doc v5 written:** All 31 answers encoded. New sections: Corpus Load Mechanics, Concurrency & Locking, Git Strategy, Ion Handoff Protocol, IonHandoffRequest/IonHandoffResponse interfaces, full oracle_decommission spec. OracleState expanded with `lock_held_by`, `lock_expires_at`, `last_error`. Resolved Decisions grew from 11 → 27.
+- **Round 2 interrogation (21 questions):** Twins answered all 21. Five divergences resolved: internal lock polling (Codex); registry atomic writes + git backup, no .bak (both); tree hash + per-file hashes combined for delta sync (user insight); spawn_oracle parameter matrix with `ORACLE_ALREADY_EXISTS`; Ion interfaces defined as logging contracts.
+- **Daemon pool architecture added:** Pool size 2 default (ceiling, not always-on). Spawn on demand, dismiss when done. `DaemonPoolMember` interface with `status`, `chars_in/out`, `last_synced_interaction_id`, `last_corpus_sync_hash`. `daemon_id` → `daemon_pool` array in OracleState. Cross-daemon context sync via delta injection before each query.
+- **7-step decommission protocol:** Screenshot proof of review + Touch ID/TOTP (pythia-auth compiled binary) + typed dynamic phrase + 5-min cooling off + second confirmation. `oracle_decommission` split into `oracle_decommission_request` + `oracle_decommission_execute`. TOTP + Master Recovery Key, cross-platform from day one (macOS Keychain = enhancement, not requirement).
+- **Round 3 interrogation (17 questions):** Twins answered all 17. Key resolutions: pressure aggregation = MAX not SUM; all members pause during checkpoint; all members reconstitute together (no mixed generations); full cutover reconstitution (drain → lock → checkpoint → spawn all → swap → release); partial failure → `status: "warning"`; `.pythia-active` → directory with per-oracle files; decommission token in-memory only (never git-tracked); `pythia-auth` = compiled binary at `~/.pythia/bin/pythia-auth`.
+- **Pool model clarified:** Pool is spawn-on-demand, not always-on. `pool_size` is a ceiling. Idle members dismissed after timeout. Stale member problem eliminated — fresh spawn starts at current checkpoint with zero delta.
+- **15 additional items written into doc:** `BOOTSTRAP_FAILED` error, `last_bootstrap_ack`, `MAX_BOOTSTRAP_STDIN_BYTES`, `MAX_INHERITED_WISDOM_INLINE_CHARS`, v1/reconstitution preamble branches, lock heartbeat, `oracle_update_entry()` tool, spawn_oracle parameter matrix, registry atomic writes, two-pass corpus load functions, batch commit triggers, `CONTEXT_WINDOW_BY_MODEL` table, `.pythia-active` JSON content, `computeSuggestedHeadroom()` v1 fallback, `DAEMON_BUSY_QUERY` vs `DAEMON_BUSY_LOCK` split.
+
+### Key Decisions & Why
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Pool model | Spawn on demand, pool_size = ceiling | No reason to keep idle daemons alive; fresh spawn always starts with full checkpoint context |
+| Pressure aggregation | MAX across pool members | SUM is wrong — 1M tokens in member-0 + 1M in member-1 ≠ 2M context exhaustion for either |
+| Checkpoint behavior | All members pause (oracle-wide lock) | Generation is a property of the oracle, not individual daemons — mixed generations forbidden |
+| Reconstitution | Drain → shrink to 0 → spawn all v(N+1) | Rolling replacement creates split-brain; full cutover under lock is safe |
+| Decommission token | In-memory only | state.json is git-tracked — token in state = token in commit history = security breach |
+| .pythia-active | Directory with per-oracle files | Single JSON with array risks concurrent write corruption; per-file = atomic write per oracle |
+| TOTP platform | Cross-platform (TOTP + recovery key) | Touch ID = macOS enhancement; core spec must work on Linux/Windows |
+| pythia-auth | Compiled binary (Go/Rust) | Shell script is inspectable/spoofable by agent with file write access |
+| Sync delta overflow | Spawn-on-demand eliminates it | Fresh member starts at current checkpoint; stale member problem doesn't arise |
+| ReconstituteSyncMode | `hash_gated_delta` default | Both tree hash (fast gate) + per-file hashes (precise diff) computed in one pass |
+
+### What Works Now
+
+- Design doc v5/v6 at `/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md` — implementation-ready
+- Three full interrogation passes completed, 65+ assumptions resolved
+- Gemini session `pythia-design-review` preserved — resumable for future design questions
+- 30 Resolved Design Decisions documented
+
+### What Doesn't Work / Known Issues
+
+- `pythia-auth` binary needs to be built (Go/Rust — not yet written)
+- TOTP enrollment flow design is architectural but not yet specced at code level
+- `DaemonPoolMember.idle_timeout_ms` and `last_query_at` need to be added to spec (spawn-on-demand model)
+- No `decommission_token` in-memory storage spec yet (GeminiRuntime singleton map)
+- Round 3 answers not yet written into the design doc (Q1-Q17 architectural decisions from round 3)
+
+### Current State
+
+**Phase:** Design complete — three interrogation passes, all gaps resolved
+**Next Step:** Write round 3 answers into design doc, then proceed to implementation starting with `gemini/runtime.ts`
+
+### Sub-agent Work
+
+- **Gemini daemon `gd_mmf3tg4z_5`** (session: `pythia-design-review`, soft-dismissed, preserved): Answered all 17 round 3 questions. Particularly valuable: flagged decommission token security risk (state.json = git-tracked), insisted on cross-platform TOTP, recommended in-memory-only token storage.
+- **Codex daemon `cd_mmf3tpmi_5`** (soft-dismissed): Answered all 17 round 3 questions with concrete TypeScript. Added `pending_syncs` array, `last_corpus_sync_hash` per-member field, `decommission_token` nested state object (Gemini's in-memory approach was adopted instead).
+
+### Technical Notes
+
+- Round 3 architectural answers (pool pressure, reconstitution, TOTP, .pythia-active directory) are resolved but NOT YET WRITTEN into the design doc — next session should write these in before running a 4th interrogation pass or starting implementation
+- Gemini session `pythia-design-review` is a valuable asset — it has full design context across all 3 review rounds. Resume with `spawn_daemon(session_name: "pythia-design-review")`.
+- `pythia-auth` binary location: `~/.pythia/bin/pythia-auth`. Install: `make build-auth` in `~/pythia/`. Checksum verification on install.
+- Pool spawn-on-demand: `idle_timeout_ms` field needed on `DaemonPoolMember`, `last_query_at` timestamp needed for idle detection by post-tool-use hook
+
+| [11:30] | Session notes written — design v5/v6, 3 interrogation passes, 65+ assumptions resolved | ✓ |
