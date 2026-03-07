@@ -1,10 +1,10 @@
 # PYTHIA: Persistent Knowledge Oracle — MCP Feature Design Brief
 
 **Created:** 2026-03-05
-**Revised:** 2026-03-06 (v5 — architecture locked, all 31 interrogation gaps resolved)
+**Revised:** 2026-03-06 (v6 — three interrogation passes, 65+ assumptions resolved)
 **Author:** Claude (design session with Mike Boscia) + Gemini + Codex review (×3)
 **Target repos:** `~/pythia/` (engine) + `<project>/oracle/` dirs (data)
-**Status:** Design v5 — implementation-ready
+**Status:** Design v6 — implementation-ready (round 3 answers written in)
 
 ---
 
@@ -187,7 +187,7 @@ the code are. Code is already checkpointed perfectly by Git.
       "sync_mode": "on_spawn",
       "max_files": 200,
       "max_sync_bytes": 5000000,
-      "reconstitute_sync_mode": "tree_hash_incremental",
+      "reconstitute_sync_mode": "hash_gated_delta",
       "priority": 50,
       "last_sync_at": null,
       "last_tree_hash": null
@@ -204,7 +204,7 @@ the code are. Code is already checkpointed perfectly by Git.
 This guarantees strict determinism across reconstitutions.
 
 **`max_sync_bytes`** (default: 5,000,000 = 5MB) is a safety rail against accidentally
-globbing `node_modules/` or `dist/`. Throws `ORACLE_CORPUS_CAP_EXCEEDED` if exceeded.
+globbing `node_modules/` or `dist/`. Throws `CORPUS_CAP_EXCEEDED` if exceeded.
 It is not a restriction on real codebases — 5MB covers substantial projects.
 
 **Note:** `context_window_tokens` is NOT stored in the manifest. It is discovered
@@ -235,22 +235,17 @@ Scales automatically across all window sizes.
       "query_count": 3,
       "chars_in": 920000,
       "chars_out": 45000,
-      "last_synced_interaction_id": "v1-q003"
-    },
-    {
-      "daemon_id": "gd_mmdkx0g8_2",
-      "session_name": "daemon-pythia-1",
-      "session_dir": "/Users/mikeboscia/.gemini/daemon-sessions/daemon-pythia-1",
-      "status": "idle",
-      "query_count": 1,
-      "chars_in": 850200,
-      "chars_out": 12000,
-      "last_synced_interaction_id": "v1-q003"
+      "last_synced_interaction_id": "v1-q003",
+      "last_query_at": "2026-03-05T10:25:00-05:00",
+      "idle_timeout_ms": 300000,
+      "last_corpus_sync_hash": { "app-codebase": "abc123..." },
+      "pending_syncs": []
     }
   ],
   "session_chars_at_spawn": 844900,
   "chars_per_token_estimate": 4,
   "estimated_total_tokens": 241250,
+  "estimated_cluster_tokens": 241250,
   "tokens_remaining": 1758750,
   "query_count": 4,
   "last_checkpoint_path": null,
@@ -271,7 +266,7 @@ mutation, and retries (up to 5 times, exponential backoff with jitter) if
 **`lock_held_by` / `lock_expires_at`**: operations that must not run concurrently
 (checkpoint, reconstitute, decommission) acquire a named lock before proceeding.
 Locks have a TTL to prevent orphans on crash. If a lock is held, competing operations
-return `DAEMON_BUSY` and the caller can retry after `lock_expires_at`.
+return `DAEMON_BUSY_LOCK` and the caller can retry after `lock_expires_at`.
 
 **`chars_per_token_estimate`** (default: 4) is the chars-to-tokens ratio. The `/4`
 heuristic has a ±10-15% error margin on English/code text — exactly why the absolute
@@ -280,27 +275,62 @@ headroom (250K tokens) is large enough to absorb the variance.
 **`session_chars_at_spawn`** captures the exact character count of the final,
 concatenated bootstrap payload (preamble + all corpus content) injected at
 `spawn_oracle` time. Set after the full corpus load completes. Post-spawn
-consultations accumulate into `chars_in_total` / `chars_out_total` separately.
+consultations accumulate into each pool member's `chars_in` / `chars_out` separately.
 
 ---
 
-## Daemon Architecture: Persistent, Not Disposable
+## Daemon Architecture: Spawn-on-Demand Pool
 
 The original daemon model treated sessions as ephemeral: spawn → use → dismiss.
 Pythia requires rethinking this. An oracle that holds 200K+ tokens of corpus is
 **expensive to reconstitute** — not just in time, but in the quality of the bootstrapped
 state. The right model is:
 
-- **Oracles maintain a pool of daemons** — `pool_size` (default: 2) concurrent Gemini sessions,
-  all loaded with the same corpus. Queries route to whichever member is idle.
+- **Oracles maintain a pool of daemons** — `pool_size` (default: 2) is a **ceiling**,
+  not an always-on target. Members are spawned on demand and dismissed when idle.
+- Queries route to whichever member is idle. If all members are busy and `pool_size`
+  allows, the tool kicks off an async spawn in the background and returns
+  `DAEMON_BUSY_QUERY` with `scaling_up: true` — Claude retries after a short delay.
+  If the pool is already at ceiling, returns `DAEMON_BUSY_QUERY` with `scaling_up: false`.
 - Each pool member is keyed by `session_name` (e.g., `daemon-pythia-0`, `daemon-pythia-1`).
   `daemon_id` is just a handle to the current process.
-- On `spawn_oracle`, each pool slot resumes if its session exists on disk (zero-cost),
-  or bootstraps fresh if not.
+- On `spawn_oracle`, a single pool member is bootstrapped (or resumed if session exists).
+  Additional members are spawned only when concurrent access is needed.
 - Pool size 1 = single-threaded (original model). Pool size 2 = frontend + backend
   simultaneously. Pool size N = team deployment.
+- **Idle timeout:** Pool members track `last_query_at`. After `idle_timeout_ms`
+  (default: 300,000 = 5 minutes), idle members are soft-dismissed to free resources.
+  The post-tool-use hook checks idle members on each pressure check cycle.
 - Dismiss is **always soft** for oracle pool members — preserve sessions on disk.
 - Hard dismiss (full deletion) only on explicit `oracle_decommission`.
+- **Spawn-on-demand eliminates the stale-member problem.** A freshly spawned member
+  bootstraps from the current checkpoint at spawn time, starting with
+  `last_synced_interaction_id` at the current JSONL head — zero sync delta.
+
+### Pool Pressure Aggregation
+
+**`estimated_total_tokens = MAX(memberTokens)`**, not SUM. Each pool member has
+its own independent context window — 1M tokens in member-0 plus 1M in member-1
+does NOT mean 2M exhaustion risk for either. The highest-pressure member determines
+the oracle's overall pressure status.
+
+**`estimated_cluster_tokens = SUM(memberTokens)`** is tracked as an observability
+metric only (total Gemini resource consumption), but it does NOT drive checkpoint
+decisions. Only MAX matters for context exhaustion.
+
+Formula per member:
+```
+memberTokens[i] = (session_chars_at_spawn + member.chars_in + member.chars_out) / chars_per_token_estimate
+```
+
+### Partial Pool Failure
+
+If one member in the pool dies or errors while others remain healthy, the oracle
+transitions to `status: "degraded"` (not `"warning"` — that's reserved for context pressure). Specific behaviors:
+- Queries continue routing to healthy members
+- The dead member's slot remains in `daemon_pool` with `status: "dead"`
+- `/pythia status` surfaces the warning with details on which member failed
+- The user can explicitly respawn the failed member or let spawn-on-demand handle it
 
 ### Cross-Daemon Context Sync
 
@@ -369,6 +399,18 @@ and desync session state.
 
 Note: `askDaemon` now returns `chars_in` and `chars_out` alongside the text response,
 so `oracle-tools.ts` can update pressure metrics without re-counting strings.
+
+**In-memory state on the GeminiRuntime singleton:**
+The singleton also holds ephemeral data that must NOT be persisted to disk:
+- `decommissionTokens: Map<string, { token: string; expires_at: number }>` —
+  decommission tokens are stored here, never in `state.json` (which is git-tracked).
+  Token expires after 10 minutes. If the MCP server restarts, the token is lost —
+  the user must re-request decommission. This is a feature, not a bug.
+- `idleSweepInterval: NodeJS.Timeout` — a `setInterval` loop (every 60s) that
+  sweeps all oracle pools for members where `Date.now() - last_query_at > idle_timeout_ms`.
+  Expired members are soft-dismissed automatically. Started on singleton instantiation,
+  cleared on process shutdown. This is the sole enforcement mechanism for idle timeouts —
+  no lazy evaluation needed at tool-call time.
 
 ---
 
@@ -461,11 +503,27 @@ No external processes. No self-probing the model.
 
 ```ts
 // Updated in state.json after every ask_daemon call:
-chars_in_total  += response.chars_in;
-chars_out_total += response.chars_out;
-estimated_total_tokens = (session_chars_at_spawn + chars_in_total + chars_out_total)
-                         / state.chars_per_token_estimate;
-tokens_remaining = discovered_context_window - estimated_total_tokens;
+// Per-member tracking:
+member.chars_in  += response.chars_in;
+member.chars_out += response.chars_out;
+member.last_query_at = new Date().toISOString();
+
+// Pool-wide aggregation (MAX for checkpoint, SUM for observability):
+const activeMembers = state.daemon_pool.filter(m => m.status !== "dismissed" && m.status !== "dead");
+if (activeMembers.length === 0) {
+  // Empty pool — no daemons running, no pressure to measure
+  estimated_total_tokens = null;
+  estimated_cluster_tokens = null;
+  tokens_remaining = null;
+  // oracle_pressure_check returns PRESSURE_UNAVAILABLE
+} else {
+  const memberTokens = activeMembers.map(m =>
+    (session_chars_at_spawn + m.chars_in + m.chars_out) / state.chars_per_token_estimate
+  );
+  estimated_total_tokens = Math.max(...memberTokens);     // drives checkpoint decision
+  estimated_cluster_tokens = memberTokens.reduce((a, b) => a + b, 0); // observability only
+  tokens_remaining = discovered_context_window - estimated_total_tokens;
+}
 
 // Single trigger — absolute headroom, not percentage:
 const needsCheckpoint = tokens_remaining < manifest.checkpoint_headroom_tokens;
@@ -676,7 +734,7 @@ type OracleResult<T> =
 
 type OracleErrorCode =
   | "ORACLE_NOT_FOUND" | "MANIFEST_INVALID" | "STATE_INVALID" | "DAEMON_NOT_FOUND"
-  | "DAEMON_BUSY" | "DAEMON_DEAD" | "DAEMON_QUOTA_EXHAUSTED" | "FILE_NOT_FOUND"
+  | "DAEMON_BUSY_QUERY" | "DAEMON_BUSY_LOCK" | "DAEMON_DEAD" | "DAEMON_QUOTA_EXHAUSTED" | "FILE_NOT_FOUND"
   | "HASH_MISMATCH" | "PRESSURE_UNAVAILABLE" | "CHECKPOINT_FAILED"
   | "RECONSTITUTE_FAILED" | "IO_ERROR" | "CONCURRENCY_CONFLICT"
   | "CORPUS_CAP_EXCEEDED" | "LOCK_TIMEOUT";
@@ -700,18 +758,31 @@ type OracleErrorCode =
 **Execution:**
 - Pass 1: `resolveCorpusForSpawn(name)` — hash verification, glob resolution, token gate
 - Discovers context window from `CONTEXT_WINDOW_BY_MODEL` lookup
-- Spawns or resumes all `pool_size` daemon pool members
-- Pass 2: `loadResolvedCorpusIntoDaemon()` for each pool member
-- Writes `.pythia-active` marker file
+- Spawns or resumes **one** pool member (spawn-on-demand — additional members spawn when needed)
+- Pass 2: `loadResolvedCorpusIntoDaemon()` for the initial member
+- Writes `.pythia-active/<oracle-name>.json` marker file
 - Returns: `{ oracle_name, version, pool, resumed, corpus_files_loaded, tokens_remaining }`
 
 ### `oracle_sync_corpus(name, source_id?)`
 - Resolves file list from `live_sources` globs (all sources, or specific `source_id`)
 - Applies `max_files` and `max_sync_bytes` caps — hard error if exceeded
 - Computes tree hash; if unchanged since `last_sync_at`, skip (no-op)
-- Loads only changed/new files into daemon: "Updated source files. Read and absorb: [content]"
+- **Per-member sync dispatch:**
+  - For members with `status === "idle"`: inject sync payload immediately
+    ("Updated source files. Read and absorb: [content]"). Update member's
+    `last_corpus_sync_hash` and clear any matching `pending_syncs` entries.
+  - For members with `status === "busy"`: push to `pending_syncs` array with
+    `{ source_id, tree_hash, payload_ref, queued_at }`. Drain happens at next
+    `ask_daemon` call (see below).
+  - For members with `status === "dismissed"` or `"dead"`: skip (they'll get
+    current corpus on next spawn).
 - Updates `last_sync_at` and `last_tree_hash` in manifest
-- Returns: `{ source_id, files_synced, files_skipped, bytes_loaded, tree_hash }`
+- Returns: `{ source_id, files_synced, files_skipped, bytes_loaded, tree_hash, members_synced_immediately, members_queued }`
+
+**`ask_daemon` pending sync drain:** Before routing any query to a member, check its
+`pending_syncs` array. If non-empty, pop all entries, concatenate payloads, inject as
+a single "Updated source files..." message, then send the user's query. Update
+`last_corpus_sync_hash` and clear the array after successful injection.
 
 ### `oracle_pressure_check(name)`
 - Reads state.json; computes `tokens_remaining` from char totals
@@ -719,7 +790,7 @@ type OracleErrorCode =
 - Returns: `{ tokens_remaining, status, recommendation: "healthy"|"checkpoint_soon"|"checkpoint_now"|"reconstitute" }`
 
 ### `oracle_checkpoint(name, timeout_ms?, commit?)`
-- Acquires lock before proceeding; returns `DAEMON_BUSY` if lock held
+- Acquires lock before proceeding; returns `DAEMON_BUSY_LOCK` if lock held
 - Enforced: returns error if `tokens_remaining < checkpoint_headroom_tokens / 4`
   (too late to safely generate — use `oracle_salvage` instead)
 - Sends Pythia the checkpoint prompt with XML output tags:
@@ -743,15 +814,25 @@ type OracleErrorCode =
 - Returns: `{ checkpoint_path, bytes, sha256, version }`
 
 ### `oracle_reconstitute(name, checkpoint_first?, dismiss_old?)`
-- Acquires lock; returns `DAEMON_BUSY` if lock held (no mid-consultation interrupt)
+
+**Full cutover model — no mixed generations, no rolling replacement.**
+All pool members reconstitute together as a single atomic generation transition.
+Mixed generations (some members on vN, others on v(N+1)) are forbidden — they would
+produce inconsistent answers depending on which member handles the query.
+
+- Acquires lock; returns `DAEMON_BUSY_LOCK` if lock held (no mid-consultation interrupt)
+- **Drain phase:** waits for all active queries to complete (bounded timeout)
 - If `checkpoint_first: true` (default): calls `oracle_checkpoint` first
+- **Shrink to zero:** soft-dismisses ALL pool members (preserve session data on disk)
 - Increments version N → N+1
 - Manifest update: adds `vN-checkpoint.md` as `role: "checkpoint"` in `static_entries`
   **Does NOT re-add `vN-interactions.jsonl`** — checkpoint supersedes learnings for context
-- For `live_sources`: uses `tree_hash_incremental` by default — re-syncs only if hash changed
-- Calls `spawn_oracle(name)` — loads corpus + single checkpoint only
+- For `live_sources`: uses `hash_gated_delta` by default — re-syncs only if hash changed
+- **Spawn v(N+1):** spawns one fresh member from checkpoint (not resuming old sessions).
+  Spawn-on-demand applies — additional members spawn when concurrent access is needed.
 - Seeds with generational continuity preamble (checkpoint content in `<inherited_wisdom>`)
-- Soft-dismisses old daemon; updates state.json; releases lock
+- Updates state.json with new version; clears `daemon_pool` and populates with fresh members
+- Releases lock
 - Returns: `{ previous_version, new_version, new_daemon_id, loaded_artifacts }`
 
 ### `oracle_log_learning(name, entry)`
@@ -807,7 +888,9 @@ Phase 1 of a 7-step human-gated decommission protocol. Logs intent, generates an
 expiring token, returns a checklist. **Nothing is deleted at this step.**
 
 - Validates oracle exists and is not already decommissioned
-- Generates a unique `decommission_token` (UUID, 10-minute TTL) stored in state
+- Generates a unique `decommission_token` (UUID, 10-minute TTL) stored **in-memory only**
+  in the `GeminiRuntime` singleton (never written to `state.json` — `state.json` is
+  git-tracked, so a token in state = a token in commit history = security breach)
 - Records the request with timestamp and reason in `vN-interactions.jsonl`
 - Returns the full checklist the human must complete before `oracle_decommission_execute`
 
@@ -827,18 +910,27 @@ This tool is deliberately difficult to reach. That is the design.
    name, version, and state. This step proves a human physically looked at what they
    are deleting. Claude cannot generate this screenshot.
 
-3. **Touch ID + TOTP** — Two physical gates in one step:
+3. **TOTP verification** — A physical gate that no agent can bypass:
    - User runs the standalone `pythia-auth` CLI binary (not an MCP tool) directly
-     in their terminal. This binary is NOT callable by Claude.
-   - The binary prompts for Touch ID to retrieve the TOTP secret from macOS Keychain
-     (`kSecAccessControlBiometryAny`). The Keychain item cannot be accessed without
-     biometric authentication — no background process, no agent, no automation can
-     satisfy this. Physical fingerprint required.
-   - After Touch ID succeeds, the binary generates the current 6-digit TOTP code
-     and displays it in the terminal. It expires in 30 seconds.
+     in their terminal. This binary is NOT callable by Claude. Located at
+     `~/.pythia/bin/pythia-auth` — compiled Go or Rust binary (not a shell script,
+     which would be inspectable/spoofable by an agent with file write access).
+   - **Cross-platform core (TOTP + Master Recovery Key):**
+     The binary reads the TOTP secret from its platform-appropriate secure store
+     and generates the current 6-digit TOTP code. It expires in 30 seconds.
+     A Master Recovery Key (256-bit, shown once at enrollment, never stored by the
+     system) serves as fallback if the authenticator app is lost.
+   - **macOS enhancement (Touch ID):**
+     On macOS, the TOTP secret is stored in Keychain with
+     `kSecAccessControlBiometryAny` — requiring Touch ID to access. No background
+     process, no agent, no automation can satisfy this. Physical fingerprint required.
+   - **Other platforms:**
+     On Linux/Windows, the TOTP secret is stored in
+     `~/.pythia/keys/<name>.totp.enc` encrypted at rest. The `pythia-auth` binary
+     prompts for a passphrase to decrypt it.
    - User provides the code to Claude. Claude passes it to the MCP tool for validation.
-   - Claude cannot run `pythia-auth` interactively (Touch ID blocks non-TTY processes).
-   - Claude cannot read the Keychain item (biometric required).
+   - Claude cannot run `pythia-auth` interactively (TTY required).
+   - Claude cannot read the secure store (biometric/passphrase required).
    - Claude cannot derive the TOTP code without the secret.
    Three things Claude cannot do. One step.
 
@@ -868,6 +960,18 @@ This tool is deliberately difficult to reach. That is the design.
 - Releases lock
 - Oracle data (`oracle/` directory) remains on disk as historical artifact — never deleted
 - Returns: `{ oracle_name, decommissioned_at, final_checkpoint_path }`
+
+### `oracle_decommission_cancel(name, token)`
+
+Cancels a pending decommission during the cooling-off period (step 5). Invalidates
+the in-memory token on the `GeminiRuntime` singleton. Can be called at any point
+after `oracle_decommission_request` and before `oracle_decommission_execute` completes.
+
+- Validates the token matches the active decommission request for this oracle
+- Removes the token from the `GeminiRuntime.decommissionTokens` map
+- Logs a `session_note` interaction: "Decommission cancelled by user"
+- Returns: `{ oracle_name, cancelled_at }`
+- If no pending decommission: returns `DECOMMISSION_REFUSED` with message "No active decommission request"
 
 **Error codes:** `DECOMMISSION_REFUSED` (any gate fails), `DECOMMISSION_TOKEN_EXPIRED`,
 `DECOMMISSION_CANCELLED`, `TOTP_INVALID`, `CONFIRMATION_PHRASE_MISMATCH`
@@ -1011,24 +1115,36 @@ The bash hook (`~/.claude/hooks/post-tool-use.sh`) checks oracle pressure every
 5 tool calls when an oracle is active.
 
 Active oracle discovery:
-1. Check for `${projectRoot}/.pythia-active` — written by `spawn_oracle`, removed by `oracle_decommission`
+1. Check for `${projectRoot}/.pythia-active/` directory — per-oracle JSON files inside
 2. Fallback: registry lookup by longest `project_root` prefix match against `cwd`
 3. If ambiguous: skip check (require explicit name)
 
-`.pythia-active` content (JSON, atomic write via temp+rename):
+`.pythia-active/` is a **directory** with one file per active oracle (prevents concurrent
+write corruption when multiple oracles are active in the same project root):
+
+```
+<project-root>/.pythia-active/
+├── pythia-frontend.json
+└── pythia-backend.json
+```
+
+Each file (atomic write via temp+rename):
 ```json
 {
-  "oracle_name": "pythia",
+  "oracle_name": "pythia-frontend",
   "oracle_dir": "/abs/path/to/project/oracle",
   "project_root": "/abs/path/to/project",
+  "pool_members_active": 1,
   "written_at": "2026-03-06T10:00:00-05:00"
 }
 ```
 
-Spawning a different oracle while `.pythia-active` exists returns `ORACLE_ALREADY_EXISTS`
-unless `force: true` is passed explicitly. Never silently overwrite.
+`spawn_oracle` creates the directory and writes the file. `oracle_decommission` removes
+the per-oracle file. If the directory is empty after removal, it is also removed.
 
-If oracle found and `status` is not `dead`/`decommissioned`: call `oracle_pressure_check`.
+If oracle found and `status` is not `"decommissioned"`: call `oracle_pressure_check`.
+(Note: `"dead"` is a `DaemonPoolMember.status` value, not an `OracleStatus` value.
+The oracle itself is never `"dead"` — individual pool members can be.)
 
 ---
 
@@ -1062,18 +1178,29 @@ If the model fallback chain exhausts all available Gemini models:
 // oracle-types.ts
 
 export type OracleStatus =
-  | "healthy" | "warning" | "critical" | "emergency"
+  | "healthy" | "degraded" | "warning" | "critical" | "emergency"
   | "error" | "quota_exhausted" | "decommissioned";
+// "degraded" = pool member(s) dead but oracle operational (partial pool failure)
+// "warning"  = context pressure approaching checkpoint threshold
 
 export interface DaemonPoolMember {
-  daemon_id: string;
-  session_name: string;                        // e.g. "daemon-pythia-0"
+  daemon_id: string | null;                    // null when soft-dismissed (no live process)
+  session_name: string;                        // e.g. "daemon-pythia-0" (stable, survives dismiss)
   session_dir: string | null;
-  status: "idle" | "busy";
+  status: "idle" | "busy" | "dead" | "dismissed"; // dismissed = soft-dismissed, can respawn
   query_count: number;
   chars_in: number;
   chars_out: number;
   last_synced_interaction_id: string | null;   // for cross-daemon context sync
+  last_query_at: string | null;                // ISO timestamp — for idle timeout detection
+  idle_timeout_ms?: number;                    // default: 300_000 (5 min) — soft-dismiss after idle
+  last_corpus_sync_hash: Record<string, string> | null; // per-source tree hashes at last sync
+  pending_syncs: Array<{                       // queued corpus syncs awaiting injection
+    source_id: string;
+    tree_hash: string;
+    payload_ref: string;                       // temp file or memory ref
+    queued_at: string;
+  }>;
 }
 
 export type OracleRecommendation = "healthy" | "checkpoint_soon" | "checkpoint_now" | "reconstitute";
@@ -1130,11 +1257,12 @@ export interface OracleState {
   version: number;
   spawned_at: string | null;
   discovered_context_window: number | null;
-  daemon_pool: DaemonPoolMember[];         // pool_size members; all share the same corpus
+  daemon_pool: DaemonPoolMember[];         // up to pool_size members; spawned on demand
   session_chars_at_spawn: number | null;   // bootstrap payload chars (same for all members)
   chars_per_token_estimate: number;        // default: 4
-  estimated_total_tokens: number | null;   // aggregate across all pool members
-  tokens_remaining: number | null;         // based on highest-pressure pool member
+  estimated_total_tokens: number | null;   // MAX across pool members (drives checkpoint)
+  estimated_cluster_tokens: number | null; // SUM across pool members (observability only)
+  tokens_remaining: number | null;         // based on highest-pressure pool member (MAX)
   query_count: number;                     // total queries across all pool members
   last_checkpoint_path: string | null;
   status: OracleStatus;
@@ -1275,7 +1403,7 @@ export type OracleErrorCode =
 8. **`oracle_salvage`**: Dead-letter checkpoint from interactions log; empty-log stub path.
 
 9. **`oracle_reconstitute`**: Lock acquisition, checkpoint-supersedes-learnings pattern,
-   tree_hash_incremental live_source sync.
+   hash_gated_delta live_source sync.
 
 10. **`oracle_quality_report`**: Length trend, Code-Symbol Density Ratio,
     `suggested_headroom_tokens` formula.
@@ -1284,7 +1412,7 @@ export type OracleErrorCode =
 
 12. **Slash command / skill** (`~/pythia/skills/pythia.md`).
 
-13. **Post-tool-use hook**: `.pythia-active` marker + registry prefix-match,
+13. **Post-tool-use hook**: `.pythia-active/` directory + registry prefix-match,
     pressure check every 5 tool calls.
 
 ---
@@ -1328,7 +1456,7 @@ export type OracleErrorCode =
 17. **Lock mechanism:** `lock_held_by` + `lock_expires_at` on OracleState. TTL prevents orphaned locks.
 18. **Concurrency:** `writeStateWithRetry()` — 5 retries, exponential backoff + jitter.
 19. **Git branch:** Oracle data lives on the same branch as code. No dedicated oracle branch.
-20. **Active oracle detection:** `.pythia-active` marker file, fallback to registry prefix-match.
+20. **Active oracle detection:** `.pythia-active/` directory with per-oracle JSON files, fallback to registry prefix-match.
 21. **oracle_decommission:** 7-step sequence. Data preserved on disk. Registry entry archived.
 22. **Ion interfaces:** `IonHandoffRequest` + `IonHandoffResponse` defined as logging contracts.
 23. **Self-contradiction detection:** v2 only. `flags` array accepts manual entries in v1.
@@ -1339,6 +1467,18 @@ export type OracleErrorCode =
 28. **Daemon pool:** Default `pool_size: 2`. All members share corpus, log to same `vN-interactions.jsonl`. Cross-daemon sync via `last_synced_interaction_id` delta injection before each query. Pool size 1 = single-threaded; pool size 2 = simultaneous frontend/backend; pool size N = team deployment. Schema supports N from day one.
 29. **Sync mode default:** `hash_gated_delta` using both whole-tree hash (fast gate) + per-file hashes (precise diff). `full_rescan` available as explicit option. Both `last_tree_hash` and `last_file_hashes: Record<string, string>` tracked on `LiveSource`.
 30. **Decommission protocol:** 7-step human-gated process. Screenshot proof of review + Touch ID (macOS Keychain, biometric-locked) + TOTP (phone authenticator) + typed phrase + 5-minute cooling-off + second confirmation. `oracle_decommission` is split into `oracle_decommission_request` (intent) and `oracle_decommission_execute` (destruction). No single agent action can complete this. That is the design.
+31. **Pressure aggregation:** `estimated_total_tokens = MAX(memberTokens)`, not SUM. Each pool member has its own independent context window. `estimated_cluster_tokens = SUM` tracked for observability only.
+32. **Checkpoint behavior:** All pool members pause (oracle-wide lock). Generation is a property of the oracle, not individual daemons. Mixed generations are forbidden.
+33. **Reconstitution model:** Full cutover — drain all queries → checkpoint (daemons still alive, full context) → shrink pool to 0 → spawn fresh v(N+1) member. Rolling replacement would create split-brain; full cutover under lock is safe.
+34. **Partial pool failure:** `status: "degraded"` (not `"warning"` — that's context pressure only). Dead member slot retained in pool with `status: "dead"`. Queries continue routing to healthy members.
+35. **Spawn-on-demand pool:** `pool_size` is a ceiling, not an always-on target. Members spawned when concurrent access is needed, soft-dismissed after `idle_timeout_ms` (default 5 min). Eliminates stale-member sync delta problem — fresh spawn starts at current checkpoint with zero delta.
+36. **`.pythia-active`:** Directory with per-oracle JSON files (not a single file). Prevents concurrent write corruption when multiple oracles are active in the same project root. Each file is atomic temp+rename.
+37. **Decommission token storage:** In-memory only on `GeminiRuntime` singleton. `state.json` is git-tracked — writing a token there means writing it to commit history. MCP server restart invalidates all tokens (user must re-request). This is a security feature.
+38. **TOTP platform:** Cross-platform from day one. TOTP + Master Recovery Key is the core spec. Touch ID is a macOS Keychain enhancement, not a requirement. `pythia-auth` is a compiled binary (Go/Rust) at `~/.pythia/bin/pythia-auth` — not a shell script (inspectable/spoofable).
+39. **DaemonPoolMember extended fields:** `last_query_at` (idle detection), `idle_timeout_ms` (per-member override), `last_corpus_sync_hash` (per-source tree hashes), `pending_syncs` (queued corpus syncs awaiting injection).
+40. **Pool scaling trigger:** When all members are busy and pool ceiling allows, `ask_daemon` kicks off async background spawn and returns `DAEMON_BUSY_QUERY` with `scaling_up: true`. Claude retries after delay. Scaling is visible, not silent. At ceiling: `scaling_up: false`.
+41. **Corpus sync dispatch:** `oracle_sync_corpus` injects immediately to idle members, queues to `pending_syncs` for busy members. `ask_daemon` drains `pending_syncs` before routing any query. Dismissed/dead members skip sync — they get current corpus on next spawn.
+42. **Idle timeout enforcement:** `GeminiRuntime` singleton runs a `setInterval` sweep every 60s. Members where `now - last_query_at > idle_timeout_ms` are soft-dismissed automatically. No lazy evaluation — real timers, real cleanup.
 
 ---
 

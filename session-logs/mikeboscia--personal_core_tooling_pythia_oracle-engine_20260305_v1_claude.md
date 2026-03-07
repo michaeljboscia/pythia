@@ -250,3 +250,110 @@ Continued from v4 design. Ran three full rounds of `/ruthless-interrogator` agai
 - Pool spawn-on-demand: `idle_timeout_ms` field needed on `DaemonPoolMember`, `last_query_at` timestamp needed for idle detection by post-tool-use hook
 
 | [11:30] | Session notes written — design v5/v6, 3 interrogation passes, 65+ assumptions resolved | ✓ |
+
+---
+
+## SESSION UPDATE: 2026-03-06 ~12:30 EST
+
+### Summary
+Wrote all Round 3 resolved answers into the design doc, advancing it from v5 to v6. Ten distinct edits covering spawn-on-demand pool model, pressure aggregation (MAX not SUM), reconstitution (full cutover), `.pythia-active` directory, in-memory decommission token, cross-platform TOTP, DaemonPoolMember extended fields, and 9 new resolved design decisions (#31-#39).
+
+### What Was Accomplished
+- **Design doc v6 written:** `/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md` (1361 → 1453 lines, +92)
+- **Daemon Architecture section rewritten:** "Spawn-on-Demand Pool" — pool_size is ceiling, not always-on. Added Pool Pressure Aggregation and Partial Pool Failure subsections.
+- **DaemonPoolMember interface extended:** `last_query_at`, `idle_timeout_ms`, `last_corpus_sync_hash`, `pending_syncs` array, `status` now includes `"dead"`
+- **OracleState updated:** `estimated_cluster_tokens` (SUM, observability) alongside `estimated_total_tokens` (MAX, drives checkpoint)
+- **Pressure tracking code updated:** MAX formula explicit, per-member tracking, `last_query_at` update
+- **state.json example updated:** Single active member (spawn-on-demand), new fields shown
+- **`.pythia-active` → directory:** Per-oracle JSON files, prevents concurrent write corruption
+- **Decommission token → in-memory only:** GeminiRuntime singleton, never state.json
+- **TOTP → cross-platform:** Core spec is TOTP + Master Recovery Key. Touch ID = macOS enhancement only.
+- **Reconstitution → full cutover:** Drain → shrink to 0 → checkpoint → spawn fresh v(N+1). No mixed generations.
+- **`tree_hash_incremental` → `hash_gated_delta`:** All references renamed throughout doc
+- **Resolved Design Decisions:** 30 → 39 entries
+
+### Key Decisions & Why
+- All decisions were already resolved in Round 3 — this session was about writing them into the doc, not making new ones.
+
+### What Works Now
+- Design doc v6 at `/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md` — 39 resolved decisions, all 3 interrogation rounds encoded
+- All Round 3 answers now written into the doc (was the #1 flagged gap from last session)
+
+### What Doesn't Work / Known Issues
+- No code implemented yet — design only
+- `pythia-auth` binary not built
+- Round 4 interrogation not yet run (optional)
+
+### Current State
+**Phase:** Design v6 complete — all interrogation answers written in
+**Next Step:** Either run a 4th /ruthless-interrogator pass or proceed to implementation starting with `gemini/runtime.ts`
+
+| [12:30] | Round 3 answers written into design doc — v5 → v6, 10 edits, +92 lines, 39 resolved decisions | ✓ |
+
+---
+
+## SESSION UPDATE: 2026-03-07 ~00:15 EST
+
+### Summary
+Resumed Gemini (`pythia-design-review` session) and Codex twins for a full review of the v6 design doc. Twins returned 12 findings (2 convergent, 2 Gemini-only, 8 Codex-only). Fixed 7 straightforward naming/consistency issues without user input, then walked through 6 design decisions one at a time with the user. All 12 findings resolved. Doc now at 1500 lines, 42 resolved design decisions.
+
+### What Was Accomplished
+
+- **Twin review of v6 doc:** Gemini daemon `gd_mmf3tg4z_5` (session: `pythia-design-review`, resumed) + Codex daemon `cd_mmff48pw_6` reviewed full 1453-line doc
+- **12 findings identified:**
+  - 2 convergent: `pending_syncs` flush behavior undefined, idle timeout enforcement undefined
+  - 2 Gemini-only: pool scaling trigger undefined, `"warning"` status overloaded
+  - 8 Codex-only: cutover sequence contradiction, `Math.max(...[])` empty pool bug, "spawn all" vs "spawn 1" contradiction, stale `DAEMON_BUSY` references, `oracle_decommission_cancel` missing, hook references `dead` as OracleStatus, state example stale, `daemon_id` should be nullable
+- **7 fixes applied without user input:**
+  - X3: "Spawn all" → "Spawn one, others on demand"
+  - X4: `DAEMON_BUSY` → `DAEMON_BUSY_QUERY`/`DAEMON_BUSY_LOCK` (3 locations)
+  - X5: `oracle_decommission_cancel` tool contract defined
+  - X6: Hook no longer references `dead` as OracleStatus
+  - X7: `ORACLE_CORPUS_CAP_EXCEEDED` → `CORPUS_CAP_EXCEEDED`, `chars_in_total` → member-level, `estimated_cluster_tokens` added to state example
+  - X8: `daemon_id: string | null`, added `"dismissed"` to member status
+  - Plus: all `tree_hash_incremental` references → `hash_gated_delta`
+- **6 design decisions resolved with user:**
+  - X1: Cutover order = drain → checkpoint (daemons alive) → dismiss → spawn (Option A)
+  - X2: Empty pool = null pressure, `PRESSURE_UNAVAILABLE` (Option A)
+  - G1: Pool scaling = async background spawn, returns `DAEMON_BUSY_QUERY` with `scaling_up: true` (Option C — visible plumbing)
+  - G2: Added `"degraded"` to OracleStatus for pool failure, `"warning"` reserved for context pressure (Option A)
+  - C1: Corpus sync = inject immediately to idle members, queue for busy, drain before query (Option A)
+  - C2: Idle timeout = `setInterval` sweep every 60s on GeminiRuntime singleton (Option B)
+- **Design doc updated:** `/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md` — 1453 → 1500 lines, 39 → 42 resolved decisions
+
+### Key Decisions & Why
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Cutover order | Checkpoint before dismiss | Daemons alive = full context = maximal checkpoint quality |
+| Empty pool pressure | null / PRESSURE_UNAVAILABLE | Honest reporting — no daemon = no pressure to measure |
+| Pool scaling trigger | Async spawn + DAEMON_BUSY_QUERY | User wants visible plumbing, not silent magic |
+| Pool failure status | `"degraded"` (new) | `"warning"` reserved for context pressure — prevents misdiagnosis |
+| Corpus sync dispatch | Idle=inject now, busy=queue | Idle daemon gets fresh code immediately, not on next question |
+| Idle timeout enforcement | setInterval sweep on singleton | Real timers, real cleanup — not lazy evaluation that lies about timeouts |
+
+### What Works Now
+- Design doc v6 at `/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md` — 42 resolved decisions, all twin findings addressed
+- Gemini session `pythia-design-review` preserved with full context across 4 review passes
+
+### What Doesn't Work / Known Issues
+- No code implemented yet — design only
+- `pythia-auth` binary not built
+- Could run another /ruthless-interrogator pass but diminishing returns likely
+
+### Current State
+**Phase:** Design v6 finalized — twin review pass complete, all findings resolved
+**Next Step:** User deciding between another /ruthless-interrogator pass or starting implementation (`gemini/runtime.ts`)
+
+### Sub-agent Work
+- **Gemini daemon `gd_mmf3tg4z_5`** (session: `pythia-design-review`, resumed): 4 findings — pool scaling trigger, `"warning"` overload, `pending_syncs` gap, idle timeout enforcement. Recommended `setInterval` cleanup loop and `"degraded"` status.
+- **Codex daemon `cd_mmff48pw_6`** (thread `019cc517-c360-7bc2-8e92-10ec0802f13d`): 9 findings — cutover contradiction, empty pool math bug, naming inconsistencies (3), missing tool contract, type/prose mismatches (2), lifecycle edge cases. Particularly valuable: caught `Math.max(...[])` = `-Infinity` bug.
+
+### Technical Notes
+- Gemini session `pythia-design-review` now has context across 4 review passes (3 interrogation rounds + this consistency review). Resume with `spawn_daemon(session_name: "pythia-design-review")`.
+- New `DaemonPoolMember.status` values: `"idle" | "busy" | "dead" | "dismissed"`. `daemon_id` is now `string | null` (null when dismissed).
+- `OracleStatus` now includes `"degraded"` between `"healthy"` and `"warning"`.
+- `oracle_decommission_cancel` tool contract added — invalidates in-memory token, logs session_note.
+- `GeminiRuntime` singleton now owns: `decommissionTokens` map (in-memory), `idleSweepInterval` (60s setInterval).
+
+| [00:15] | Twin review complete — 12 findings, all resolved, doc at 1500 lines, 42 decisions | ✓ |
