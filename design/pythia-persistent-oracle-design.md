@@ -102,6 +102,27 @@ This means oracle evolution and code evolution are interleaved in the same `git 
 The `project/oracle/` directory is visible, intentional, and fully version-controlled.
 Anyone who clones the repo gets the full oracle history.
 
+### Pluggable Corpus Backend (Future Integration Point)
+
+Pythia's corpus loading is currently file-based: `resolveCorpusForSpawn()` reads files
+from disk per the manifest, hashes them, and injects them into the daemon. This is
+intentionally designed as a **swappable backend**.
+
+A future "Living Corpus System" (knowledge graph + vector index + tiered retrieval)
+will replace the file-based corpus with a retrieval pipeline:
+- Today: `manifest.json` → read files → hash → inject into daemon
+- Tomorrow: `retrieve_context(query, constraints)` → graph traversal + vector search → inject curated slice
+
+**Design constraints to preserve this future:**
+1. All corpus loading goes through `resolveCorpusForSpawn()` — no tool reads files directly
+2. The daemon receives text payloads, not file paths — the source of those payloads is opaque
+3. `vN-interactions.jsonl` entries are structured ADR-like artifacts — they become first-class
+   nodes in the future knowledge graph (Pythia generates the seed data for LCS)
+4. The `OracleRuntimeBridge` interface is stable — the retrieval backend changes behind it
+
+This is not a v1 feature. It is a v1 **architectural constraint** — don't build anything
+that assumes corpus = files on disk in a way that can't be swapped later.
+
 ### State Artifacts (all in project repo, all git-tracked)
 
 ```
@@ -1479,6 +1500,7 @@ export type OracleErrorCode =
 40. **Pool scaling trigger:** When all members are busy and pool ceiling allows, `ask_daemon` kicks off async background spawn and returns `DAEMON_BUSY_QUERY` with `scaling_up: true`. Claude retries after delay. Scaling is visible, not silent. At ceiling: `scaling_up: false`.
 41. **Corpus sync dispatch:** `oracle_sync_corpus` injects immediately to idle members, queues to `pending_syncs` for busy members. `ask_daemon` drains `pending_syncs` before routing any query. Dismissed/dead members skip sync — they get current corpus on next spawn.
 42. **Idle timeout enforcement:** `GeminiRuntime` singleton runs a `setInterval` sweep every 60s. Members where `now - last_query_at > idle_timeout_ms` are soft-dismissed automatically. No lazy evaluation — real timers, real cleanup.
+43. **Pluggable corpus backend:** All corpus loading goes through `resolveCorpusForSpawn()`. Daemon receives text payloads, never file paths. This preserves future swap to a Living Corpus retrieval pipeline (knowledge graph + vector index). Not a v1 feature — a v1 architectural constraint.
 
 ---
 

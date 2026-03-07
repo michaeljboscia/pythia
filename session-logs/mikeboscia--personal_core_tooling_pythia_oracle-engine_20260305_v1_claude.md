@@ -357,3 +357,97 @@ Resumed Gemini (`pythia-design-review` session) and Codex twins for a full revie
 - `GeminiRuntime` singleton now owns: `decommissionTokens` map (in-memory), `idleSweepInterval` (60s setInterval).
 
 | [00:15] | Twin review complete — 12 findings, all resolved, doc at 1500 lines, 42 decisions | ✓ |
+
+---
+
+## SESSION UPDATE: 2026-03-07 ~01:00 EST
+
+### Summary
+Read and absorbed the Living Corpus System Design doc (`/Users/mikeboscia/My Drive/living-corpus-system-design.md`) — a 730-line knowledge graph + vector index + tiered retrieval architecture for unlimited-scale application memory. Had both twins (Gemini + Codex) read it alongside the Pythia v6 design, then asked the strategic question: combine, separate, or something else? Both twins independently converged on the same answer: they are complementary layers of one platform, separated by time.
+
+### What Was Accomplished
+- **Read Living Corpus System Design:** Full 730-line doc covering LLM context fundamentals, 5M token ingestion architecture, lost-in-the-middle mitigations, tiered retrieval (hot/warm/cold), knowledge graph + vector index, artifact taxonomy, MCP tool design, multi-hop reasoning, and a 10-topic research agenda with sequencing
+- **Both twins read and absorbed both docs:** Gemini (`pythia-design-review` session) and Codex (`cd_mmff48pw_6`) now hold Pythia v6 + Living Corpus in context simultaneously
+- **Strategic relationship resolved:** Pythia = cognition/orchestration layer (daemon lifecycle, sessions, pressure, checkpoints). Living Corpus = data/retrieval layer (graph, vector index, multi-hop, scale). They stack — Pythia sits on top of Living Corpus.
+- **Build order locked:** Pythia first (weeks), Living Corpus second (months), integration third (Pythia's corpus backend becomes pluggable)
+- **Key insight from Gemini:** Pythia is the ingest engine for Living Corpus — every `vN-interactions.jsonl` entry is a perfectly structured ADR node for the future knowledge graph. Using Pythia generates the seed data for LCS.
+
+### Key Decisions & Why
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Combine or separate? | Separate builds, defined interface | Coupling two hard problems slows both; pluggable backend lets them integrate later |
+| Build order | Pythia first | Immediate value, lighter infrastructure, generates structured data for LCS |
+| Relationship | Complementary layers, not competing | Pythia = cognition (sessions, generations), LCS = memory (index, graph, retrieval) |
+| Integration point | Corpus backend becomes pluggable | Today: read manifest files from disk. Tomorrow: `retrieve_context()` against LCS |
+
+### What Works Now
+- Both twins have full context on both systems — can be queried about either or both
+- Strategic direction locked: Pythia → Living Corpus → Integration
+- Design doc v6 at `/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md` still current (42 resolved decisions)
+
+### What Doesn't Work / Known Issues
+- Living Corpus has no concrete spec yet — the doc is a design conversation capture, not an implementation-ready brief like Pythia v6
+- Living Corpus requires significant research phase before building (10-topic research agenda in the doc)
+- Pluggable corpus backend note not yet added to Pythia design doc
+- No code implemented for either system yet
+
+### Current State
+**Phase:** Strategic direction resolved — two-system architecture confirmed
+**Next Step:** Add pluggable backend note to Pythia design doc, then start implementation with `gemini/runtime.ts`
+
+### Sub-agent Work
+- **Gemini daemon `gd_mmf3tg4z_5`** (session: `pythia-design-review`): Read Living Corpus doc, provided strategic assessment. Key contribution: identified Pythia as the "ingest engine" for LCS — interaction logs become knowledge graph seed data. Recommended build Pythia now, let LCS subsume it at month 6+.
+- **Codex daemon `cd_mmff48pw_6`** (thread `019cc517-c360-7bc2-8e92-10ec0802f13d`): Read both docs, provided strategic assessment. Key contribution: framed as "data/retrieval plane" vs "cognition/orchestration plane." Recommended defined interface from day one (`retrieve_context(query, constraints) -> artifacts`).
+
+### Technical Notes
+- Living Corpus doc lives at `/Users/mikeboscia/My Drive/living-corpus-system-design.md` — created in Claude.ai, handed off for Claude Code
+- The doc contains 10 open questions (Appendix B) that need resolution during LCS design phase
+- LCS research agenda has explicit sequencing: GraphRAG paper → LSP/tree-sitter → MTEB/ColBERT → MCP spec → RAGAS evaluation → everything else
+- Both twins still active and holding both docs in context — dismiss after this session or keep for implementation kickoff
+
+| [01:00] | Living Corpus strategic assessment — Pythia + LCS = complementary layers, build Pythia first | ✓ |
+| [01:30] | Pluggable backend note added to design doc (decision #43), committed + pushed (f3d6bbe) | ✓ |
+| [01:45] | /uncompromising-executor invoked — 9 docs needed (skip DESIGN_SYSTEM + FRONTEND_GUIDELINES), Option A layout chosen | ✓ |
+
+---
+
+## SESSION UPDATE: 2026-03-07 ~01:45 EST
+
+### Summary
+Added pluggable corpus backend note to design doc (decision #43). Committed and pushed. Read Living Corpus System Design doc, had twins assess relationship — Pythia and LCS are complementary layers (cognition vs memory), build Pythia first. Invoked /uncompromising-executor to set up canonical doc suite before implementation. Context running low — documenting next steps for fresh session.
+
+### What Was Accomplished
+- Pluggable backend note added to design doc, committed as `f3d6bbe`, pushed to GitHub
+- Living Corpus strategic relationship resolved with twin consensus
+- /uncompromising-executor skill invoked with design doc as input
+- Adapted 11-doc template to 9 docs (skip DESIGN_SYSTEM + FRONTEND_GUIDELINES — no UI)
+- File layout chosen: Option A (execution files at root, canonical specs in `docs/`)
+
+### Current State
+**Phase:** Pre-implementation — canonical doc suite generation
+**Next Step:** Generate 9 /uncompromising-executor docs using sub-agents to preserve context
+
+### IMMEDIATE NEXT SESSION TODO
+
+1. **Create directories:** `mkdir -p /Users/mikeboscia/pythia/docs /Users/mikeboscia/pythia/tasks`
+2. **Generate 9 docs** (use sub-agents for heavy ones):
+   - `docs/PRD.md` — Features as MCP tools + slash commands with FEAT-IDs
+   - `docs/APP_FLOW.md` — Daemon lifecycle, tool call sequences, not screens
+   - `docs/TECH_STACK.md` — Exact versions, dependencies
+   - `docs/BACKEND_STRUCTURE.md` — JSON schemas, MCP tool contracts
+   - `docs/IMPLEMENTATION_PLAN.md` — Phased build plan from design doc
+   - `CLAUDE.md` — Project-level execution rules (at repo root)
+   - `progress.txt` — Current state tracker (at repo root)
+   - `LESSONS.md` — Empty starter (at repo root)
+   - `tasks/todo.md` — First session work plan
+3. All docs cross-reference each other by exact IDs
+4. Source of truth: `/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md` (v6, 1516 lines, 43 decisions)
+5. After docs generated: begin implementation with `gemini/runtime.ts`
+
+### Daemons Still Active
+- **Gemini `gd_mmf3tg4z_5`** (session: `pythia-design-review`) — has full context on Pythia + Living Corpus
+- **Codex `cd_mmff48pw_6`** (thread `019cc517-c360-7bc2-8e92-10ec0802f13d`) — has full context on both docs
+- Both can be used for doc generation in next session
+
+| [01:45] | Session closing — context low, next session generates 9 canonical docs via sub-agents | ✓ |
