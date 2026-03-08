@@ -753,6 +753,9 @@ type OracleResult<T> =
   | { ok: true; data: T; warnings?: string[] }
   | { ok: false; error: { code: OracleErrorCode; message: string; retryable: boolean; details?: unknown } };
 
+// SUPERSEDED: This early error code list is incomplete.
+// See "Canonical OracleErrorCode (25 codes)" in the Tool Contracts section below
+// for the authoritative, complete union type.
 type OracleErrorCode =
   | "ORACLE_NOT_FOUND" | "MANIFEST_INVALID" | "STATE_INVALID" | "DAEMON_NOT_FOUND"
   | "DAEMON_BUSY_QUERY" | "DAEMON_BUSY_LOCK" | "DAEMON_DEAD" | "DAEMON_QUOTA_EXHAUSTED" | "FILE_NOT_FOUND"
@@ -1501,6 +1504,9 @@ export type OracleErrorCode =
 41. **Corpus sync dispatch:** `oracle_sync_corpus` injects immediately to idle members, queues to `pending_syncs` for busy members. `ask_daemon` drains `pending_syncs` before routing any query. Dismissed/dead members skip sync — they get current corpus on next spawn.
 42. **Idle timeout enforcement:** `GeminiRuntime` singleton runs a `setInterval` sweep every 60s. Members where `now - last_query_at > idle_timeout_ms` are soft-dismissed automatically. No lazy evaluation — real timers, real cleanup.
 43. **Pluggable corpus backend:** All corpus loading goes through `resolveCorpusForSpawn()`. Daemon receives text payloads, never file paths. This preserves future swap to a Living Corpus retrieval pipeline (knowledge graph + vector index). Not a v1 feature — a v1 architectural constraint.
+44. **Checkpoint failure during reconstitution:** Cascading fallback — (1) try checkpoint via live daemon (best quality, full context), (2) if that fails, auto-fallback to `oracle_salvage` (fresh API call reads `vN-interactions.jsonl`, synthesizes checkpoint from it), (3) if salvage succeeds, continue reconstitution using salvage-derived checkpoint, (4) if salvage also fails, hard-fail and abort (v(N) stays alive, nothing destroyed). Never continue without some form of knowledge transfer.
+45. **Pressure-gated query rejection during reconstitution:** No artificial drain timeout. When reconstitution is triggered, the system enters `ORACLE_PRESERVING` mode — new queries are rejected with `ORACLE_PRESERVING` status ("Pythia is checkpointing, try again after reconstitution"). Drain simply waits for in-flight queries to finish (no new queries accepted = drain is bounded by the longest in-flight query, seconds not minutes). A generous safety valve (5 minutes) exists as a hard backstop; if it fires, fail-fast (abort reconstitution), never force-proceed. This should essentially never trigger.
+46. **Cascading checkpoint extraction:** `<checkpoint>` tag parsing uses a 3-step pipeline — (1) try XML tag extraction (`<checkpoint>...</checkpoint>`), (2) if no tags found, scrub known LLM wrapper patterns (leading "Sure, here's your checkpoint:" preambles, trailing "Let me know if you need anything" suffixes, common regex patterns), (3) use the scrubbed full response as the checkpoint content with a warning logged. Valid content is never discarded over a formatting issue. Tag-miss frequency is tracked to tune the prompt over time.
 
 ---
 

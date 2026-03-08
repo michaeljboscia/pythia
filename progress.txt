@@ -1,0 +1,93 @@
+PYTHIA ORACLE ENGINE — PROGRESS TRACKER
+========================================
+Last Updated: 2026-03-08
+
+CURRENT PHASE: Pre-Implementation (Documentation Complete)
+IMPLEMENTATION_PLAN PHASE: Not started (Phase 1 next)
+
+STATUS SUMMARY
+--------------
+Design:          COMPLETE (v6 — 46 resolved decisions, 3 interrogation rounds, twin review)
+Documentation:   COMPLETE (9 canonical docs + twin reviews, all findings resolved)
+Implementation:  NOT STARTED
+
+WHAT EXISTS
+-----------
+[x] Design spec: /Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md (v6, 1530+ lines, 46 decisions)
+[x] README.md: /Users/mikeboscia/pythia/README.md
+[x] Registry seed: /Users/mikeboscia/pythia/registry.json (empty — no oracles registered yet)
+[x] Git repo: https://github.com/michaeljboscia/pythia (main branch)
+[x] Project CLAUDE.md: /Users/mikeboscia/pythia/CLAUDE.md
+[x] progress.txt: /Users/mikeboscia/pythia/progress.txt (this file)
+
+CANONICAL DOCS STATUS
+---------------------
+[x] docs/PRD.md — Feature requirements (35 FEAT-IDs)
+[x] docs/APP_FLOW.md — Daemon lifecycle, tool flows, state transitions
+[x] docs/TECH_STACK.md — Exact versions, dependencies
+[x] docs/BACKEND_STRUCTURE.md — JSON schemas, MCP contracts, FEAT-014..035 tagged
+[x] docs/IMPLEMENTATION_PLAN.md — 6-phase build plan (18 steps, 35 FEAT-IDs mapped)
+[x] CLAUDE.md — Project governance
+[x] progress.txt — This file
+[x] LESSONS.md — Design-phase lessons captured
+[x] tasks/todo.md — Session work plan
+
+TWIN REVIEWS
+------------
+[x] docs/review-gemini-canonical-docs.md — 5 findings (3 critical, 1 warning, 1 minor)
+[x] docs/review-codex-canonical-docs.md — 8 findings (3 critical, 4 warning, 1 minor)
+[x] All findings resolved (6 straightforward fixes + 3 design decisions → decisions #44-46)
+
+IMPLEMENTATION PHASES (from IMPLEMENTATION_PLAN.md)
+---------------------------------------------------
+[ ] Phase 1: Foundation (Runtime Extraction + Types)
+    [ ] Step 1.1: GeminiRuntime singleton (FEAT-014, FEAT-015)
+    [ ] Step 1.2: Type definitions (FEAT-016)
+    [ ] Step 1.3: Registry + State management (FEAT-017, FEAT-018)
+[ ] Phase 2: Core Oracle Operations
+    [ ] Step 2.1: Corpus loading pipeline (FEAT-019)
+    [ ] Step 2.2: spawn_oracle (FEAT-001)
+    [ ] Step 2.3: oracle_sync_corpus (FEAT-002)
+    [ ] Step 2.4: oracle_pressure_check (FEAT-003, FEAT-020)
+[ ] Phase 3: Lifecycle Management
+    [ ] Step 3.1: oracle_log_learning (FEAT-005, FEAT-023)
+    [ ] Step 3.2: oracle_checkpoint (FEAT-004)
+    [ ] Step 3.3: oracle_reconstitute (FEAT-009)
+    [ ] Step 3.4: oracle_salvage (FEAT-008)
+[ ] Phase 4: Analysis + Corpus Management
+    [ ] Step 4.1: oracle_quality_report (FEAT-010)
+    [ ] Step 4.2: oracle_add_to_corpus + oracle_update_entry (FEAT-006, FEAT-007)
+    [ ] Step 4.3: Idle timeout enforcement (FEAT-022)
+[ ] Phase 5: Decommission + Security
+    [ ] Step 5.1: oracle_decommission_request + cancel (FEAT-011, FEAT-013)
+    [ ] Step 5.2: oracle_decommission_execute (FEAT-012, FEAT-035)
+    [ ] Step 5.3: pythia-auth CLI binary (FEAT-034)
+[ ] Phase 6: Integration
+    [ ] Step 6.1: Slash command / skill (FEAT-025 through FEAT-032)
+    [ ] Step 6.2: Post-tool-use pressure hook (FEAT-033)
+    [ ] Step 6.3: MCP server registration
+
+KEY FILE PATHS
+--------------
+Design spec:     /Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md
+Engine code:     /Users/mikeboscia/pythia/src/
+MCP server:      /Users/mikeboscia/.claude/mcp-servers/inter-agent/src/
+Registry:        /Users/mikeboscia/pythia/registry.json
+Skills:          /Users/mikeboscia/pythia/skills/
+
+BLOCKERS
+--------
+None currently. Documentation complete, implementation-ready.
+
+NEXT STEP
+---------
+1. Begin Phase 1, Step 1.1: GeminiRuntime singleton extraction
+2. Extract _sessions from gemini/tools.ts into gemini/runtime.ts
+3. Export OracleRuntimeBridge interface
+
+SESSION HISTORY
+---------------
+2026-03-05: Founding design session — created design spec v1-v3
+2026-03-06: Design interrogation rounds 2-3, advanced to v6, twin review (12 findings resolved)
+2026-03-07: Pluggable corpus backend, Living Corpus assessment, /uncompromising-executor invoked
+2026-03-08: Canonical doc generation (9 docs), twin review, 9 findings resolved (decisions #44-46)
