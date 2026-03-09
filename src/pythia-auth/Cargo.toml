@@ -1,0 +1,17 @@
+[package]
+name = "pythia-auth"
+version = "0.1.0"
+edition = "2021"
+description = "Pythia Oracle TOTP authenticator — compiled binary, not a shell script"
+
+[dependencies]
+hmac = "0.12"
+sha1 = "0.10"
+getrandom = "0.2"
+qrcode = "0.14"
+
+[profile.release]
+opt-level = "z"
+strip = true
+lto = true
+codegen-units = 1

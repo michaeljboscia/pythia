@@ -1,16 +1,16 @@
 PYTHIA ORACLE ENGINE — PROGRESS TRACKER
 ========================================
-Last Updated: 2026-03-08
+Last Updated: 2026-03-09
 
-CURRENT PHASE: Pre-Implementation (Research Findings Applied)
-IMPLEMENTATION_PLAN PHASE: Not started (Phase 1 next)
+CURRENT PHASE: Phase 4 COMPLETE — Phase 5 next
+IMPLEMENTATION_PLAN PHASE: Step 5.1 (oracle_decommission_request + cancel)
 
 STATUS SUMMARY
 --------------
 Design:          COMPLETE (v6 — 51 resolved decisions, 3 interrogation rounds, twin review + research)
 Documentation:   UPDATED (9 canonical docs + research findings applied to schemas/specs)
 Research:        COMPLETE (6 docs, 18 findings triaged, 12 adopted, 6 deferred)
-Implementation:  NOT STARTED
+Implementation:  Phase 1 ✅  Phase 2 ✅  Phase 3 ✅  Phase 4 ✅  Phase 5 next
 
 WHAT EXISTS
 -----------
@@ -41,24 +41,24 @@ TWIN REVIEWS
 
 IMPLEMENTATION PHASES (from IMPLEMENTATION_PLAN.md)
 ---------------------------------------------------
-[ ] Phase 1: Foundation (Runtime Extraction + Types)
-    [ ] Step 1.1: GeminiRuntime singleton (FEAT-014, FEAT-015)
-    [ ] Step 1.2: Type definitions (FEAT-016)
-    [ ] Step 1.3: Registry + State management (FEAT-017, FEAT-018)
-[ ] Phase 2: Core Oracle Operations
-    [ ] Step 2.1: Corpus loading pipeline (FEAT-019)
-    [ ] Step 2.2: spawn_oracle (FEAT-001)
-    [ ] Step 2.3: oracle_sync_corpus (FEAT-002)
-    [ ] Step 2.4: oracle_pressure_check (FEAT-003, FEAT-020)
-[ ] Phase 3: Lifecycle Management
-    [ ] Step 3.1: oracle_log_learning (FEAT-005, FEAT-023)
-    [ ] Step 3.2: oracle_checkpoint (FEAT-004)
-    [ ] Step 3.3: oracle_reconstitute (FEAT-009)
-    [ ] Step 3.4: oracle_salvage (FEAT-008)
-[ ] Phase 4: Analysis + Corpus Management
-    [ ] Step 4.1: oracle_quality_report (FEAT-010)
-    [ ] Step 4.2: oracle_add_to_corpus + oracle_update_entry (FEAT-006, FEAT-007)
-    [ ] Step 4.3: Idle timeout enforcement (FEAT-022)
+[x] Phase 1: Foundation (Runtime Extraction + Types)
+    [x] Step 1.1: GeminiRuntime singleton (FEAT-014, FEAT-015)
+    [x] Step 1.2: Type definitions (FEAT-016)
+    [x] Step 1.3: Registry + State management (FEAT-017, FEAT-018)
+[x] Phase 2: Core Oracle Operations
+    [x] Step 2.1: Corpus loading pipeline (FEAT-019)
+    [x] Step 2.2: spawn_oracle (FEAT-001)
+    [x] Step 2.3: oracle_sync_corpus (FEAT-002)
+    [x] Step 2.4: oracle_pressure_check (FEAT-003, FEAT-020)
+[x] Phase 3: Lifecycle Management
+    [x] Step 3.1: oracle_log_learning (FEAT-005, FEAT-023)
+    [x] Step 3.2: oracle_checkpoint (FEAT-004)
+    [x] Step 3.3: oracle_reconstitute (FEAT-009)
+    [x] Step 3.4: oracle_salvage (FEAT-008)
+[x] Phase 4: Analysis + Corpus Management
+    [x] Step 4.1: oracle_quality_report (FEAT-010)
+    [x] Step 4.2: oracle_add_to_corpus + oracle_update_entry (FEAT-006, FEAT-007)
+    [x] Step 4.3: Idle timeout enforcement (FEAT-022)
 [ ] Phase 5: Decommission + Security
     [ ] Step 5.1: oracle_decommission_request + cancel (FEAT-011, FEAT-013)
     [ ] Step 5.2: oracle_decommission_execute (FEAT-012, FEAT-035)
@@ -78,13 +78,17 @@ Skills:          /Users/mikeboscia/pythia/skills/
 
 BLOCKERS
 --------
-None currently. Documentation complete, implementation-ready.
+None.
 
 NEXT STEP
 ---------
-1. Begin Phase 1, Step 1.1: GeminiRuntime singleton extraction
-2. Extract _sessions from gemini/tools.ts into gemini/runtime.ts
-3. Export OracleRuntimeBridge interface
+Phase 5, Step 5.1: oracle_decommission_request + oracle_decommission_cancel (FEAT-011, FEAT-013)
+- Token stored in-memory only (GeminiRuntime.decommissionTokens, never persisted)
+- 10-minute TTL, UUID v4
+- Return human-readable checklist for confirmation steps
+Step 5.2: oracle_decommission_execute (FEAT-012, FEAT-035)
+- 7-step validation: token + TOTP + confirmation phrase + lock + checkpoint + hard-dismiss + archive
+Step 5.3: pythia-auth binary (FEAT-034)
 
 SESSION HISTORY
 ---------------
@@ -93,3 +97,5 @@ SESSION HISTORY
 2026-03-07: Pluggable corpus backend, Living Corpus assessment, /uncompromising-executor invoked
 2026-03-08: Canonical doc generation (9 docs), twin review, 9 findings resolved (decisions #44-46)
 2026-03-08: Pre-implementation research (6 docs, 142KB), twin analysis, 18 findings triaged (decisions #47-51)
+2026-03-09: Phase 1+2+3 implementation complete — 13 MCP tools, 38/38 tests passing, 0 regressions
+2026-03-09: Phase 4 implementation complete — 3 more tools (16 total), 57/57 tests passing, 0 regressions
