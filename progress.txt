@@ -2,15 +2,15 @@ PYTHIA ORACLE ENGINE — PROGRESS TRACKER
 ========================================
 Last Updated: 2026-03-09
 
-CURRENT PHASE: Phase 4 COMPLETE — Phase 5 next
-IMPLEMENTATION_PLAN PHASE: Step 5.1 (oracle_decommission_request + cancel)
+CURRENT PHASE: Phase 5 COMPLETE — Phase 6 next
+IMPLEMENTATION_PLAN PHASE: Step 6.1 (Slash command / skill)
 
 STATUS SUMMARY
 --------------
 Design:          COMPLETE (v6 — 51 resolved decisions, 3 interrogation rounds, twin review + research)
 Documentation:   UPDATED (9 canonical docs + research findings applied to schemas/specs)
 Research:        COMPLETE (6 docs, 18 findings triaged, 12 adopted, 6 deferred)
-Implementation:  Phase 1 ✅  Phase 2 ✅  Phase 3 ✅  Phase 4 ✅  Phase 5 next
+Implementation:  Phase 1 ✅  Phase 2 ✅  Phase 3 ✅  Phase 4 ✅  Phase 5 ✅  Phase 6 next
 
 WHAT EXISTS
 -----------
@@ -59,10 +59,10 @@ IMPLEMENTATION PHASES (from IMPLEMENTATION_PLAN.md)
     [x] Step 4.1: oracle_quality_report (FEAT-010)
     [x] Step 4.2: oracle_add_to_corpus + oracle_update_entry (FEAT-006, FEAT-007)
     [x] Step 4.3: Idle timeout enforcement (FEAT-022)
-[ ] Phase 5: Decommission + Security
-    [ ] Step 5.1: oracle_decommission_request + cancel (FEAT-011, FEAT-013)
-    [ ] Step 5.2: oracle_decommission_execute (FEAT-012, FEAT-035)
-    [ ] Step 5.3: pythia-auth CLI binary (FEAT-034)
+[x] Phase 5: Decommission + Security
+    [x] Step 5.1: oracle_decommission_request + cancel (FEAT-011, FEAT-013)
+    [x] Step 5.2: oracle_decommission_execute (FEAT-012, FEAT-035)
+    [x] Step 5.3: pythia-auth CLI binary (FEAT-034)
 [ ] Phase 6: Integration
     [ ] Step 6.1: Slash command / skill (FEAT-025 through FEAT-032)
     [ ] Step 6.2: Post-tool-use pressure hook (FEAT-033)
@@ -82,13 +82,9 @@ None.
 
 NEXT STEP
 ---------
-Phase 5, Step 5.1: oracle_decommission_request + oracle_decommission_cancel (FEAT-011, FEAT-013)
-- Token stored in-memory only (GeminiRuntime.decommissionTokens, never persisted)
-- 10-minute TTL, UUID v4
-- Return human-readable checklist for confirmation steps
-Step 5.2: oracle_decommission_execute (FEAT-012, FEAT-035)
-- 7-step validation: token + TOTP + confirmation phrase + lock + checkpoint + hard-dismiss + archive
-Step 5.3: pythia-auth binary (FEAT-034)
+Phase 6, Step 6.1: Slash command / skill at /Users/mikeboscia/pythia/skills/pythia.md
+Phase 6, Step 6.2: Post-tool-use pressure hook (FEAT-033)
+Phase 6, Step 6.3: MCP server registration (confirm all 19 tools in server.ts)
 
 SESSION HISTORY
 ---------------
@@ -99,3 +95,4 @@ SESSION HISTORY
 2026-03-08: Pre-implementation research (6 docs, 142KB), twin analysis, 18 findings triaged (decisions #47-51)
 2026-03-09: Phase 1+2+3 implementation complete — 13 MCP tools, 38/38 tests passing, 0 regressions
 2026-03-09: Phase 4 implementation complete — 3 more tools (16 total), 57/57 tests passing, 0 regressions
+2026-03-09: Phase 5 implementation complete — 3 more tools (19 total), pythia-auth Rust binary, 77/77 tests passing, 0 regressions
