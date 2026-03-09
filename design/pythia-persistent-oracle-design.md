@@ -1283,7 +1283,8 @@ export interface OracleState {
   discovered_context_window: number | null;
   daemon_pool: DaemonPoolMember[];         // up to pool_size members; spawned on demand
   session_chars_at_spawn: number | null;   // bootstrap payload chars (same for all members)
-  chars_per_token_estimate: number;        // default: 4
+  chars_per_token_estimate: number;        // default: 4 (fallback only when countTokens unavailable)
+  token_count_method: "exact" | "estimate"; // [#49] whether pressure uses countTokens API or char heuristic
   estimated_total_tokens: number | null;   // MAX across pool members (drives checkpoint)
   estimated_cluster_tokens: number | null; // SUM across pool members (observability only)
   tokens_remaining: number | null;         // based on highest-pressure pool member (MAX)
@@ -1298,6 +1299,8 @@ export interface OracleState {
     raw: string;                           // Pythia's raw ack response
     checked_at: string;
   } | null;
+  next_seq: number;                        // [#49] monotonic counter for InteractionEntry.seq allocation
+  generation_since_reground: number;       // [#51] generations since last full corpus re-grounding
   state_version: number;
   updated_at: string;
 }
@@ -1314,29 +1317,63 @@ export type InteractionType = "consultation" | "feedback" | "sync_event" | "sess
 export type InteractionScope = "architectural" | "operational" | "other";
 
 export interface InteractionEntry {
+  // Identity & sequencing
   id: string;                           // "v<N>-q<NNN>" or "v<N>-q<NNN>-fb"
+  seq: number;                          // [#49] monotonic sequence number (oracle-local, gap detection + replay)
+  entry_schema_version: number;         // [#49] per-entry schema version for upcasting (current: 2)
   type: InteractionType;
   oracle_name: string;
   version: number;
   query_count: number;
   timestamp: string;
+
+  // Tracing (OpenTelemetry-compatible, decision #50)
+  trace_id: string;                     // groups related operations (e.g. query → daemon ask → log)
+  span_id: string;                      // identifies this specific operation
+  parent_span_id: string | null;        // links to parent span (null for root spans)
+
+  // Pressure snapshot
   tokens_remaining_at_query: number;
   chars_in_at_query: number;
+
+  // Model provenance
+  model_actual?: string;                // which model actually responded (after fallback chain)
+
+  // Interaction scope
   interaction_scope?: InteractionScope; // for consultation type
-  // consultation fields
+
+  // Consultation fields
   question?: string;
-  ion_delegated?: boolean;              // true if this consultation was delegated to Ion
-  ion_query?: string;                   // required if ion_delegated === true
-  ion_response?: string;               // required if ion_delegated === true
-  counsel?: string;                     // Pythia's synthesis (may incorporate Ion's answer)
-  decision?: string | null;            // what was decided; null if not yet determined
-  quality_signal?: 1 | 2 | 3 | 4 | 5 | null; // set by Claude, not Pythia
+  ion_delegated?: boolean;
+  ion_query?: string;
+  ion_response?: string;
+  counsel?: string;                     // full raw Pythia response
+  counsel_sha256?: string;              // SHA-256 hash of counsel content
+  decision?: string | null;
+  quality_signal?: 1 | 2 | 3 | 4 | 5 | null;
+
+  // Causal links
+  caused_by?: string[];                 // parent interaction IDs (builds decision graph)
   flags?: string[];
-  // feedback fields
-  references?: string;                  // consultation id this feedback closes
+
+  // Usage telemetry (from Gemini API response)
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    cached_tokens?: number;
+  };
+  latency?: {
+    started_at: string;
+    first_token_ms?: number;
+    duration_ms: number;
+  };
+
+  // Feedback fields
+  references?: string;
   implemented?: boolean;
-  outcome?: string;                     // what actually happened
-  divergence?: string;                  // how reality differed from counsel
+  outcome?: string;
+  divergence?: string;
 }
 
 export interface IonHandoffRequest {

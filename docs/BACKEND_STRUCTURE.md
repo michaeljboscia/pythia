@@ -328,22 +328,41 @@ Design constraints:
 ```jsonl
 {
   "id": "v1-q003",
+  "seq": 3,
+  "entry_schema_version": 2,
   "type": "consultation",
   "oracle_name": "string",
   "version": 1,
   "query_count": 3,
   "timestamp": "2026-03-05T10:25:00-05:00",
+  "trace_id": "string (OTel trace ID grouping related operations)",
+  "span_id": "string (OTel span ID for this operation)",
+  "parent_span_id": "string | null (OTel parent span, null for root)",
   "tokens_remaining_at_query": 1758750,
   "chars_in_at_query": 920000,
+  "model_actual": "string (which model actually responded after fallback chain)",
   "interaction_scope": "'architectural' | 'operational' | 'other' (optional)",
   "question": "string (the question asked)",
   "counsel": "string (full raw Pythia response)",
+  "counsel_sha256": "string (SHA-256 hash of counsel content)",
   "decision": "string | null (what was decided; null if not yet determined)",
   "ion_delegated": "boolean (optional, true if delegated to Ion/Codex)",
   "ion_query": "string (required if ion_delegated === true)",
   "ion_response": "string (required if ion_delegated === true)",
   "quality_signal": "1 | 2 | 3 | 4 | 5 | null (set by Claude, not Pythia)",
-  "flags": ["string[] (e.g. 'self_contradiction', manual in v1)"]
+  "caused_by": ["string[] (parent interaction IDs, builds decision graph)"],
+  "flags": ["string[] (e.g. 'self_contradiction', manual in v1)"],
+  "usage": {
+    "prompt_tokens": "number",
+    "completion_tokens": "number",
+    "total_tokens": "number",
+    "cached_tokens": "number (optional)"
+  },
+  "latency": {
+    "started_at": "string (ISO 8601)",
+    "first_token_ms": "number (optional)",
+    "duration_ms": "number"
+  }
 }
 ```
 
@@ -352,11 +371,16 @@ Design constraints:
 ```jsonl
 {
   "id": "v1-q003-fb",
+  "seq": 4,
+  "entry_schema_version": 2,
   "type": "feedback",
   "oracle_name": "string",
   "version": 1,
   "query_count": 0,
   "timestamp": "2026-03-05T14:00:00-05:00",
+  "trace_id": "string (OTel trace ID)",
+  "span_id": "string (OTel span ID)",
+  "parent_span_id": "string | null",
   "tokens_remaining_at_query": 1700000,
   "chars_in_at_query": 950000,
   "references": "v1-q003",
@@ -647,7 +671,7 @@ export interface InteractionEntry {
   // Tracing (OpenTelemetry-compatible)
   trace_id: string;                     // [F18] Groups related operations (e.g. query → daemon ask → log)
   span_id: string;                      // [F18] Identifies this specific operation
-  parent_span_id?: string | null;       // [F18] Links to parent span (null for root spans)
+  parent_span_id: string | null;        // [F18] Links to parent span (null for root spans)
 
   // Pressure snapshot
   tokens_remaining_at_query: number;
@@ -933,6 +957,7 @@ export type OracleErrorCode =
 **Behavior:**
 - Acquires operation lock; returns `DAEMON_BUSY_LOCK` if lock held
 - Returns error if `tokens_remaining < checkpoint_headroom_tokens / 4` (too late to safely generate -- use `oracle_salvage` instead)
+- **MANDATORY: temperature: 0** (decision #51 — prevents generational drift)
 - Sends Pythia the checkpoint prompt with XML output tags:
   ```
   Write your checkpoint inside <checkpoint> tags. Cover:
@@ -943,9 +968,15 @@ export type OracleErrorCode =
   (3) Every architectural/strategic decision made based on your counsel
   (4) Your top 10 cross-cutting insights from the full corpus
   (5) Gaps, contradictions, or uncertainties detected
+  (6) Source citations: every claim MUST cite the source document
+      or interaction ID it originated from. If you cannot cite it,
+      do not include it. (decision #51)
   Be exhaustive -- this is your legacy for your successor.
   ```
-- Extracts `<checkpoint>...</checkpoint>` from response
+- Extracts checkpoint content via cascading pipeline (decision #46):
+  - Step 1: Try `<checkpoint>...</checkpoint>` tag extraction
+  - Step 2: If no tags, scrub known LLM wrapper patterns
+  - Step 3: Use scrubbed full response as checkpoint, log warning
 - Saves to `<oracle_dir>/checkpoints/v<N>-checkpoint.md`
 - Adds checkpoint to manifest `static_entries` with `role: "checkpoint"`
 - Git commits if `commit: true`
@@ -963,7 +994,7 @@ export type OracleErrorCode =
   "name": "string (required)",
   "entry": {
     "question": "string (required for consultation)",
-    "counsel": "string (optional)",
+    "counsel": "string (optional, full raw Pythia response)",
     "decision": "string | null (optional)",
     "type": "InteractionType (default: 'consultation')",
     "interaction_scope": "InteractionScope (optional)",
@@ -971,7 +1002,9 @@ export type OracleErrorCode =
     "ion_query": "string (required if ion_delegated === true)",
     "ion_response": "string (required if ion_delegated === true)",
     "quality_signal": "1 | 2 | 3 | 4 | 5 | null (optional)",
+    "caused_by": "string[] (optional, parent interaction IDs)",
     "flags": "string[] (optional)",
+    "model_actual": "string (optional, which model responded)",
     "references": "string (optional, for feedback type)",
     "implemented": "boolean (optional, for feedback type)",
     "outcome": "string (optional, for feedback type)",
@@ -998,6 +1031,17 @@ export type OracleErrorCode =
 - Appends structured `InteractionEntry` to `<oracle_dir>/learnings/v<N>-interactions.jsonl`
 - Updates `query_count` in `state.json`
 - Git commits are batched via `batchCommitLearnings()` -- writes to JSONL immediately (data safe on disk), defers `git commit` until flush trigger fires
+
+**Auto-populated fields (tool fills, caller does NOT provide):**
+- `id` -- generated from version + query_count (e.g. `v1-q004`)
+- `seq` -- allocated from `state.json.next_seq` (monotonic, never reused)
+- `entry_schema_version` -- hardcoded to current schema version (2)
+- `timestamp` -- ISO 8601 at time of write
+- `trace_id`, `span_id`, `parent_span_id` -- from active OTel span context
+- `tokens_remaining_at_query`, `chars_in_at_query` -- from current pool member state
+- `counsel_sha256` -- computed from `counsel` if present
+- `usage` -- from Gemini API response `usage_metadata` (if available from the preceding `ask_daemon` call)
+- `latency` -- from timing of the preceding `ask_daemon` call
 
 ---
 
@@ -1646,6 +1690,8 @@ export function getGeminiRuntime(): OracleRuntimeBridge { ... }
 **In-memory state on the singleton:**
 - `decommissionTokens: Map<string, { token: string; expires_at: number }>` -- decommission tokens, never persisted to disk (FEAT-035)
 - `idleSweepInterval: NodeJS.Timeout` -- `setInterval` loop (every 60s) that sweeps all oracle pools for members where `Date.now() - last_query_at > idle_timeout_ms`. Expired members are soft-dismissed automatically. Started on singleton instantiation, cleared on process shutdown. This is the sole enforcement mechanism for idle timeouts. (FEAT-022)
+- `ppidWatchdog: NodeJS.Timeout` -- `setInterval` loop (every 5s) that polls `process.ppid` to detect parent death (decision #48). If parent PID changes or disappears, executes tree-kill on all active daemon processes. Required because Claude Code sends `SIGKILL` on session end — `process.on('exit')` never fires. Also performs startup orphan sweep: on singleton instantiation, checks for PID files from previous crashes and kills any orphaned PTY processes before accepting tool calls.
+- `toolMutex: Mutex` -- `async-mutex` instance protecting all async read-modify-write sequences on the singleton (decision #47). Acquired before any pool state modification (spawn, dismiss, route query, update member status). Prevents corruption from concurrent MCP tool dispatch.
 
 ---
 

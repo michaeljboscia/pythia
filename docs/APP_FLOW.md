@@ -368,11 +368,15 @@ Step 6: Ask daemon (FEAT-015)
         |
         v
 Step 7: Log learning (FEAT-005)
-        - Claude invokes oracle_log_learning with structured InteractionEntry:
-          { id: "v1-q004", type: "consultation", question, counsel, decision, ... }
-        - Appends to <oracle_dir>/learnings/vN-interactions.jsonl
+        - Claude invokes oracle_log_learning with caller-provided fields:
+          { question, counsel, decision, type, caused_by, model_actual, ... }
+        - Tool auto-populates: id, seq (from next_seq), entry_schema_version,
+          timestamp, trace_id/span_id/parent_span_id (from OTel context),
+          tokens_remaining_at_query, chars_in_at_query, counsel_sha256,
+          usage (from Gemini API), latency (from ask_daemon timing)
+        - Appends full InteractionEntry to <oracle_dir>/learnings/vN-interactions.jsonl
         - Triggers batched git commit (FEAT-023) if flush conditions met
-        - Updates query_count in state.json
+        - Updates query_count in state.json, increments next_seq
         - Updates member's last_synced_interaction_id
         |
         v

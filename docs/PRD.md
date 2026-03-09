@@ -127,6 +127,8 @@ Reads `state.json`, computes `tokens_remaining` from character totals using the 
 
 **Acceptance Criteria:**
 - [ ] Reads current `state.json` for the named oracle
+- [ ] Uses `countTokens` API as primary pressure signal when available; falls back to char heuristic (decision #49)
+- [ ] Tracks active mode in `state.json.token_count_method` (`"exact"` or `"estimate"`)
 - [ ] Computes `estimated_total_tokens = MAX(memberTokens)` across active (non-dismissed, non-dead) pool members
 - [ ] Computes `estimated_cluster_tokens = SUM(memberTokens)` for observability
 - [ ] Computes `tokens_remaining = discovered_context_window - estimated_total_tokens`
@@ -153,9 +155,10 @@ Acquires an operation lock, sends Pythia a structured checkpoint prompt with XML
 **Acceptance Criteria:**
 - [ ] Acquires operation lock before proceeding; returns `DAEMON_BUSY_LOCK` if lock is held by another operation
 - [ ] Returns error if `tokens_remaining < checkpoint_headroom_tokens / 4` (too late for safe checkpoint; directs user to `oracle_salvage` instead)
-- [ ] Sends checkpoint prompt requesting content inside `<checkpoint>` tags, covering: static corpus key findings, all Q&A summaries, architectural decisions made, top 10 cross-cutting insights, and gaps/contradictions detected
+- [ ] Sends checkpoint prompt at **temperature: 0** (decision #51 — prevents generational drift)
+- [ ] Prompt requests content inside `<checkpoint>` tags, covering: static corpus key findings, all Q&A summaries, architectural decisions made, top 10 cross-cutting insights, gaps/contradictions, and source citations for every claim (decision #51)
 - [ ] Prompt explicitly instructs: do NOT summarize source code -- summarize architectural decisions and constraints the code expresses
-- [ ] Extracts content between `<checkpoint>` and `</checkpoint>` tags from response
+- [ ] Extracts checkpoint via cascading pipeline (decision #46): tags → scrub LLM wrappers → use full response with warning
 - [ ] Saves checkpoint to `<oracle_dir>/checkpoints/v<N>-checkpoint.md`
 - [ ] Adds checkpoint file to manifest `static_entries` with `role: "checkpoint"`
 - [ ] Git commits the checkpoint and manifest changes when `commit: true`
@@ -179,8 +182,10 @@ Appends a structured `InteractionEntry` to `vN-interactions.jsonl`. Supports con
 **Acceptance Criteria:**
 - [ ] Appends a valid `InteractionEntry` JSON line to `<oracle_dir>/learnings/v<N>-interactions.jsonl`
 - [ ] Assigns sequential interaction ID in format `v<N>-q<NNN>` for consultations, `v<N>-q<NNN>-fb` for feedback
+- [ ] Allocates monotonic `seq` from `state.json.next_seq` (decision #49 — gap detection + deterministic replay)
+- [ ] Auto-populates: `entry_schema_version`, `timestamp`, `trace_id`/`span_id`/`parent_span_id` (from OTel context, decision #50), `counsel_sha256`, `usage` (from Gemini API), `latency` (from ask_daemon timing)
 - [ ] Validates: if `ion_delegated: true`, requires non-empty `ion_query` and `ion_response`; returns error if validation fails
-- [ ] Updates `query_count` in `state.json` via `writeStateWithRetry()`
+- [ ] Updates `query_count` and increments `next_seq` in `state.json` via `writeStateWithRetry()`
 - [ ] Records `tokens_remaining_at_query` and `chars_in_at_query` from current state
 - [ ] Writes to JSONL file immediately (data safe on disk before git commit)
 - [ ] Defers git commit via `batchCommitLearnings()` until any flush trigger fires: pending entries >= 10, pending bytes >= 256KB, 30-second debounce timer, explicit `force: true`, or process shutdown hook
@@ -400,6 +405,9 @@ Extract the `_sessions` map and daemon lifecycle functions (spawn, ask, dismiss)
 - [ ] `tools.ts` refactored to use `getGeminiRuntime()` instead of its own `_sessions` -- all existing inter-agent functionality preserved
 - [ ] Singleton holds ephemeral in-memory state: `decommissionTokens: Map<string, { token: string; expires_at: number }>` (never persisted to disk)
 - [ ] Singleton holds `idleSweepInterval: NodeJS.Timeout` (see FEAT-022)
+- [ ] Singleton holds `ppidWatchdog: NodeJS.Timeout` — polls `process.ppid` every 5s to detect parent death, executes tree-kill on all daemons (decision #48)
+- [ ] Singleton holds `toolMutex: Mutex` — `async-mutex` instance protecting all async read-modify-write on pool state (decision #47)
+- [ ] On startup: performs orphan sweep — checks for PID files from previous crashes, kills orphaned PTY processes before accepting tool calls (decision #48)
 - [ ] All existing tests pass after refactor
 
 ---
