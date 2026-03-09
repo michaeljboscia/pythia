@@ -227,6 +227,9 @@ Design constraints:
     "checked_at": "string (ISO 8601)"
   },
   "state_version": "number (optimistic concurrency counter, increment on every write)",
+  "next_seq": "number (monotonic counter for InteractionEntry.seq allocation)",
+  "token_count_method": "'exact' | 'estimate' (whether pressure uses countTokens API or char heuristic)",
+  "generation_since_reground": "number (generations since last full corpus re-grounding, reset on reground)",
   "updated_at": "string (ISO 8601)"
 }
 ```
@@ -237,11 +240,19 @@ Design constraints:
 - **`state_version`**: Optimistic concurrency counter -- incremented on every write. Prevents lost updates from concurrent tool calls.
 - **Lock mechanism**: `lock_held_by` + `lock_expires_at` provide named operation locks with TTL. Operations that must not run concurrently (checkpoint, reconstitute, decommission) acquire a named lock before proceeding. If a lock is held, competing operations return `DAEMON_BUSY_LOCK` and the caller can retry after `lock_expires_at`. TTL prevents orphaned locks on crash. Long-running operations use `startLockHeartbeat()` to extend `lock_expires_at` every 60s.
 
+**In-memory concurrency (decision #47):**
+
+- `async-mutex` protects all async read-modify-write sequences on the `GeminiRuntime` singleton (daemon pool, active tool executions)
+- Required because MCP SDK dispatches tool calls concurrently — without mutex, parallel `ask_daemon` calls can corrupt pool state
+- File-system concurrency (`writeStateWithRetry`) and in-memory concurrency (`async-mutex`) are complementary — both are required
+
 **Pressure aggregation:**
 
 - `estimated_total_tokens = MAX(memberTokens)` -- each pool member has its own independent context window; the highest-pressure member determines checkpoint timing
 - `estimated_cluster_tokens = SUM(memberTokens)` -- observability metric only, does NOT drive checkpoint decisions
-- Per-member formula: `memberTokens[i] = (session_chars_at_spawn + member.chars_in + member.chars_out) / chars_per_token_estimate`
+- **Primary (exact):** `memberTokens[i]` from Gemini `countTokens` API / response `usage_metadata` (decision #49). Requires network.
+- **Fallback (estimate):** `memberTokens[i] = (session_chars_at_spawn + member.chars_in + member.chars_out) / chars_per_token_estimate`
+- `token_count_method` in state.json tracks which mode is active. Starts as `"exact"`, falls back to `"estimate"` if `countTokens` fails.
 - `chars_per_token_estimate` (default: 4) has +/-10-15% error margin on English/code text; the 250K absolute headroom absorbs variance
 - `session_chars_at_spawn` captures the exact character count of the bootstrap payload (preamble + all corpus content). Set after full corpus load completes.
 - When pool is empty (no active members): `estimated_total_tokens`, `estimated_cluster_tokens`, and `tokens_remaining` are all `null`; `oracle_pressure_check` returns `PRESSURE_UNAVAILABLE`
@@ -589,7 +600,8 @@ export interface OracleState {
   discovered_context_window: number | null;
   daemon_pool: DaemonPoolMember[];         // up to pool_size members; spawned on demand
   session_chars_at_spawn: number | null;   // bootstrap payload chars (same for all members)
-  chars_per_token_estimate: number;        // default: 4
+  chars_per_token_estimate: number;        // default: 4 (fallback only when countTokens unavailable)
+  token_count_method: "exact" | "estimate"; // [F16] Whether pressure uses countTokens API or char heuristic
   estimated_total_tokens: number | null;   // MAX across pool members (drives checkpoint)
   estimated_cluster_tokens: number | null; // SUM across pool members (observability only)
   tokens_remaining: number | null;         // based on highest-pressure pool member (MAX)
@@ -604,6 +616,8 @@ export interface OracleState {
     raw: string;                           // Pythia's raw ack response
     checked_at: string;
   } | null;
+  next_seq: number;                        // [F6] Monotonic counter for InteractionEntry.seq allocation
+  generation_since_reground: number;       // [F12] Generations since last full corpus re-grounding (reset on reground)
   state_version: number;
   updated_at: string;
 }
@@ -620,25 +634,59 @@ export type InteractionType = "consultation" | "feedback" | "sync_event" | "sess
 export type InteractionScope = "architectural" | "operational" | "other";
 
 export interface InteractionEntry {
+  // Identity & sequencing
   id: string;                           // "v<N>-q<NNN>" or "v<N>-q<NNN>-fb"
+  seq: number;                          // [F5] Monotonic sequence number (oracle-local, gap detection + replay)
+  entry_schema_version: number;         // [F5] Per-entry schema version for upcasting (current: 2)
   type: InteractionType;
   oracle_name: string;
   version: number;
   query_count: number;
   timestamp: string;
+
+  // Tracing (OpenTelemetry-compatible)
+  trace_id: string;                     // [F18] Groups related operations (e.g. query → daemon ask → log)
+  span_id: string;                      // [F18] Identifies this specific operation
+  parent_span_id?: string | null;       // [F18] Links to parent span (null for root spans)
+
+  // Pressure snapshot
   tokens_remaining_at_query: number;
   chars_in_at_query: number;
+
+  // Model provenance
+  model_actual?: string;                // [F8] Which model actually responded (after fallback chain)
+
+  // Interaction scope
   interaction_scope?: InteractionScope; // for consultation type
-  // consultation fields
+
+  // Consultation fields
   question?: string;
   ion_delegated?: boolean;              // true if this consultation was delegated to Ion
   ion_query?: string;                   // required if ion_delegated === true
   ion_response?: string;               // required if ion_delegated === true
-  counsel?: string;                     // Pythia's synthesis (may incorporate Ion's answer)
+  counsel?: string;                     // Pythia's full raw response (may incorporate Ion's answer)
+  counsel_sha256?: string;              // [F17] SHA-256 hash of counsel content (integrity verification)
   decision?: string | null;            // what was decided; null if not yet determined
   quality_signal?: 1 | 2 | 3 | 4 | 5 | null; // set by Claude, not Pythia
+
+  // Causal links
+  caused_by?: string[];                 // [F7] Array of parent interaction IDs (builds decision graph)
   flags?: string[];
-  // feedback fields
+
+  // Usage telemetry
+  usage?: {                             // [F5] Token accounting from Gemini API response
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    cached_tokens?: number;
+  };
+  latency?: {                           // [F5] Timing metrics
+    started_at: string;                 // ISO 8601
+    first_token_ms?: number;            // Time to first token
+    duration_ms: number;                // Total call duration
+  };
+
+  // Feedback fields
   references?: string;                  // consultation id this feedback closes
   implemented?: boolean;
   outcome?: string;                     // what actually happened

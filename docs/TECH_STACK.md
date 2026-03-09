@@ -63,8 +63,18 @@ all of them and uses most directly.
 
 ## New Dependencies (Pythia-specific)
 
-Pythia requires **zero new npm dependencies**. All functionality is built on
-Node.js built-ins and existing MCP server dependencies.
+Pythia requires **4 new npm dependencies**, adopted from pre-implementation
+research findings (decisions #47, #50). All other functionality uses Node.js
+built-ins and existing MCP server dependencies.
+
+### New Production Dependencies
+
+| Package | Version | Pythia Usage | Research Finding |
+|---------|---------|-------------|-----------------|
+| `async-mutex` | ^0.5.0 | **Direct** -- protects `GeminiRuntime` singleton pool state during concurrent MCP tool dispatch. Required because MCP SDK dispatches tool calls concurrently without awaiting. | F1: Both Gemini + Codex flagged as critical |
+| `@opentelemetry/api` | ^1.9.0 | **Direct** -- span/trace creation for every MCP tool call. Generates `trace_id`, `span_id`, `parent_span_id` written to `InteractionEntry`. | F18: Real OTel instrumentation |
+| `@opentelemetry/sdk-node` | ^0.52.0 | **Direct** -- NodeSDK initialization, span processor, resource detection. Configured at MCP server startup. | F18: Real OTel instrumentation |
+| `@opentelemetry/exporter-trace-otlp-http` | ^0.52.0 | **Direct** -- exports spans to OTLP-compatible collector (Grafana Tempo, Jaeger). Env-gated via `OTEL_EXPORTER_OTLP_ENDPOINT` — no collector = spans silently dropped. | F18: Real OTel instrumentation |
 
 | Module | Type | Purpose |
 |--------|------|---------|

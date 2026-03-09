@@ -23,7 +23,7 @@
 
 | Document | Path | Purpose |
 |----------|------|---------|
-| Design Spec | `/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md` | Authoritative design — v6, 46 decisions resolved |
+| Design Spec | `/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md` | Authoritative design — v6, 51 decisions resolved |
 | PRD | `/Users/mikeboscia/pythia/docs/PRD.md` | Feature requirements with FEAT-IDs and acceptance criteria |
 | APP_FLOW | `/Users/mikeboscia/pythia/docs/APP_FLOW.md` | Daemon lifecycle, tool flows, state transitions |
 | TECH_STACK | `/Users/mikeboscia/pythia/docs/TECH_STACK.md` | Exact versions, dependencies |
@@ -106,7 +106,7 @@ At the start of every session, read these files in this order:
 
 ### Design Spec Is Law
 - The design doc at `/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md` is the authoritative spec
-- All 46 resolved design decisions are final
+- All 51 resolved design decisions are final
 - If you think a decision should change, propose the change — do not silently deviate
 - Types, schemas, error codes, and tool contracts must match the design doc exactly
 

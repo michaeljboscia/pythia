@@ -486,7 +486,9 @@ Step 2: Headroom verification
         |
         v
 Step 3: Checkpoint prompt generation
-        - Sends Pythia the checkpoint prompt with XML output tags:
+        - Sends Pythia the checkpoint prompt with XML output tags
+        - **MANDATORY: temperature: 0** (decision #51 — prevents generational drift)
+        - Prompt:
           "Write your checkpoint inside <checkpoint> tags. Cover:
            (1) All static corpus files loaded and key findings from each.
                DO NOT summarize source code -- summarize the architectural
@@ -495,6 +497,9 @@ Step 3: Checkpoint prompt generation
            (3) Every architectural/strategic decision made based on your counsel
            (4) Your top 10 cross-cutting insights from the full corpus
            (5) Gaps, contradictions, or uncertainties detected
+           (6) Source citations: every claim MUST cite the source document
+               or interaction ID it originated from. If you cannot cite it,
+               do not include it. (decision #51)
            Be exhaustive -- this is your legacy for your successor."
         |
         v
