@@ -304,6 +304,9 @@ Design constraints:
   "last_error": null,
   "last_bootstrap_ack": null,
   "state_version": 1,
+  "next_seq": 5,
+  "token_count_method": "exact",
+  "generation_since_reground": 0,
   "updated_at": "2026-03-05T10:25:00-05:00"
 }
 ```

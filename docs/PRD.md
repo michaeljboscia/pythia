@@ -182,7 +182,7 @@ Appends a structured `InteractionEntry` to `vN-interactions.jsonl`. Supports con
 **Acceptance Criteria:**
 - [ ] Appends a valid `InteractionEntry` JSON line to `<oracle_dir>/learnings/v<N>-interactions.jsonl`
 - [ ] Assigns sequential interaction ID in format `v<N>-q<NNN>` for consultations, `v<N>-q<NNN>-fb` for feedback
-- [ ] Allocates monotonic `seq` from `state.json.next_seq` (decision #49 — gap detection + deterministic replay)
+- [ ] Allocates monotonic `seq` from `state.json.next_seq` (research finding F5/F6 — gap detection + deterministic replay)
 - [ ] Auto-populates: `entry_schema_version`, `timestamp`, `trace_id`/`span_id`/`parent_span_id` (from OTel context, decision #50), `counsel_sha256`, `usage` (from Gemini API), `latency` (from ask_daemon timing)
 - [ ] Validates: if `ion_delegated: true`, requires non-empty `ion_query` and `ion_response`; returns error if validation fails
 - [ ] Updates `query_count` and increments `next_seq` in `state.json` via `writeStateWithRetry()`
@@ -537,11 +537,12 @@ MCP-side character tracking updated after every `ask_daemon` call. Per-member `c
 **Acceptance Criteria:**
 - [ ] After every `ask_daemon` call, updates the responding member's `chars_in` and `chars_out` in `state.json`
 - [ ] Updates member's `last_query_at` timestamp
-- [ ] Per-member token estimate: `(session_chars_at_spawn + member.chars_in + member.chars_out) / chars_per_token_estimate`
+- [ ] **Primary (exact):** Uses Gemini `countTokens` API / response `usage_metadata` for per-member token counts (decision #49)
+- [ ] **Fallback (estimate):** Per-member `(session_chars_at_spawn + member.chars_in + member.chars_out) / chars_per_token_estimate` when `countTokens` unavailable
+- [ ] Tracks active mode in `state.json.token_count_method` (`"exact"` or `"estimate"`)
 - [ ] `estimated_total_tokens = MAX(memberTokens)` across active members (drives checkpoint decisions)
 - [ ] `estimated_cluster_tokens = SUM(memberTokens)` across active members (observability only, does NOT drive checkpoint)
 - [ ] `tokens_remaining = discovered_context_window - estimated_total_tokens`
-- [ ] Uses `chars_per_token_estimate` (default: 4) acknowledging +/-10-15% error margin on English/code text
 - [ ] Absolute headroom model: checkpoint triggers when `tokens_remaining < checkpoint_headroom_tokens`, not at a percentage threshold
 - [ ] When no active pool members exist, sets pressure fields to null and reports `PRESSURE_UNAVAILABLE`
 
