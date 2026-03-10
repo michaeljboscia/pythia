@@ -7,9 +7,9 @@
 
 ## Pipeline Config
 
-- Max concurrent runs: 2 (conservative — validate focused DR approach first)
+- Max concurrent runs: 5
 - Completions before checkpoint: 4
-- Completions so far: 5
+- Completions so far: 7
 
 ---
 
@@ -17,8 +17,11 @@
 
 | Slot | Research Item | DR ID | Output File | Started |
 |------|---------------|-------|-------------|---------|
-| 1 | KG-02 RAPTOR Paper | `v1_ChdWQmF3YVo2V0JxZUd6N0lQa3VPQjRBNBIXVkJhd2FaNldCcWVHejdJUGt1T0I0QTQ` | `/Users/mikeboscia/pythia/research/lcs/knowledge-graphs/KG-02_RAPTOR-Paper-Stanford.md` | 2026-03-10T13:02:12 |
-| 2 | RF-10 RAG Production | `v1_ChdYeGF3YVp2NUtyZml6N0lQaHRTenNBTRIXWHhhd2FadjVLcmZpejdJUGh0U3pzQU0` | `/Users/mikeboscia/pythia/research/lcs/retrieval-fundamentals/RF-10_RAG-Production-Patterns.md` | 2026-03-10T13:02:24 |
+| 1 | RF-03 Hybrid Retrieval | `v1_ChdBeDZ3YWFtTEdQN256N0lQd1p2a3FBVRIXQXg2d2FhbUxHUDduejdJUHdadmtxQVU` | `/Users/mikeboscia/pythia/research/lcs/retrieval-fundamentals/RF-03_Hybrid-Retrieval-Dense-+-Sparse-Fusion.md` | 2026-03-10T13:34:59 |
+| 2 | RF-08 Context Window Packing | `v1_ChdEaDZ3YWZ6UktzSG56N0lQMnBEWm1BOBIXRGg2d2FmelJLc0huejdJUDJwRFptQTg` | `/Users/mikeboscia/pythia/research/lcs/retrieval-fundamentals/RF-08_Context-Window-Packing-Strategies.md` | 2026-03-10T13:35:11 |
+| 3 | RF-09 Chunking Strategies | `v1_ChdHUjZ3YWRXUkNmN256N0lQd1p2a3FBVRIXR1I2d2FkV1JDZjduejdJUHdadmtxQVU` | `/Users/mikeboscia/pythia/research/lcs/retrieval-fundamentals/RF-09_Chunking-Strategies-Comprehensive-Survey.md` | 2026-03-10T13:35:21 |
+| 4 | KG-03 Property Graphs vs RDF | `v1_ChdKUjZ3YWJHakQ5bU5tdGtQODR5cnVRRRIXSlI2d2FiR2pEOW1ObXRrUDg0eXJ1UUU` | `/Users/mikeboscia/pythia/research/lcs/knowledge-graphs/KG-03_Property-Graphs-vs-RDF-OWL.md` | 2026-03-10T13:35:33 |
+| 5 | KG-09 Relationship Extraction | `v1_ChdMaDZ3YWJDcE5lcjhxdHNQNFlTWnFRRRIXTGg2d2FiQ3BOZXI4cXRzUDRZU1pxUUU` | `/Users/mikeboscia/pythia/research/lcs/knowledge-graphs/KG-09_Relationship-Extraction-Strategies-Compared.md` | 2026-03-10T13:35:43 |
 
 ---
 
@@ -27,12 +30,24 @@
 Position in queue — next item to launch is QUEUE[0]:
 
 ```
-QUEUE[0]  = RF-03  Hybrid Retrieval                    → retrieval-fundamentals/RF-03_Hybrid-Retrieval-Dense-+-Sparse-Fusion.md
-QUEUE[1]  = RF-08  Context Window Packing              → retrieval-fundamentals/RF-08_Context-Window-Packing-Strategies.md
-QUEUE[2]  = RF-09  Chunking Strategies                 → retrieval-fundamentals/RF-09_Chunking-Strategies-Comprehensive-Survey.md
-QUEUE[3]  = KG-03  Property Graphs vs RDF/OWL          → knowledge-graphs/KG-03_Property-Graphs-vs-RDF-OWL.md
-QUEUE[4]  = KG-09  Relationship Extraction             → knowledge-graphs/KG-09_Relationship-Extraction-Strategies-Compared.md
-QUEUE[5]  = EM-01  MTEB Leaderboard                    → embedding-models/EM-01_MTEB-Leaderboard-Deep-Analysis.md
+QUEUE[0]  = EM-01  MTEB Leaderboard                    → embedding-models/EM-01_MTEB-Leaderboard-Deep-Analysis.md
+QUEUE[1]  = EM-02  OpenAI Embeddings                   → embedding-models/EM-02_OpenAI-text-embedding-3-Family.md
+QUEUE[2]  = EM-03  Voyage AI Embeddings                → embedding-models/EM-03_Voyage-AI-Embedding-Models.md
+QUEUE[3]  = EM-05  Code Embedding Models               → embedding-models/EM-05_Code-Embedding-Models-Survey.md
+QUEUE[4]  = CI-01  tree-sitter Architecture            → code-intelligence/CI-01_tree-sitter-Architecture-and-TypeScript-Grammar.md
+QUEUE[5]  = CI-02  tree-sitter Code Chunking           → code-intelligence/CI-02_tree-sitter-for-Code-Chunking.md
+QUEUE[6]  = CI-03  LSP Headless Analysis               → code-intelligence/CI-03_LSP-for-Headless-Code-Analysis.md
+QUEUE[7]  = VD-01  Qdrant Deep Dive                    → vector-databases/VD-01_Qdrant-Deep-Dive.md
+QUEUE[8]  = VD-02  LanceDB Deep Dive                   → vector-databases/VD-02_LanceDB-Deep-Dive.md
+QUEUE[9]  = VD-06  Vector DB Benchmarking              → vector-databases/VD-06_Vector-DB-Benchmarking-Methodology.md
+QUEUE[10] = GD-01  Kuzu Deep Dive                      → graph-databases/GD-01_Kuzu-Deep-Dive.md
+QUEUE[11] = GD-02  SQLite as Graph Store               → graph-databases/GD-02_SQLite-as-Graph-Store.md
+QUEUE[12] = GD-06  Graph DB Benchmarking               → graph-databases/GD-06_Graph-DB-Benchmarking-at-Small-Scale.md
+QUEUE[13] = MC-01  MCP Protocol Spec                   → mcp-architecture/MC-01_MCP-Protocol-Specification-Full-Deep-Read.md
+QUEUE[14] = EQ-02  Retrieval Metrics                   → evaluation/EQ-02_Retrieval-Metrics-Comprehensive.md
+QUEUE[15] = EQ-04  Golden Question Set                 → evaluation/EQ-04_Golden-Question-Set-Design-Methodology.md
+QUEUE[16] = NL-03  Text Chunking Algorithms            → nlp-foundations/NL-03_Text-Chunking-Algorithms-Deep-Dive.md
+QUEUE[17] = PE-02  Embedded DB Concurrency             → production-engineering/PE-02_Embedded-Database-Concurrency-Patterns.md
 QUEUE[6]  = EM-02  OpenAI Embeddings                   → embedding-models/EM-02_OpenAI-text-embedding-3-Family.md
 QUEUE[7]  = EM-03  Voyage AI Embeddings                → embedding-models/EM-03_Voyage-AI-Embedding-Models.md
 QUEUE[8]  = EM-05  Code Embedding Models               → embedding-models/EM-05_Code-Embedding-Models-Survey.md
@@ -66,6 +81,8 @@ Prompt path: append `prompt/<filename_without_ext>_prompt.md`
 | 3 | RF-02 Sparse Retrieval BM25 | gemini-search ⚠️ | `/Users/mikeboscia/pythia/research/lcs/retrieval-fundamentals/RF-02_Sparse-Retrieval-BM25-and-TF-IDF.md` | 2026-03-10T13:05 |
 | 4 | KG-01 GraphRAG Paper | gemini-search ⚠️ | `/Users/mikeboscia/pythia/research/lcs/knowledge-graphs/KG-01_GraphRAG-Paper-Microsoft-2024.md` | 2026-03-10T13:10 |
 | 5 | EQ-01 RAGAS Framework | gemini-search ⚠️ | `/Users/mikeboscia/pythia/research/lcs/evaluation/EQ-01_RAGAS-Framework-Deep-Dive.md` | 2026-03-10T13:10 |
+| 6 | KG-02 RAPTOR Paper | DR (focused) ✓ | `/Users/mikeboscia/pythia/research/lcs/knowledge-graphs/KG-02_RAPTOR-Paper-Stanford.md` | 2026-03-10T13:26 |
+| 7 | RF-10 RAG Production | DR (focused) ✓ | `/Users/mikeboscia/pythia/research/lcs/retrieval-fundamentals/RF-10_RAG-Production-Patterns.md` | 2026-03-10T13:26 |
 
 ⚠️ = gemini-search + Claude synthesis (not DR-grounded). Numbers/benchmarks need source verification before ADRs rely on them. Consider re-running as focused DR for P0 blockers.
 
