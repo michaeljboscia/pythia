@@ -12,13 +12,13 @@
 | 1 | `spawn_oracle` | ✅ PASS | Resumed at zero cost, 6 corpus files, 1.9M tokens |
 | 2 | `oracle_pressure_check` | ✅ PASS | healthy, 90% headroom |
 | 3 | `oracle_log_learning` | ✅ PASS | v1-q001, v1-q002, v1-q003 written; seq counter correct |
-| 4 | `oracle_sync_corpus` | ⚠️ PARTIAL | Hash detection ✅, file-level delta ✅, delivery ❌ (BUG-1: manifest hash update premature) |
-| 5 | `oracle_checkpoint` | ❌ BLOCKED | DAEMON_NOT_FOUND — BUG-2: spawn_oracle resume doesn't reset last_query_at |
+| 4 | `oracle_sync_corpus` | ✅ PASS | Round 2: 2 files synced, 1 member synced immediately, tree_hash updated (BUG-1 fixed) |
+| 5 | `oracle_checkpoint` | ✅ PASS | Round 2: v2-checkpoint.md created (10.6KB), lock acquired/released cleanly (BUG-2 fixed) |
 | 6 | `oracle_quality_report` | ✅ PASS | All QualityReport fields returned; no crash with small sample |
 | 7 | `oracle_add_to_corpus` | ✅ PASS | LESSONS.md added, sha256 computed, manifest updated |
 | 8 | `oracle_update_entry` | ✅ PASS | Stale-update guard validated; role+sha256 updated correctly |
 | 9 | `oracle_salvage` | ✅ PASS | 3 entries processed, checkpoint written without daemon |
-| 10 | `oracle_reconstitute` | ✅ PASS* | v1→v2 success with checkpoint_first:false workaround (BUG-3) |
+| 10 | `oracle_reconstitute` | ✅ PASS | Round 2: v2→v3 with checkpoint_first:true (default), no workaround needed (BUG-3+4 fixed) |
 | 11 | `oracle_decommission_request` | ✅ PASS | Token+checklist returned; 10-min TTL; in-memory only |
 | 12 | `oracle_decommission_cancel` | ✅ PASS | Token invalidated; oracle status unchanged |
 | 13 | `oracle_decommission_execute` | ⬜ DEFERRED | Requires throwaway oracle — deferred to next session |
@@ -153,25 +153,25 @@ Zero regressions on existing inter-agent tools (spawn_daemon, ask_daemon, etc.).
 **Symptom:** When all pool members are dismissed/dead, sync correctly detects file changes but writes new `last_tree_hash` to manifest even though no daemon received the delta. On the next call (after respawn), `isChanged=false` → files skipped → daemon never gets the updated corpus.
 **Root cause:** `writeManifest(last_tree_hash=newHash)` at end of sync loop runs unconditionally — not gated on `membersSyncedImmediately > 0 || membersQueued > 0`.
 **Fix applied:** Added `sourceSyncedImmediately` / `sourceQueued` counters per loop iteration. Skip `writeManifest` and `writeStateWithRetry` when both are zero. Fix in `/Users/mikeboscia/.claude/mcp-servers/inter-agent/src/oracle-tools.ts` — needs session restart to take effect.
-**Status:** Fix applied, awaiting session restart verification.
+**Status:** ✅ FIXED — Verified in Round 2 (2026-03-10). Commit 5968029.
 
 ### BUG-2: spawn_oracle Resume — last_query_at Not Reset
 **Tool:** `spawn_oracle` (resume path)
 **Symptom:** After every `spawn_oracle` that resumes an existing session, the daemon is dismissed by the idle sweep within 0-60 seconds. Any subsequent tool call that needs an active daemon (checkpoint, sync injection, quality query) gets DAEMON_NOT_FOUND.
 **Root cause:** `spawn_oracle` resume path does not update `last_query_at` in state.json for resumed pool members. The idle sweep sees the original `last_query_at` (which may be 20-30 min old) and dismisses on the next tick.
-**Fix needed:** In `spawn_oracle` resume branch, write `last_query_at = new Date().toISOString()` for all resumed pool members in `writeStateWithRetry`.
-**Status:** Fix NOT yet applied. Blocked `oracle_checkpoint` test.
+**Fix applied:** In `spawn_oracle` resume branch, `writeStateWithRetry` sets `last_query_at = new Date().toISOString()` for all non-dismissed/dead pool members.
+**Status:** ✅ FIXED — Verified in Round 2 (2026-03-10). Daemon survived spawn → pressure_check → checkpoint (3+ min). Commit 5968029.
 
 ### BUG-3: oracle_reconstitute — Stale In-Memory Manifest After checkpoint_first
 **Tool:** `oracle_reconstitute`
 **Symptom:** With `checkpoint_first: true` (default), reconstitute internally calls checkpoint → falls back to salvage → salvage rewrites `v1-checkpoint.md` with new content (new sha256) → salvage updates manifest on disk — but reconstitute continues with the in-memory manifest copy loaded at function start. Corpus hash validation compares in-memory manifest sha256 against on-disk file → HASH_MISMATCH.
 **Root cause:** `oracle_reconstitute` reads manifest once at entry, then never re-reads after `checkpoint_first` completes. Salvage updates manifest.json on disk but the caller has a stale reference.
-**Fix needed:** After `checkpoint_first` completes, re-read manifest from disk via `readManifest(oracleDir)` before proceeding to `resolveCorpusForSpawn`.
-**Status:** Fix NOT yet applied. Workaround: call with `checkpoint_first: false` when checkpoint already exists.
+**Fix applied:** After `checkpoint_first` completes, manifest is re-read from disk via `readManifest(oracleDir)` before creating `updatedManifest`.
+**Status:** ✅ FIXED — Verified in Round 2 (2026-03-10). v2→v3 reconstitute with checkpoint_first:true succeeded cleanly. Commit 5968029.
 
 ### BUG-4: oracle_salvage — sha256 Stored in Manifest Doesn't Match On-Disk File
 **Tool:** `oracle_salvage`
 **Symptom:** After direct `oracle_salvage` call, the checkpoint file is written but the sha256 stored in the manifest entry doesn't match `shasum -a 256` of the file on disk.
-**Root cause:** Unclear — possibly sha256 is computed from content string before atomic write (tmp→rename), or manifest is written with a stale sha256 from a previous checkpoint entry.
-**Fix needed:** Investigate `runSalvage` — verify sha256 is computed from the final on-disk file AFTER `atomicWriteFile` completes (not from the content string pre-write).
-**Status:** Fix NOT yet applied. Manual workaround: `oracle_update_entry` to re-sync sha256.
+**Root cause:** sha256 was computed from the in-memory content string before `atomicWriteFile`, not from the post-write on-disk file. Encoding/newline normalization during atomic write caused mismatch.
+**Fix applied:** After `atomicWriteFile` completes, file is read back from disk and sha256 is computed from the on-disk bytes.
+**Status:** ✅ FIXED — Verified in Round 2 (2026-03-10). Reconstitute's internal checkpoint produced matching sha256. Commit 5968029.

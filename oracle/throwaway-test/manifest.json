@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "name": "throwaway-test",
+  "project": "pythia",
+  "version": 1,
+  "checkpoint_headroom_tokens": 200000,
+  "pool_size": 1,
+  "static_entries": [
+    {
+      "path": "/Users/mikeboscia/pythia/docs/PRD.md",
+      "role": "specification",
+      "required": true,
+      "sha256": "b9027d64f756ceb631bb9946b96fe685c4a957a2f1401fcdc3b9bce28a7e8f04",
+      "added_at": "2026-03-10T03:15:00.000Z",
+      "priority": 1
+    }
+  ],
+  "live_sources": [],
+  "load_order": [
+    "specification",
+    "implementation",
+    "documentation",
+    "reference",
+    "test",
+    "other"
+  ],
+  "created_at": "2026-03-10T03:15:00.000Z"
+}
