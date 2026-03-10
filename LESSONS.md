@@ -18,6 +18,11 @@ Scope: project
 
 ## Design Phase Lessons
 
+## 2026-03-10 — Missing "FEAT-000": No Creation Tool for Lifecycle Objects
+🤔 What happened: Built 13 operational MCP tools for managing Pythia oracles (spawn, checkpoint, sync, decommission) but never built the tool that creates one from scratch. The gap was invisible because the builder hand-crafted bootstrap artifacts (manifest.json, registry entry, directories, TOTP key) during development. The design spec, PRD, 3 interrogation rounds, twin reviews, 77 unit tests, and 13 integration tests all assumed the oracle already existed.
+✅ Lesson: When designing a system that manages lifecycle objects (create → use → destroy), start the PRD with the creation story. If FEAT-001 assumes the object exists, you've skipped the most important feature. Ask: "How does the very first user get from zero to one?" This applies to any object lifecycle: databases, services, environments, oracles.
+Scope: project
+
 ## 2026-03-06 — Design Doc Contradictions Survive Multiple Passes
 What happened: After 3 interrogation rounds and a twin review, 12 contradictions were still found in the design doc (stale error codes, missing tool contracts, overloaded status values).
 Lesson: Every time the design doc is revised, run a full consistency sweep: error codes match their definitions, tool contracts exist for every referenced tool, status values are used consistently. Contradictions compound — catching them early is cheaper than catching them in code.
