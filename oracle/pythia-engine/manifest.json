@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "name": "pythia-engine",
+  "project": "pythia",
+  "version": 1,
+  "checkpoint_headroom_tokens": 200000,
+  "pool_size": 1,
+  "static_entries": [
+    {
+      "path": "/Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md",
+      "role": "specification",
+      "required": true,
+      "sha256": "2d7f9cd4d7ef191a80971fed15f80a4564c8f17a35da2fdec78cec31122ce374",
+      "added_at": "2026-03-09T23:15:00.000Z",
+      "priority": 1
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/PRD.md",
+      "role": "specification",
+      "required": true,
+      "sha256": "b9027d64f756ceb631bb9946b96fe685c4a957a2f1401fcdc3b9bce28a7e8f04",
+      "added_at": "2026-03-09T23:15:00.000Z",
+      "priority": 2
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/BACKEND_STRUCTURE.md",
+      "role": "specification",
+      "required": true,
+      "sha256": "78930ce813b44c70964f6cad247ad21c609fb2dfde750d287d6b24ff13d645e0",
+      "added_at": "2026-03-09T23:15:00.000Z",
+      "priority": 3
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/APP_FLOW.md",
+      "role": "documentation",
+      "required": true,
+      "sha256": "60e4142720112ac4519576b308783331cac351d25370c89247d0f8a31e1e8efc",
+      "added_at": "2026-03-09T23:15:00.000Z",
+      "priority": 4
+    }
+  ],
+  "live_sources": [
+    {
+      "id": "oracle-tools-src",
+      "root": "/Users/mikeboscia/.claude/mcp-servers/inter-agent/src",
+      "include": ["oracle-tools.ts", "oracle-types.ts"],
+      "exclude": ["test-*.mjs"],
+      "role": "implementation",
+      "required": false,
+      "sync_mode": "hash_gated_delta",
+      "max_files": 5,
+      "max_sync_bytes": 5242880,
+      "priority": 5
+    }
+  ],
+  "load_order": ["specification", "implementation", "documentation", "reference", "test", "other"],
+  "created_at": "2026-03-09T23:15:00.000Z"
+}
