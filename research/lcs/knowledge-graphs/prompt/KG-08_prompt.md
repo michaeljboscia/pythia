@@ -1,39 +1,47 @@
-# Research Prompt: KG-08 Knowledge Graph Schema Design for Polymorphic Nodes
+# Research Prompt: KG-08 Schema Design for Polymorphic Nodes (P1)
 
 ## Research Objective
-Design a robust graph schema for LCS that can represent fundamentally different entity types (papers, ADRs, code symbols, repos, logs, test cases, sessions) without collapsing into either over-generalized nodes or brittle type-specific silos. Evaluate schema patterns used in production property-graph systems and identify the minimal schema contract that supports retrieval, traversal, and evolution. This research is a primary input to ADR-001.
+Design a robust polymorphic graph schema for LCS that supports diverse node types (papers, functions, ADRs, logs, sessions, tests) while preserving query performance, schema clarity, and evolution safety. The study must produce concrete schema conventions and migration rules. Findings feed ADR-001 and cross-reference KG-03 and GD-01.
 
 ## Research Questions
-1. What schema pattern best supports polymorphism in property graphs: single-label supertype with subtype properties, multi-label inheritance, or explicit type nodes with `INSTANCE_OF` relationships?
-2. Which shared base properties should every node and edge have for provenance and lifecycle (`source_id`, `version`, `created_at`, `updated_at`, `confidence`, `ingest_run_id`)?
-3. How should typed relationships be modeled to support both strict semantics and future extensibility across artifact classes?
-4. What indexing strategy is needed to preserve traversal/query performance as node type diversity increases?
-5. How should schema evolution be handled when new artifact types appear (for example, adding telemetry nodes later) without destructive migrations?
-6. Should LCS enforce schema constraints at write time, or allow soft schema with validation jobs and repair routines?
-7. What failure patterns emerge in polymorphic graph designs (type explosion, ambiguous edges, query complexity drift), and what guardrails prevent them?
+1. Which polymorphism strategy best fits LCS: multi-label nodes, supertype+subtype properties, or explicit type nodes?
+2. What base properties should every node/edge carry for provenance and lifecycle operations?
+3. How should relation typing be constrained to avoid semantic drift and edge ambiguity?
+4. What indexing strategy is required for performant mixed-type queries?
+5. How should schema evolution add/remove node types without breaking existing queries?
+6. What validation rules should run at write time versus periodic consistency checks?
+7. How should temporal/version attributes be modeled to support freshness and supersession?
+8. What query patterns become overly complex under certain polymorphism choices?
+9. How should confidence and extraction-source metadata be normalized across entity types?
+10. What anti-patterns cause type explosion and maintenance burden?
+11. How should schema design anticipate future v2 features (contradiction edges, causal links)?
+12. What minimal schema should be locked for v1 versus flexible extension points?
 
 ## Starting Sources
-- Neo4j data modeling guide — https://neo4j.com/docs/getting-started/data-modeling/
-- Memgraph data modeling documentation — https://memgraph.com/docs/data-modeling
-- TigerGraph schema design references — https://docs.tigergraph.com/gsql-ref/current/ddl-and-loading/defining-a-graph-schema
-- LlamaIndex Property Graph index guide — https://docs.llamaindex.ai/en/stable/module_guides/indexing/lpg_index_guide/
-- OpenCypher resources and specification hub — https://opencypher.org/
-- Microsoft GraphRAG implementation (entity/relation modeling choices) — https://github.com/microsoft/graphrag
+- Neo4j data modeling — https://neo4j.com/docs/getting-started/data-modeling/
+- Memgraph data modeling — https://memgraph.com/docs/data-modeling
+- TigerGraph schema docs — https://docs.tigergraph.com/gsql-ref/current/ddl-and-loading/defining-a-graph-schema
+- LlamaIndex property graph guide — https://docs.llamaindex.ai/en/stable/module_guides/indexing/lpg_index_guide/
+- openCypher portal — https://opencypher.org/
+- GraphRAG repository (schema artifacts) — https://github.com/microsoft/graphrag
+- Kuzu docs — https://kuzudb.github.io/docs/
+- RDF 1.1 concepts (comparison context) — https://www.w3.org/TR/rdf11-concepts/
+- OWL 2 primer (comparison context) — https://www.w3.org/TR/owl2-primer/
 
 ## What to Measure, Compare, or Evaluate
-- Query complexity: number of joins/hops and query readability for top LCS use cases under each schema pattern.
-- Performance: traversal latency and index hit rate for mixed-type query workloads.
-- Evolution cost: number of migrations and backward-compatibility breaks when introducing a new node type.
-- Data quality: rate of invalid edge types, orphan nodes, and schema-rule violations.
-- Retrieval effectiveness: improvement in answer grounding/citation due to richer typed relationships.
-- Operability: schema introspection clarity and ease of debugging data/model drift.
+- Query complexity and maintainability under candidate schemas.
+- Performance for representative mixed-type traversal queries.
+- Schema evolution simulation: adding/removing node and edge types.
+- Validation error rates and recovery effort for invalid graph writes.
+- Provenance query completeness across node classes.
+- Long-term migration risk under expected roadmap expansions.
 
 ## Definition of Done
-- Two to three candidate schemas are evaluated with concrete sample data and representative queries.
-- A recommended polymorphic schema for LCS v1 is selected with explicit naming conventions and constraints.
-- Required base properties and edge semantics are defined in a machine-checkable spec.
-- A schema evolution policy is documented (how to add/retire types safely).
-- ADR-001 receives a complete schema decision package, not just principles.
+- A canonical polymorphic schema spec is produced with naming conventions.
+- Required base properties and constraints are formalized.
+- Evolution and migration policy is documented for ADR-001.
+- Validation and linting requirements are defined.
+- Tradeoffs versus KG-03 alternatives are explicitly resolved.
 
 ## How Findings Feed LCS Architecture Decisions
-This research defines ADR-001’s canonical graph model and directly constrains ingestion and extraction pipelines that must emit schema-compliant nodes/edges. It also impacts downstream retrieval because schema clarity determines whether LCS can reliably traverse across heterogeneous evidence chains during query resolution.
+This research operationalizes ADR-001 by defining the durable graph schema contract. It ensures LCS can scale artifact diversity without sacrificing performance, queryability, or data quality.

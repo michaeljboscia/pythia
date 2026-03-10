@@ -1,39 +1,47 @@
-# Research Prompt: RF-07 Lost-in-the-Middle in Long-Context LLMs
+# Research Prompt: RF-07 Lost-in-the-Middle (P0)
 
 ## Research Objective
-Establish a decision-grade understanding of the lost-in-the-middle effect and its practical impact on LCS answer quality when retrieved evidence is packed into long contexts. Quantify how evidence position affects retrieval-grounded QA performance across model families and context lengths, then identify mitigations with reproducible gains. The output must directly inform ADR-009 (Context Assembly and Packing Policy).
+Quantify and explain lost-in-the-middle degradation for LCS workloads, then identify mitigation strategies that improve grounded answer quality without unacceptable token/latency cost. The study must combine paper-level evidence with reproducible LCS-specific experiments across model families, context lengths, and artifact mixes. Findings feed ADR-009 and should explicitly cross-reference NL-04 and RF-08.
 
 ## Research Questions
-1. What is the measured performance drop when the same supporting passage is placed at the beginning, middle, or end of context, and how large is the delta by task type (fact lookup vs synthesis vs multi-hop reasoning)?
-2. Which model families show the steepest middle-position degradation, and which are most robust at 16k, 32k, 128k, and 200k+ token windows?
-3. Does the degradation pattern change when context includes heterogeneous artifact types (code snippets, ADR text, logs, and prose) rather than homogeneous passages?
-4. How does retrieval quality interact with positional bias: does stronger top-k relevance compensate for middle placement, or does position dominate regardless of retrieval score?
-5. Which mitigations are empirically validated: result reordering, evidence duplication near edges, query-focused summaries, section headers, or hierarchical prompting?
-6. What are the failure signatures in production traces (high-confidence wrong answers, citation mismatch, omission of central evidence), and how can LCS detect them automatically?
-7. What is the token-cost vs quality tradeoff for each mitigation, and which mitigation set is Pareto-optimal for LCS latency and budget constraints?
+1. How large is the answer-quality drop when key evidence is placed in the middle versus beginning/end of context for LCS query classes?
+2. Which model families and context-window sizes show the steepest positional degradation curves?
+3. How does degradation differ for code-heavy, ADR-heavy, and mixed artifact prompts?
+4. Which mechanisms from attention/positioning theory best explain observed failures (cross-reference NL-04)?
+5. How do chunk count, separator style, and metadata headers affect middle-position neglect?
+6. Do high-quality reranked chunks still fail if packed in middle positions?
+7. Which mitigations work best: edge duplication, long-context reordering, query-focused summaries, hierarchical prompting, or multi-pass retrieval?
+8. What token/latency cost does each mitigation add, and what is the quality-per-token frontier?
+9. How can LCS detect positional failures automatically in production telemetry (cross-reference EQ-06)?
+10. What failure signatures indicate mitigation overfitting to benchmark tasks rather than real workloads?
+11. How should packing policy adapt by question type (fact lookup vs synthesis vs multi-hop)?
+12. What minimum evidence should block ADR-009 decisions for production rollout?
 
 ## Starting Sources
-- Lost in the Middle: How Language Models Use Long Contexts (Liu et al.) — https://arxiv.org/abs/2307.03172
-- Official benchmark code for Lost in the Middle — https://github.com/nelson-liu/lost-in-the-middle
-- LongBench: A Bilingual, Multitask Benchmark for Long Context Understanding — https://github.com/THUDM/LongBench
-- RAG original paper (for baseline retrieval-grounded generation assumptions) — https://arxiv.org/abs/2005.11401
-- LlamaIndex node postprocessors (for practical reordering/compression hooks) — https://docs.llamaindex.ai/en/stable/module_guides/querying/node_postprocessors/
-- LangChain long-context reordering strategy docs — https://python.langchain.com/docs/how_to/long_context_reorder/
+- Lost in the Middle paper — https://arxiv.org/abs/2307.03172
+- Lost in the Middle code — https://github.com/nelson-liu/lost-in-the-middle
+- RoFormer (RoPE) — https://arxiv.org/abs/2104.09864
+- ALiBi paper — https://arxiv.org/abs/2108.12409
+- Attention Is All You Need — https://arxiv.org/abs/1706.03762
+- LongBench benchmark repo — https://github.com/THUDM/LongBench
+- LangChain long-context reorder — https://python.langchain.com/docs/how_to/long_context_reorder/
+- LlamaIndex node postprocessors — https://docs.llamaindex.ai/en/stable/module_guides/querying/node_postprocessors/
+- RAG production baseline paper — https://arxiv.org/abs/2005.11401
 
 ## What to Measure, Compare, or Evaluate
-- Position sensitivity curve: answer correctness and citation correctness when gold evidence is inserted at 0-10%, 45-55%, and 90-100% of context.
-- Degradation slope by model/context window: delta in exact match / judge score between edge and middle positions.
-- Citation fidelity: percent of answers that cite the relevant chunk ID when evidence is in middle positions.
-- Mitigation ablation matrix: reorder only, duplicate only, reorder+duplicate, reorder+summary, hierarchical prompts.
-- Cost/latency overhead: added tokens, median latency, p95 latency, and throughput impact per mitigation.
-- Robustness under noise: effect of adding distractor chunks with high lexical overlap.
+- Position sensitivity curves by placing gold evidence at 10%, 50%, and 90% context positions.
+- Quality metrics: grounded correctness, citation fidelity, and omission error rate.
+- Ablation of mitigation strategies under fixed retrieval/reranking outputs.
+- Cost/latency impact per mitigation across small/medium/large context budgets.
+- Robustness under distractor-heavy contexts and near-duplicate evidence.
+- Cross-model variance and confidence intervals for reproducibility.
 
 ## Definition of Done
-- A reproducible experiment protocol exists with fixed datasets, prompts, and scoring rules.
-- The report includes degradation curves by position and model, not just anecdotal examples.
-- At least two mitigation strategies are shown to provide statistically meaningful improvement over baseline packing.
-- A recommended default packing policy for LCS is stated with explicit quality, latency, and token-cost rationale.
-- Open risks are documented (for example, model-specific brittleness or unresolved edge cases in mixed code+prose contexts).
+- A reproducible experiment harness and dataset split are documented.
+- Degradation and mitigation curves are reported with statistical confidence.
+- A default packing mitigation policy is specified for ADR-009 with fallback rules.
+- Production detection signals are defined for positional-failure monitoring.
+- Open risks and unresolved model-specific edge cases are explicitly listed.
 
 ## How Findings Feed LCS Architecture Decisions
-This research sets hard requirements for ADR-009 context assembly: ordering policy, duplication rules, and truncation strategy. It also constrains retriever/reranker interfaces to emit fields needed for packing heuristics (salience, dependency group, artifact type), and defines telemetry signals LCS should log to detect positional-failure regressions in production.
+This research sets ADR-009 guardrails for context assembly and directly informs RF-08 packing strategy defaults. It also provides mechanistic grounding from NL-04 and evaluation hooks for continuous monitoring under EQ-06.

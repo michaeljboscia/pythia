@@ -1,27 +1,47 @@
-# Research Prompt: KG-05 Graph Traversal Algorithms
+# Research Prompt: KG-05 Graph Traversal Algorithms for LCS Query Patterns (P1)
 
 ## Research Objective
-Analyze standard graph traversal algorithms (BFS, DFS, shortest path) and their application to Information Retrieval. The goal is to determine exactly what graph query patterns the LCS system needs to support in order to answer complex, multi-hop questions across the code/doc boundary.
+Identify traversal algorithms and query strategies that best support LCS graph retrieval patterns, including variable-depth reasoning, dependency tracing, and decision lineage reconstruction. The goal is to choose traversal patterns that are expressive enough for LCS use cases without overcomplicating runtime behavior. Findings feed ADR-001 and cross-reference GD-01, GD-02, and GD-06.
 
 ## Research Questions
-1. How do Breadth-First Search (BFS) and Depth-First Search (DFS) translate into RAG retrieval patterns? When would you use one over the other to expand context around a retrieved node?
-2. What is a "variable-length path query" in Cypher (e.g., `MATCH (a)-[*1..3]->(b)`), and what are the performance implications of unconstrained depth traversals on highly connected nodes?
-3. How can cycle detection algorithms prevent infinite loops when traversing dependency graphs or import trees?
-4. In the context of LCS, how would a "Shortest Path" algorithm be utilized? (e.g., finding the conceptual link between "Feature X specification" and "Database table Y").
-5. How does PageRank or Eigenvector Centrality help identify the most "important" or "foundational" files in a codebase, and can this be used to re-rank vector search results?
-6. How do graph databases optimize these traversals compared to executing recursive CTEs in SQLite?
+1. Which traversal patterns (BFS/DFS/shortest path/constraint path) map to core LCS query intents?
+2. How should variable-depth traversal be bounded to avoid combinatorial explosion?
+3. What path-scoring approaches help rank traversal results for retrieval assembly?
+4. How do traversal algorithms behave on sparse vs dense subgraphs in practical LCS schemas?
+5. How should cycles and repeated entities be handled to prevent noisy context expansion?
+6. What query-language features are needed for expressive yet maintainable traversal logic?
+7. How do traversal costs compare across embedded and server graph DB options?
+8. What caching strategies improve repeated traversal workloads?
+9. How should traversal outputs integrate with vector retrieval and reranking pipelines?
+10. What failure modes arise from stale edges or over-broad relation types?
+11. How should traversal confidence/provenance be attached to downstream context chunks?
+12. What benchmark suite should validate traversal quality and performance at 5k-50k nodes?
 
 ## Starting Sources
-- **Neo4j Graph Algorithms Documentation:** https://neo4j.com/docs/graph-data-science/current/algorithms/
-- **NetworkX Python Library Docs:** https://networkx.org/documentation/stable/reference/algorithms/traversal.html
-- **KuzuDB Query Language (Cypher) Docs:** specifically around recursive joins - https://kuzudb.com/
+- NetworkX traversal docs — https://networkx.org/documentation/stable/reference/algorithms/traversal.html
+- Neo4j Cypher path matching docs — https://neo4j.com/docs/cypher-manual/current/patterns/
+- Kuzu docs (Cypher and traversal) — https://kuzudb.github.io/docs/
+- SQLite recursive CTE docs (graph-like traversal baseline) — https://www.sqlite.org/lang_with.html
+- GraphRAG repository (query patterns) — https://github.com/microsoft/graphrag
+- LightRAG repository — https://github.com/HKUDS/LightRAG
+- Memgraph query examples — https://memgraph.com/docs/querying
+- TigerGraph query language docs — https://docs.tigergraph.com/gsql-ref/current/querying
+- Neo4j graph data science shortest path docs — https://neo4j.com/docs/graph-data-science/current/algorithms/pathfinding/
 
-## What to Measure & Compare
-- Benchmark the execution time of a depth-4 traversal on a highly connected node using a dedicated graph DB (Cypher) versus a relational database using recursive SQL.
-- Compare the memory footprint of keeping an entire codebase graph in NetworkX (Python RAM) versus querying an embedded database like Kuzu.
+## What to Measure, Compare, or Evaluate
+- Traversal latency and memory by algorithm and depth constraints.
+- Path relevance quality for representative LCS question categories.
+- Noise growth and redundancy rates under broader traversal limits.
+- Fusion performance when traversal candidates are reranked with vector hits.
+- Robustness to stale/missing edges and schema drift.
+- Database-specific traversal performance at small-medium graph scales.
 
 ## Definition of Done
-A catalog of required query patterns for LCS. The document must list 3-5 specific Cypher (or equivalent) queries that map to real-world LCS user questions, proving that the traversal algorithms are necessary and defining the bounds (e.g., max depth) required to prevent runaway queries.
+- A traversal strategy matrix is produced per query class.
+- Default depth limits and pruning rules are documented.
+- Integration contract with retrieval/packing pipeline is specified.
+- Performance targets and failure protections are defined for ADR-001.
+- Benchmark tasks are created for regression testing.
 
-## Architectural Implication
-Feeds **ADR-001 (Graph DB Selection)**. If the required queries rely heavily on complex algorithms like PageRank or unbounded variable-length paths, it rules out SQLite and forces the adoption of a dedicated graph engine like Kuzu or Neo4j.
+## How Findings Feed LCS Architecture Decisions
+This research sets traversal behavior for ADR-001 and ensures graph retrieval stays performant and relevant. It also shapes how graph and vector evidence are combined during final context assembly.

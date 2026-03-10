@@ -1,27 +1,47 @@
-# Research Prompt: KG-01 GraphRAG Paper (Microsoft, 2024)
+# Research Prompt: KG-01 GraphRAG Paper + Implementation Deep Study (P0 BLOCKER)
 
 ## Research Objective
-Execute a comprehensive technical reading of Microsoft's GraphRAG paper (2024). The objective is to understand how community detection over knowledge graphs enables both "local" (entity-specific) and "global" (corpus-wide synthesis) search, and to determine if this architecture is required to solve the interrogation-crossover problem in LCS.
+Perform a rigorous paper-and-code analysis of Microsoft GraphRAG to extract decision-grade guidance for LCS graph retrieval architecture. The study must reconcile theory with implementation realities around graph construction, community summarization, and local/global retrieval orchestration. Findings feed ADR-001 and cross-reference PA-02, KG-06, and KG-03.
 
 ## Research Questions
-1. How exactly does Microsoft's GraphRAG pipeline extract entities and relationships from raw text? Do they use zero-shot LLM prompts, few-shot, or specialized parsing models?
-2. What community detection algorithm (e.g., Leiden, Louvain) is used to cluster nodes, and how do these hierarchical communities facilitate "global" answering (summarization over the entire corpus)?
-3. How does the paper handle resolving coreferences and entity deduplication across disparate documents (e.g., "the vector db" in doc A vs "Qdrant" in doc B)?
-4. What is the explicit prompt structure or mechanism used during the "local search" phase to combine retrieved graph context (nodes/edges) with vector-retrieved text chunks before passing to the LLM?
-5. How does the paper benchmark performance? What specific multi-hop or synthesis queries demonstrate GraphRAG outperforming baseline naive RAG?
-6. What are the documented or implied costs (token consumption, latency) of the indexing phase (graph construction) versus the querying phase?
+1. What are the exact algorithmic stages in GraphRAG from raw corpus to query-time retrieval?
+2. How do entity/relation extraction assumptions affect downstream community quality?
+3. How does community detection influence global query answers and topic summarization quality?
+4. What tradeoffs exist between local graph traversal and global community retrieval paths?
+5. How does GraphRAG represent schema and provenance, and how portable is that to LCS polymorphic nodes?
+6. Which implementation details in PA-02 differ from paper abstractions and why?
+7. What are major failure modes (bad extraction, community collapse, stale summaries, over-generalized global context)?
+8. How does GraphRAG handle incremental updates and corpus drift?
+9. Which evaluation metrics in the paper/implementation are strong versus insufficient for LCS needs?
+10. What compute and cost bottlenecks dominate indexing and refresh cycles?
+11. Which GraphRAG components are mandatory for LCS v1 versus deferrable?
+12. What objective criteria should decide GraphRAG-inspired adoption in ADR-001?
 
 ## Starting Sources
-- **GraphRAG Paper:** "From Local to Global: A Graph RAG Approach to Query-Focused Summarization" (Microsoft) - https://arxiv.org/abs/2404.16130
-- **Microsoft Research Blog:** https://www.microsoft.com/en-us/research/blog/graphrag-unlocking-llm-discovery-on-narrative-private-data/
-- **GraphRAG GitHub Repository:** https://github.com/microsoft/graphrag
+- GraphRAG paper — https://arxiv.org/abs/2404.16130
+- GraphRAG repository — https://github.com/microsoft/graphrag
+- GraphRAG documentation — https://microsoft.github.io/graphrag/
+- Microsoft GraphRAG blog — https://www.microsoft.com/en-us/research/blog/graphrag-new-tool-for-complex-data-discovery-now-on-github/
+- GraphRAG issues tracker — https://github.com/microsoft/graphrag/issues
+- Leiden algorithm paper — https://www.nature.com/articles/s41598-019-41695-z
+- Louvain paper — https://arxiv.org/abs/0803.0476
+- LightRAG repository (comparison) — https://github.com/HKUDS/LightRAG
+- Property graph standards hub (openCypher) — https://opencypher.org/
 
-## What to Measure & Compare
-- Estimate the token cost of building a GraphRAG index for a 100,000 token corpus based on the paper's extraction methodologies.
-- Contrast the "Global Search" workflow in GraphRAG against a standard "Map-Reduce" summarizing chain in LangChain.
+## What to Measure, Compare, or Evaluate
+- Reproduce key GraphRAG pipeline stages on a representative LCS subset.
+- Measure local vs global retrieval performance by query class.
+- Evaluate community quality impact on answer correctness and citation fidelity.
+- Benchmark index build time, refresh cost, and memory footprint.
+- Perform failure-mode injection (noisy relations, missing entities, stale summaries).
+- Produce adopt/adapt/reject mapping for each subsystem.
 
 ## Definition of Done
-A detailed technical breakdown of the GraphRAG architecture. It must explicitly identify the components of GraphRAG that are necessary for LCS (e.g., community summaries) versus those that are over-engineered for a highly structured codebase/ADR corpus. 
+- A paper-to-code reconciliation report is completed.
+- A reproducible LCS mini-pilot for GraphRAG-style flow is documented.
+- Critical assumptions and failure boundaries are explicit.
+- ADR-001 receives concrete design guidance and risk constraints.
+- Cross-links to KG-06 and KG-03 decisions are resolved.
 
-## Architectural Implication
-This is a **P0 BLOCKER** for **ADR-001 (Graph DB Selection)**. It determines whether LCS needs a robust property graph capable of running community detection algorithms, or if a simpler relational linking model is sufficient.
+## How Findings Feed LCS Architecture Decisions
+This research anchors ADR-001 in implementation reality rather than paper-level optimism. It determines whether LCS should adopt community-centric graph retrieval, how aggressively, and with which guardrails.

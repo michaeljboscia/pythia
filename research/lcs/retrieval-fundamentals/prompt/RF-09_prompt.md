@@ -1,39 +1,47 @@
-# Research Prompt: RF-09 Chunking Strategy Survey and Retrieval Impact
+# Research Prompt: RF-09 Chunking Strategies Comprehensive Survey (P0)
 
 ## Research Objective
-Identify the chunking strategy that gives LCS the best retrieval and synthesis performance across heterogeneous corpus artifacts, with explicit tradeoffs in index size, latency, and fidelity. Compare recursive character chunking, token-based chunking, semantic boundary chunking, sliding-window overlap, and markdown/code-aware splitting under a shared evaluation harness. The output must provide an evidence-backed default for ADR-004 (Ingestion and Chunking Pipeline).
+Establish a high-confidence chunking policy for LCS by comparing recursive, token-based, semantic, sliding-window, markdown-aware, and structure-aware splitting methods across mixed artifact types. The study must quantify retrieval and end-to-end answer impact, not just splitter behavior in isolation. Findings feed ADR-004 and cross-reference NL-03 and CI-02.
 
 ## Research Questions
-1. How does chunk size (for example, 128/256/512/1024 tokens) affect Recall@k, MRR, and downstream answer quality for code-heavy vs prose-heavy queries?
-2. What overlap percentage (0%, 10%, 20%, 30%+) provides the best quality/duplication tradeoff for multi-hop reasoning without exploding index size?
-3. Do semantic chunkers outperform deterministic splitters on real LCS tasks, or only on benchmark-style datasets?
-4. How should markdown-aware and code-aware chunking preserve structural units (headings, lists, function boundaries) to prevent context fragmentation?
-5. What chunking failures are most harmful in production (split definitions, orphaned references, duplicated evidence pollution, metadata drift)?
-6. How do chunking strategies interact with reranking and context packing (for example, many tiny chunks helping retrieval but hurting context assembly)?
-7. Should LCS use per-artifact-type chunking policies (different rules for `.ts`, `.md`, ADR files, and logs), and what complexity cost does that introduce?
+1. How do chunking algorithms differ in boundary quality and downstream retrieval utility?
+2. What chunk size/overlap combinations maximize quality for code vs prose vs ADR content?
+3. How much does semantic chunking outperform tuned deterministic splitters in LCS workloads?
+4. Which chunking patterns most reduce entity/definition fragmentation errors?
+5. How should code chunking align with syntax-aware splits from CI-02?
+6. How do chunking choices alter index size, ingest throughput, and query latency?
+7. What metric inflation risks arise from high overlap and duplicated evidence?
+8. How does chunking interact with reranking and packing (RF-08) under strict context budgets?
+9. Which metadata must be attached to chunks for provenance and migration stability?
+10. How should chunking policy evolve as corpus scales from 50K to 500K+ chunks?
+11. What edge cases are hardest: long tables, generated code, giant functions, mixed markdown/code blocks?
+12. What benchmark protocol ensures fair splitter comparisons across artifact types?
 
 ## Starting Sources
-- LangChain text splitters (recursive, token, markdown) — https://python.langchain.com/docs/concepts/text_splitters/
-- LlamaIndex node parser modules (sentence/semantic/token/markdown split options) — https://docs.llamaindex.ai/en/stable/module_guides/loading/node_parsers/modules/
-- RAPTOR paper (hierarchical retrieval implications for chunk granularity) — https://arxiv.org/abs/2401.18059
-- Contriever repository (retrieval evaluation utilities and dense retrieval baselines) — https://github.com/facebookresearch/contriever
-- Pinecone RAG series (production chunking tradeoffs and retrieval behavior) — https://www.pinecone.io/learn/series/rag/
-- Haystack documentation (document preprocessing and chunking pipelines) — https://docs.haystack.deepset.ai/docs/intro
+- LangChain text splitters concepts — https://python.langchain.com/docs/concepts/text_splitters/
+- LlamaIndex node parsers modules — https://docs.llamaindex.ai/en/stable/module_guides/loading/node_parsers/modules/
+- RAPTOR paper — https://arxiv.org/abs/2401.18059
+- Lost in the Middle paper — https://arxiv.org/abs/2307.03172
+- BEIR repository — https://github.com/beir-cellar/beir
+- Pinecone RAG chunking series — https://www.pinecone.io/learn/series/rag/
+- Haystack docs — https://docs.haystack.deepset.ai/docs/intro
+- tree-sitter docs (code-structure context) — https://tree-sitter.github.io/tree-sitter/
+- LongBench repository — https://github.com/THUDM/LongBench
 
 ## What to Measure, Compare, or Evaluate
-- Retrieval metrics by chunker configuration: Recall@5/10/20, MRR@10, NDCG@10.
-- End-to-end QA metrics: correctness, citation fidelity, and multi-hop completion rate.
-- Index economics: number of chunks, duplicate-content ratio, storage footprint, and ingest time.
-- Latency profile: retrieval p50/p95 and reranking overhead as chunk counts increase.
-- Fragmentation diagnostics: rate of split entities/claims and cross-chunk dependency breaks.
-- Sensitivity tests: performance variance across short factual queries vs long synthesis prompts.
+- Retrieval metrics: Recall@K, MRR, NDCG by chunking configuration.
+- End-to-end metrics: answer correctness and citation fidelity.
+- Fragmentation diagnostics: split entity/claim rate and cross-chunk dependency breaks.
+- Index economics: chunk count, duplicate ratio, storage footprint, ingest time.
+- Query latency impact from chunk cardinality inflation.
+- Sensitivity sweeps for size/overlap and artifact-specific policies.
 
 ## Definition of Done
-- A full comparison matrix exists across chunking methods, chunk sizes, and overlap settings.
-- One default chunking profile is selected for v1, plus explicit exceptions by artifact type if needed.
-- The report includes quantitative breakpoints where increased chunk granularity stops paying off.
-- A migration strategy is provided for re-chunking existing indexes when policy changes.
-- ADR-004 receives concrete parameter recommendations (size, overlap, parser type, metadata schema).
+- A complete chunking comparison matrix is produced with reproducible configs.
+- A default ADR-004 chunking profile is selected with artifact-specific exceptions.
+- Metadata and chunk-ID scheme is standardized for stable updates/migrations.
+- Quality/cost breakpoints and anti-patterns are explicitly documented.
+- Continuous evaluation hooks are defined for EQ-06.
 
 ## How Findings Feed LCS Architecture Decisions
-This research is the primary input for ADR-004 ingestion design and impacts ADR-002 retrieval behavior by changing index density and reranking load. It also influences ADR-009 context assembly because chunk granularity determines how many units can be packed before hitting context limits.
+This research sets ADR-004 chunking defaults and links code-aware splitting from CI-02 with general text chunking from NL-03. It also constrains ADR-002 retrieval scalability and ADR-009 packing efficiency by controlling chunk granularity.

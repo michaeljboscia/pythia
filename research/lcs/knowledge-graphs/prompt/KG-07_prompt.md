@@ -1,40 +1,47 @@
-# Research Prompt: KG-07 Architecture Decision Records (ADRs) in Living Knowledge Systems
+# Research Prompt: KG-07 Architecture Decision Records (ADR) as Graph Knowledge (P1)
 
 ## Research Objective
-Define an ADR practice for LCS that is machine-queryable, durable over time, and integrated with graph relationship extraction rather than treated as static markdown. Compare MADR, Nygard-style lightweight ADRs, and real tooling ecosystems to determine a format and lifecycle that supports both human governance and automated decision lineage analysis. This research feeds ADR-004 (ingestion/chunking metadata strategy) and ADR-005 (relationship extraction and code-intelligence linkages).
+Define an ADR data model and ingestion workflow that turns architecture decisions into queryable graph knowledge with lifecycle integrity. The study must compare formats and tooling, optimize for deterministic parsing, and preserve supersession/history semantics. Findings feed ADR-004 and ADR-005, cross-referencing DM-06 and DM-02.
 
 ## Research Questions
-1. What structural fields are essential in an ADR for LCS machine use (decision, status, context, alternatives, consequences, supersedes/superseded-by, affected artifacts)?
-2. How do MADR and Nygard-style ADRs differ in expressiveness, authoring friction, and machine-parsing reliability?
-3. Which existing ADR tools (`adr-tools`, `log4brains`) are easiest to operationalize with LCS ingestion pipelines and graph updates?
-4. How should ADR status transitions be modeled (`proposed`, `accepted`, `deprecated`, `superseded`) to keep historical truth and avoid graph ambiguity?
-5. What conventions are required so deterministic parsers can extract relationships with high precision before invoking LLM fallback extraction?
-6. How should ADRs link to implementation evidence (commits, PRs, files, tests) and how should those links evolve when code moves or decisions are reversed?
-7. What anti-patterns cause ADR rot in production teams, and what automation can enforce freshness and consistency?
+1. Which ADR schema fields are mandatory for machine-queryable decision lineage?
+2. How do MADR and lightweight ADR formats compare for parseability and authoring friction?
+3. How should decision lifecycle states be modeled (proposed/accepted/deprecated/superseded)?
+4. What deterministic parsing rules capture high-precision relationships from ADR markdown?
+5. How should ADR links to code, tests, and incidents be represented and validated?
+6. What versioning/provenance model preserves historical truth across edits?
+7. How should contradictions between old and new ADRs be surfaced automatically?
+8. What tooling (adr-tools, log4brains, custom parser) best fits LCS pipeline constraints?
+9. What failure modes drive ADR drift and graph inconsistency over time?
+10. How should ADR ingestion integrate with change events and incremental indexing?
+11. What governance process keeps ADR graph quality high with low overhead?
+12. What explicit interface should ADR extraction expose to KG-09 relationship routing?
 
 ## Starting Sources
-- MADR specification repository — https://github.com/adr/madr
-- `adr-tools` repository — https://github.com/npryce/adr-tools
+- MADR repository — https://github.com/adr/madr
+- adr-tools repository — https://github.com/npryce/adr-tools
 - Log4brains repository — https://github.com/thomvaill/log4brains
-- Lightweight ADR template and rationale — https://adr.github.io/
-- Cognitect article on documenting architecture decisions — https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
-- Thoughtworks Radar entry: Lightweight architecture decision records — https://www.thoughtworks.com/en-us/radar/techniques/lightweight-architecture-decision-records
-- Curated ADR guidance/examples — https://github.com/joelparkerhenderson/architecture-decision-record
+- Lightweight ADR docs — https://adr.github.io/
+- Cognitect ADR article — https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
+- Thoughtworks radar (lightweight ADRs) — https://www.thoughtworks.com/en-us/radar/techniques/lightweight-architecture-decision-records
+- ADR examples and guidance — https://github.com/joelparkerhenderson/architecture-decision-record
+- Markdown spec (parser consistency context) — https://spec.commonmark.org/
+- GraphRAG repo (decision/provenance comparison context) — https://github.com/microsoft/graphrag
 
 ## What to Measure, Compare, or Evaluate
-- Parseability score: percent of ADRs where required fields are extracted deterministically without LLM intervention.
-- Relationship yield: number and precision of extracted links per ADR (supersedes, affects, implemented-by).
-- Authoring friction: time-to-create/update ADR and qualitative adoption risk for maintainers.
-- Change tracking quality: accuracy of decision lineage after supersession/deprecation events.
-- Retrieval utility: impact of ADR graph links on answering “why” and “what changed” queries.
-- Governance robustness: percentage of ADRs with stale status, missing consequences, or broken evidence links.
+- Field extraction precision/recall from real ADR samples.
+- Relationship yield and correctness (supersedes, affects, implemented-by).
+- Lifecycle consistency over version updates and supersessions.
+- Authoring effort and adoption friction.
+- Incremental update correctness in living-corpus pipelines.
+- Query utility for “why/when/what changed” questions.
 
 ## Definition of Done
-- A single recommended ADR schema is selected for LCS with required/optional fields and examples.
-- Naming, status transitions, and supersession rules are documented as enforceable conventions.
-- A deterministic extraction spec is defined for ADR-005 pipeline implementation.
-- Tooling recommendation is explicit (adopt, adapt, or custom) with cost/benefit rationale.
-- ADR-004 and ADR-005 receive concrete metadata and parser requirements.
+- A standardized ADR schema and parser contract are finalized.
+- Lifecycle and supersession rules are codified with examples.
+- Tooling recommendation (adopt/adapt/custom) is explicit.
+- ADR extraction integration points for ADR-004/005 are documented.
+- Drift detection and maintenance workflow are defined.
 
 ## How Findings Feed LCS Architecture Decisions
-Findings define how ADR documents are chunked, parsed, and represented as first-class graph nodes in ADR-004/005. They also determine relationship extraction strategy boundaries (parser-first vs LLM fallback), and provide the canonical decision-lineage model LCS must preserve for architectural memory queries.
+This research makes ADR knowledge first-class in LCS by specifying how decisions become durable graph objects. It directly informs ingestion design (ADR-004) and extraction/routing strategy (ADR-005) with lifecycle-safe semantics.

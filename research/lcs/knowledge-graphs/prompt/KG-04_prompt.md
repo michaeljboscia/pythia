@@ -1,28 +1,47 @@
-# Research Prompt: KG-04 Knowledge Graph Construction from Unstructured Text
+# Research Prompt: KG-04 Knowledge Graph Construction from Unstructured Text (P1)
 
 ## Research Objective
-Investigate the pipelines, tools, and accuracy tradeoffs for automatically extracting entities and relationships from unstructured text (like Markdown docs or PR descriptions) to construct a knowledge graph. This research will define the ingestion pipeline for non-code artifacts in LCS.
+Design a practical graph-construction pipeline for LCS that transforms unstructured artifacts into high-quality entities and relations with measurable confidence. The study should compare deterministic extractors, OpenIE-style methods, and LLM-assisted extraction in terms of precision, coverage, and cost. Findings feed ADR-005 and cross-reference KG-09 and CI-04.
 
 ## Research Questions
-1. How do zero-shot LLM prompts perform for Relation Extraction (RE) and Named Entity Recognition (NER) compared to fine-tuned SLMs (Small Language Models) like REBEL (Relation Extraction By End-to-end Language generation)?
-2. What are the common error modes of LLM-based extraction (e.g., hallucinated relationships, failure to deduplicate entities, inconsistent edge labels)?
-3. How can schema constraints be enforced during LLM-based extraction (e.g., using Instructor/Pydantic to force the LLM to only output `[Entity, Predicate, Entity]` tuples)?
-4. What is the role of coreference resolution in building a cohesive graph from multiple independent documents? How is it implemented reliably?
-5. How do tools like Cognee or LlamaIndex's `KnowledgeGraphIndex` orchestrate the extraction pipeline out-of-the-box?
-6. When a document is updated, how do you deterministically identify which edges to drop and which to add without rebuilding the entire graph?
+1. Which extraction stages are required from raw text to graph-ready nodes/edges?
+2. How do REBEL/OpenIE/LLM-based extraction strategies compare on precision and coverage?
+3. What entity normalization and canonicalization steps are required for stable graph IDs?
+4. How should relation typing and confidence scoring be designed for downstream filtering?
+5. What domain-specific parsing is needed for code and technical docs versus general prose?
+6. How should extraction pipelines handle ambiguity, co-reference, and incomplete statements?
+7. What quality-control loops are needed (human review, active learning, heuristic validation)?
+8. How should temporal/version context be encoded to avoid stale contradictions?
+9. What failure modes dominate at scale (entity explosion, relation noise, duplicate nodes)?
+10. How should incremental updates merge with existing graph state safely?
+11. Where should deterministic parser outputs override LLM guesses?
+12. What minimum precision thresholds should gate writes into production graph stores?
 
 ## Starting Sources
-- **REBEL Paper/Model:** https://huggingface.co/Babelscape/rebel-large
-- **LlamaIndex Property Graph Construction Docs:** https://docs.llamaindex.ai/en/stable/module_guides/indexing/lpg/
-- **OpenIE (Open Information Extraction) fundamentals.**
-- **Instuct/Pydantic structured output documentation.**
+- REBEL paper — https://arxiv.org/abs/2101.11185
+- Stanford OpenIE — https://nlp.stanford.edu/software/openie.html
+- spaCy linguistic features — https://spacy.io/usage/linguistic-features
+- Stanford CoreNLP OpenIE docs — https://stanfordnlp.github.io/CoreNLP/openie.html
+- GraphRAG repository (entity/relation pipeline reference) — https://github.com/microsoft/graphrag
+- Cognee repository (practical pipeline reference) — https://github.com/topoteretes/cognee
+- LlamaIndex KG API reference — https://docs.llamaindex.ai/en/stable/api_reference/indices/knowledge_graph/
+- TypeScript Compiler API (code extraction context) — https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API
+- tree-sitter docs — https://tree-sitter.github.io/tree-sitter/
 
-## What to Measure & Compare
-- Compare the processing time and token cost of extracting relationships from a 2,000-word architecture document using GPT-4o versus a local REBEL model.
-- Measure the precision/recall of the extracted triplets against a human-annotated baseline of that same document.
+## What to Measure, Compare, or Evaluate
+- Edge precision/recall/F1 by relation class.
+- Entity linking quality and duplicate-node rate.
+- Cost/latency per extraction strategy at corpus scale.
+- Confidence calibration quality for auto-accept thresholds.
+- Incremental merge correctness during corpus updates.
+- Impact of extraction quality on downstream retrieval answers.
 
 ## Definition of Done
-A practical pipeline design for text-to-graph ingestion. It must identify the specific tools/models to be used, define the JSON schema for the extraction output, and propose a concrete strategy for entity deduplication across the corpus.
+- A production candidate extraction pipeline is specified with fallback order.
+- Relation taxonomy and confidence schema are finalized for ADR-005.
+- Quality thresholds and review workflow are defined.
+- Failure-mode mitigation plan is documented.
+- Cross-link with KG-09 routing strategy is explicit.
 
-## Architectural Implication
-Feeds **ADR-005 (Relationship Extraction)**. Determines whether we rely on expensive LLM calls during indexing or local, specialized NLP models, fundamentally impacting the compute requirements of the background ingestion daemon.
+## How Findings Feed LCS Architecture Decisions
+This research defines ADR-005 ingestion intelligence boundaries: what is deterministic, what is probabilistic, and what needs review. It ensures graph construction quality is measurable and operationally sustainable.

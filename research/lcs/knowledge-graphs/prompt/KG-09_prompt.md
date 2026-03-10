@@ -1,41 +1,47 @@
-# Research Prompt: KG-09 Relationship Extraction Strategies Compared (Parser vs LLM vs LSP)
+# Research Prompt: KG-09 Relationship Extraction Strategies Compared (P0)
 
 ## Research Objective
-Produce a quantitative strategy comparison for extracting relationships into the LCS knowledge graph across mixed content types, with explicit cost, precision, and operational tradeoffs. Compare deterministic parser-based extraction, LLM-based extraction, and LSP-based extraction (for code) under a unified evaluation protocol. The output must define the extraction architecture for ADR-005, including routing, fallback logic, and confidence handling.
+Establish the optimal relationship extraction architecture for LCS by quantitatively comparing parser-based, LSP-based, and LLM-based strategies under shared evaluation protocols. The output must define routing rules, confidence semantics, and quality thresholds for production graph writes. Findings feed ADR-005 and cross-reference CI-03, CI-04, and KG-04.
 
 ## Research Questions
-1. What relationship classes can parser-based methods extract with high precision from markdown/ADR/code without LLMs, and where do they fail?
-2. For code artifacts, how do LSP-based relationships (references, definitions, call hierarchy, type hierarchy) compare to AST parser extraction in precision, coverage, and runtime?
-3. What additional relationship types does LLM-based extraction uniquely recover (implicit rationale links, semantic dependencies), and what is its noise profile?
-4. What routing policy should LCS use: parser-first, LSP-first for code, LLM fallback, or blended voting?
-5. How should confidence scores be computed and calibrated across heterogeneous extractors so graph writes remain trustworthy?
-6. What is the dollar/token/latency cost model for LLM extraction at corpus scale, and when does it become unjustifiable versus deterministic methods?
-7. How should extraction pipelines handle disagreement between extractors (conflict resolution, human review queue, deferred edges)?
-8. Which relationship types are mission-critical for v1 and must meet strict precision thresholds before indexing?
+1. Which relation types are best extracted deterministically versus probabilistically?
+2. How do parser-based approaches perform on technical prose and structured markdown?
+3. For code, how do LSP-derived relations compare with AST/parser extraction on accuracy and coverage?
+4. What additional value does LLM-based extraction provide beyond deterministic methods?
+5. How should routing policy select extractors by artifact type and relation class?
+6. How should conflicting extractor outputs be resolved and audited?
+7. What confidence calibration is required to prevent noisy edge pollution?
+8. What token/latency cost is acceptable for LLM-based extraction at LCS scale?
+9. How should extraction pipelines handle ambiguous references and unresolved symbols?
+10. What evaluation dataset and labeling protocol are needed for ongoing quality governance?
+11. How should incremental updates prevent duplicate/conflicting edge creation?
+12. What minimum quality thresholds should block production writes?
 
 ## Starting Sources
-- REBEL paper (LLM/seq2seq relation extraction baseline) — https://arxiv.org/abs/2101.11185
-- Stanford OpenIE system overview — https://nlp.stanford.edu/software/openie.html
-- spaCy linguistic features and dependency parsing — https://spacy.io/usage/linguistic-features
-- tree-sitter documentation (deterministic syntax parsing) — https://tree-sitter.github.io/tree-sitter/
-- TypeScript Compiler API usage guide — https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API
+- REBEL paper — https://arxiv.org/abs/2101.11185
+- Stanford OpenIE — https://nlp.stanford.edu/software/openie.html
+- spaCy dependency parsing docs — https://spacy.io/usage/linguistic-features
+- tree-sitter documentation — https://tree-sitter.github.io/tree-sitter/
+- TypeScript Compiler API guide — https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API
 - Language Server Protocol specification — https://microsoft.github.io/language-server-protocol/
-- Microsoft GraphRAG codebase (entity/relation pipeline reference) — https://github.com/microsoft/graphrag
+- GraphRAG repository (reference pipeline) — https://github.com/microsoft/graphrag
+- Cognee repository (reference pipeline) — https://github.com/topoteretes/cognee
+- DeepEval repository (evaluation harness patterns) — https://github.com/confident-ai/deepeval
 
 ## What to Measure, Compare, or Evaluate
-- Precision/recall/F1 per relationship type across extraction strategies.
-- Coverage by artifact type: markdown, ADR, TypeScript/JavaScript, logs, and mixed snippets.
-- Cost/latency profile: runtime per file, total pipeline throughput, and token/API cost for LLM paths.
-- Conflict rate: percentage of edges where extractors disagree and resolution outcomes.
-- Confidence calibration: correlation between extractor confidence and true correctness.
-- Robustness: failure rates on noisy, partially structured, or outdated artifacts.
+- Precision/recall/F1 by relation type and artifact type.
+- Cost/latency profile for each extraction path.
+- Conflict/disagreement rates and resolution outcomes.
+- Confidence calibration quality for acceptance thresholds.
+- Incremental update consistency and duplicate-edge prevention.
+- Downstream retrieval impact from extracted edge quality.
 
 ## Definition of Done
-- A benchmark dataset with annotated relationships is created or curated for LCS artifact types.
-- A comparison report ranks extraction strategies by precision, coverage, and cost.
-- A production routing architecture is selected with explicit fallback and conflict policies.
-- Minimum quality thresholds are defined per relationship class for graph ingestion.
-- ADR-005 receives a concrete implementation blueprint, including confidence schema and monitoring requirements.
+- A benchmark and routing strategy are finalized with measurable thresholds.
+- Extractor-specific confidence schema and conflict policy are defined.
+- Production write gates for relation quality are documented.
+- Integration points with CI-03/CI-04 pipelines are explicit.
+- ADR-005 receives implementation-ready extraction architecture guidance.
 
 ## How Findings Feed LCS Architecture Decisions
-This research directly determines ADR-005 extraction pipeline architecture and where LLM usage is justified versus prohibited. It also sets ingestion contracts for ADR-004 by defining which metadata/confidence fields must be persisted with each relationship edge for auditability and downstream retrieval trust.
+This research directly sets ADR-005 extraction policy and quality controls. It ensures graph relationships are trustworthy, auditable, and cost-effective across heterogeneous LCS artifacts.
