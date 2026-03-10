@@ -5,6 +5,39 @@
 
 ---
 
+## ⚡ RESUME INSTRUCTIONS — paste this to restart the loop after any quit/compaction
+
+```
+/loop 5m You are managing the LCS (Living Corpus System) deep research pipeline. This is a fully autonomous loop tick. Execute all steps precisely.
+
+STEP 1 — READ STATE: Read /Users/mikeboscia/pythia/research/lcs/active-research-runs.md to get all active DR IDs, output file paths, queue, and completions counter.
+
+STEP 2 — CHECK ALL ACTIVE DRs: For each row in the "Active DR Runs" table that has a real DR ID (not "_empty_"), call mcp__gemini__gemini-check-research with that DR ID.
+
+STEP 3 — HANDLE COMPLETIONS (do this for EACH completed DR):
+  a. IMMEDIATELY write the research content from the check-research response to the output file path shown in the table. Use the Write tool. This is the FIRST action — before updating anything else.
+  b. Update active-research-runs.md: move the item to the Completed table with method "DR (focused) ✓", clear the slot to "_empty_", increment "Completions so far" by 1.
+  c. If the new "Completions so far" value is divisible by 4: run git -C /Users/mikeboscia/pythia add research/lcs/ and git commit and git push.
+
+STEP 4 — FILL EMPTY SLOTS: For each empty slot in Active DR Runs:
+  a. Take QUEUE[0] from the queue. Note its domain path and filename.
+  b. Read the prompt file at /Users/mikeboscia/pythia/research/lcs/{domain_path}/prompt/{filename_without_extension}_prompt.md
+  c. Distill to 3-4 focused questions. Build a DR query ending with: "Write approximately 2000 words grounded in sources you actually read. Close with a ## Bibliography section listing title, URL/DOI, and key contribution for each source. Bibliography is outside the 2000-word body."
+  d. Call mcp__gemini__gemini-deep-research with the focused query and format "Technical research document. Lead with Executive Summary (150 words). Use ## headers. Quantify claims. End with ## Bibliography (outside word count)."
+  e. IMMEDIATELY capture the DR ID from the response — this is critical.
+  f. Update active-research-runs.md: fill the slot with item name, DR ID, full output file path, and current timestamp. Remove QUEUE[0] and shift remaining queue items up by 1.
+
+STEP 5 — FAILURE HANDLING: If any active DR has been processing for more than 35 minutes, mark it as FAILED in the state file, clear the slot, and add it back to QUEUE[0].
+
+IRON LAWS:
+- Write content to disk IMMEDIATELY when check-research returns complete — before any other action
+- Capture DR IDs IMMEDIATELY after launching — before any other action
+- All file paths must be fully qualified absolute paths
+- State file path: /Users/mikeboscia/pythia/research/lcs/active-research-runs.md
+```
+
+---
+
 ## Pipeline Config
 
 - Max concurrent runs: 5
@@ -48,23 +81,6 @@ QUEUE[14] = EQ-02  Retrieval Metrics                   → evaluation/EQ-02_Retr
 QUEUE[15] = EQ-04  Golden Question Set                 → evaluation/EQ-04_Golden-Question-Set-Design-Methodology.md
 QUEUE[16] = NL-03  Text Chunking Algorithms            → nlp-foundations/NL-03_Text-Chunking-Algorithms-Deep-Dive.md
 QUEUE[17] = PE-02  Embedded DB Concurrency             → production-engineering/PE-02_Embedded-Database-Concurrency-Patterns.md
-QUEUE[6]  = EM-02  OpenAI Embeddings                   → embedding-models/EM-02_OpenAI-text-embedding-3-Family.md
-QUEUE[7]  = EM-03  Voyage AI Embeddings                → embedding-models/EM-03_Voyage-AI-Embedding-Models.md
-QUEUE[8]  = EM-05  Code Embedding Models               → embedding-models/EM-05_Code-Embedding-Models-Survey.md
-QUEUE[9]  = CI-01  tree-sitter Architecture            → code-intelligence/CI-01_tree-sitter-Architecture-and-TypeScript-Grammar.md
-QUEUE[10] = CI-02  tree-sitter Code Chunking           → code-intelligence/CI-02_tree-sitter-for-Code-Chunking.md
-QUEUE[11] = CI-03  LSP Headless Analysis               → code-intelligence/CI-03_LSP-for-Headless-Code-Analysis.md
-QUEUE[12] = VD-01  Qdrant Deep Dive                    → vector-databases/VD-01_Qdrant-Deep-Dive.md
-QUEUE[13] = VD-02  LanceDB Deep Dive                   → vector-databases/VD-02_LanceDB-Deep-Dive.md
-QUEUE[14] = VD-06  Vector DB Benchmarking              → vector-databases/VD-06_Vector-DB-Benchmarking-Methodology.md
-QUEUE[15] = GD-01  Kuzu Deep Dive                      → graph-databases/GD-01_Kuzu-Deep-Dive.md
-QUEUE[16] = GD-02  SQLite as Graph Store               → graph-databases/GD-02_SQLite-as-Graph-Store.md
-QUEUE[17] = GD-06  Graph DB Benchmarking               → graph-databases/GD-06_Graph-DB-Benchmarking-at-Small-Scale.md
-QUEUE[18] = MC-01  MCP Protocol Spec                   → mcp-architecture/MC-01_MCP-Protocol-Specification-Full-Deep-Read.md
-QUEUE[19] = EQ-02  Retrieval Metrics                   → evaluation/EQ-02_Retrieval-Metrics-Comprehensive.md
-QUEUE[20] = EQ-04  Golden Question Set                 → evaluation/EQ-04_Golden-Question-Set-Design-Methodology.md
-QUEUE[21] = NL-03  Text Chunking Algorithms            → nlp-foundations/NL-03_Text-Chunking-Algorithms-Deep-Dive.md
-QUEUE[22] = PE-02  Embedded DB Concurrency             → production-engineering/PE-02_Embedded-Database-Concurrency-Patterns.md
 ```
 
 Queue base path: `/Users/mikeboscia/pythia/research/lcs/`
