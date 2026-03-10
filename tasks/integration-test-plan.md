@@ -21,7 +21,7 @@
 | 10 | `oracle_reconstitute` | ✅ PASS | Round 2: v2→v3 with checkpoint_first:true (default), no workaround needed (BUG-3+4 fixed) |
 | 11 | `oracle_decommission_request` | ✅ PASS | Token+checklist returned; 10-min TTL; in-memory only |
 | 12 | `oracle_decommission_cancel` | ✅ PASS | Token invalidated; oracle status unchanged |
-| 13 | `oracle_decommission_execute` | ⬜ DEFERRED | Requires throwaway oracle — deferred to next session |
+| 13 | `oracle_decommission_execute` | ✅ PASS | Throwaway oracle: token + TOTP + confirmation phrase validated, daemon dismissed, registry archived, re-spawn correctly rejected |
 
 ---
 

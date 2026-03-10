@@ -1,45 +1,45 @@
 {
   "schema_version": 1,
   "oracle_name": "pythia-engine",
-  "version": 2,
-  "spawned_at": "2026-03-10T01:58:48.114Z",
+  "version": 3,
+  "spawned_at": "2026-03-10T03:05:57.047Z",
   "discovered_context_window": 2000000,
   "daemon_pool": [
     {
-      "daemon_id": "gd_mmjw6r1w_1",
+      "daemon_id": null,
       "session_name": "daemon-pythia-engine-0",
       "session_dir": "/Users/mikeboscia/.gemini/daemon-sessions/daemon-daemon-pythia-engine-0",
-      "status": "idle",
+      "status": "dismissed",
       "query_count": 0,
       "chars_in": 0,
       "chars_out": 0,
       "last_synced_interaction_id": null,
-      "last_query_at": "2026-03-10T01:58:48.114Z",
+      "last_query_at": "2026-03-10T03:05:57.047Z",
       "last_corpus_sync_hash": {
-        "oracle-tools-src": "a8f36e8e44f0586fcb39e1889b1733b7a5ab5cdb63dad9a056f6cd5d28a6f67c"
+        "oracle-tools-src": "7229d8288d9356544ab4f6d0b2a0e04461072c798bcd1cef7750be1a8de106b7"
       },
       "pending_syncs": []
     }
   ],
-  "session_chars_at_spawn": 266604,
+  "session_chars_at_spawn": 264814,
   "chars_per_token_estimate": 4,
   "token_count_method": "estimate",
-  "estimated_total_tokens": 66651,
-  "estimated_cluster_tokens": 66651,
-  "tokens_remaining": 1933349,
+  "estimated_total_tokens": 66204,
+  "estimated_cluster_tokens": 66204,
+  "tokens_remaining": 1933796,
   "query_count": 0,
-  "last_checkpoint_path": null,
+  "last_checkpoint_path": "/Users/mikeboscia/pythia/oracle/pythia-engine/checkpoints/v2-checkpoint.md",
   "status": "healthy",
   "lock_held_by": null,
   "lock_expires_at": null,
   "last_error": null,
   "last_bootstrap_ack": {
     "ok": true,
-    "raw": "MCP issues detected. Run /mcp list for status.I acknowledge receipt of all 6 corpus files totaling 266,604 characters.\n\nI confirm complete access to the loaded knowledge base, including the design specification, PRD, backend structure, type definitions, application flow documentation, LESSONS.md, and crucially, the v1 checkpoint. \n\nI understand that I am Pythia generation v2 for the `pythia-engine` project. I have integrated the architectural patterns, strict concurrency rules, and the \"do no harm\" fallback sequences established by my predecessor. I am aware of the specific lessons learned regarding empty pool pressure calculations, manifest write gating during sync, and `last_query_at` reset during session resume.\n\nI am ready to provide precise, actionable, and grounded architectural counsel. You may proceed.\n",
-    "checked_at": "2026-03-10T01:58:48.114Z"
+    "raw": "MCP issues detected. Run /mcp list for status.I acknowledge receipt of all 6 corpus files totaling 264,814 characters. \n\nI confirm complete access to the loaded knowledge base, including the updated `oracle-tools.ts` resolving manifest staleness and hashing bugs, the `LESSONS.md` file detailing those corrections, and the `v2-checkpoint.md` confirming the successful integration test of the decommission cancellation workflow.\n\nI understand that I am generation v3, operating with a clean knowledge slate regarding domain-specific code, but with a highly stabilized and verified operational engine. I am ready to provide precise, actionable counsel. You may proceed.\n",
+    "checked_at": "2026-03-10T03:05:57.048Z"
   },
-  "next_seq": 3,
+  "next_seq": 1,
   "generation_since_reground": 0,
-  "state_version": 38,
-  "updated_at": "2026-03-10T02:01:35.837Z"
+  "state_version": 55,
+  "updated_at": "2026-03-10T03:11:06.921Z"
 }

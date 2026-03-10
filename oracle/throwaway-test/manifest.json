@@ -13,6 +13,14 @@
       "sha256": "b9027d64f756ceb631bb9946b96fe685c4a957a2f1401fcdc3b9bce28a7e8f04",
       "added_at": "2026-03-10T03:15:00.000Z",
       "priority": 1
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/oracle/throwaway-test/checkpoints/v1-checkpoint.md",
+      "role": "checkpoint",
+      "required": true,
+      "sha256": "a7eda84bcd87c78b120530b3eadcd947f65a491ce6e6f1528e3e8d839ae19308",
+      "added_at": "2026-03-10T03:17:12.946Z",
+      "priority": 0
     }
   ],
   "live_sources": [],

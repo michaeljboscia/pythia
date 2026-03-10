@@ -14,8 +14,8 @@
   "query_count": 1,
   "last_checkpoint_path": null,
   "status": "decommissioned",
-  "lock_held_by": "decommission:a86685bf-2814-484d-a6c7-1ca77587bc6e",
-  "lock_expires_at": "2026-03-10T03:26:20.275Z",
+  "lock_held_by": null,
+  "lock_expires_at": null,
   "last_error": null,
   "last_bootstrap_ack": {
     "ok": true,
@@ -24,6 +24,6 @@
   },
   "next_seq": 3,
   "generation_since_reground": 0,
-  "state_version": 7,
-  "updated_at": "2026-03-10T03:17:12.946Z"
+  "state_version": 8,
+  "updated_at": "2026-03-10T03:17:12.997Z"
 }
