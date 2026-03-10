@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "pythia-engine",
   "project": "pythia",
-  "version": 2,
+  "version": 3,
   "checkpoint_headroom_tokens": 200000,
   "pool_size": 1,
   "static_entries": [
@@ -50,8 +50,8 @@
       "path": "/Users/mikeboscia/pythia/oracle/pythia-engine/checkpoints/v2-checkpoint.md",
       "role": "checkpoint",
       "required": true,
-      "sha256": "8ea21f225058d4b004d61cb517f2835a4d2c957402221b71e900cedb84102c40",
-      "added_at": "2026-03-10T03:00:09.523Z",
+      "sha256": "7bd2360dc923a800746454aa99a463822b91c91f32e58b433cb21162d0087d21",
+      "added_at": "2026-03-10T03:03:05.041Z",
       "priority": 0
     }
   ],
@@ -72,11 +72,11 @@
       "max_files": 5,
       "max_sync_bytes": 5242880,
       "priority": 5,
-      "last_sync_at": "2026-03-10T01:18:38.842Z",
-      "last_tree_hash": "88fd668e4bdee23bca904ffeb8178150ad3af22bf33149e6c0570f191a3af6ae",
+      "last_sync_at": "2026-03-10T03:01:59.809Z",
+      "last_tree_hash": "7229d8288d9356544ab4f6d0b2a0e04461072c798bcd1cef7750be1a8de106b7",
       "last_file_hashes": {
-        "oracle-tools.ts": "914f001e6730a6a1b8f8020ed6a2dc3a6734547dfb71335229f141b3f843f493",
-        "oracle-types.ts": "461034d38a54250e3620de5c2515c9597aea223298df51206d87fc423376e0c0"
+        "oracle-tools.ts": "24f4b32447cfe350f5b8ed4213cb9a7bd1244bc59f68117f3c7c5ca4f436a165",
+        "oracle-types.ts": "88a858703032ac02d3887af9625dafdc03910010c50c4d8b78979c630ba73c2e"
       }
     }
   ],
