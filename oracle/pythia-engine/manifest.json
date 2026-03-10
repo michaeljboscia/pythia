@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "pythia-engine",
   "project": "pythia",
-  "version": 1,
+  "version": 2,
   "checkpoint_headroom_tokens": 200000,
   "pool_size": 1,
   "static_entries": [
@@ -42,9 +42,17 @@
       "path": "/Users/mikeboscia/pythia/LESSONS.md",
       "role": "other",
       "required": false,
-      "sha256": "14628e231527b75ede2f4d49cc13dd83547883f22d2973d1a13318c74a71c851",
+      "sha256": "e0d75d3588d071d12a70a987890af4a9b61934293452a0878e772aa21a693795",
       "added_at": "2026-03-10T01:23:34.285Z",
       "priority": 10
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/oracle/pythia-engine/checkpoints/v1-checkpoint.md",
+      "role": "checkpoint",
+      "required": true,
+      "sha256": "6ec65a91fbe5c024c32042511a6cd6c20ef8e3273ee27caa64d0611c0b57ac93",
+      "added_at": "2026-03-10T01:26:12.324Z",
+      "priority": 0
     }
   ],
   "live_sources": [
