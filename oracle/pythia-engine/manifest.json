@@ -50,7 +50,7 @@
       "path": "/Users/mikeboscia/pythia/oracle/pythia-engine/checkpoints/v1-checkpoint.md",
       "role": "checkpoint",
       "required": true,
-      "sha256": "5a083557110729f63732570ee0998484ca1d938b1a28329384d3ee0dd4f520e9",
+      "sha256": "892e8a60707df99501ae3f2aae58ea77a8b3042233445537e2ed99761e0bdbf0",
       "added_at": "2026-03-10T01:26:12.324Z",
       "priority": 0
     }
