@@ -47,11 +47,11 @@
       "priority": 10
     },
     {
-      "path": "/Users/mikeboscia/pythia/oracle/pythia-engine/checkpoints/v1-checkpoint.md",
+      "path": "/Users/mikeboscia/pythia/oracle/pythia-engine/checkpoints/v2-checkpoint.md",
       "role": "checkpoint",
       "required": true,
-      "sha256": "892e8a60707df99501ae3f2aae58ea77a8b3042233445537e2ed99761e0bdbf0",
-      "added_at": "2026-03-10T01:26:12.324Z",
+      "sha256": "8ea21f225058d4b004d61cb517f2835a4d2c957402221b71e900cedb84102c40",
+      "added_at": "2026-03-10T03:00:09.523Z",
       "priority": 0
     }
   ],
@@ -73,7 +73,7 @@
       "max_sync_bytes": 5242880,
       "priority": 5,
       "last_sync_at": "2026-03-10T01:18:38.842Z",
-      "last_tree_hash": "a8f36e8e44f0586fcb39e1889b1733b7a5ab5cdb63dad9a056f6cd5d28a6f67c",
+      "last_tree_hash": "88fd668e4bdee23bca904ffeb8178150ad3af22bf33149e6c0570f191a3af6ae",
       "last_file_hashes": {
         "oracle-tools.ts": "914f001e6730a6a1b8f8020ed6a2dc3a6734547dfb71335229f141b3f843f493",
         "oracle-types.ts": "461034d38a54250e3620de5c2515c9597aea223298df51206d87fc423376e0c0"
