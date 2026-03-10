@@ -40,7 +40,7 @@
     },
     {
       "path": "/Users/mikeboscia/pythia/LESSONS.md",
-      "role": "learnings",
+      "role": "other",
       "required": false,
       "sha256": "14628e231527b75ede2f4d49cc13dd83547883f22d2973d1a13318c74a71c851",
       "added_at": "2026-03-10T01:23:34.285Z",
