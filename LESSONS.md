@@ -33,6 +33,16 @@ What happened: During integration testing, `oracle_sync_corpus` was called when 
 Lesson: Only update `manifest.live_sources[id].last_tree_hash` (and `last_file_hashes`) after at least one pool member was synced or queued (`sourceSyncedImmediately > 0 || sourceQueued > 0`). If all members are dismissed/dead, skip the manifest write entirely so the next call re-detects the change. Fix applied in oracle-tools.ts — gate manifest write on per-source delivery count.
 Scope: project
 
+## 2026-03-10 — oracle_reconstitute Stale Manifest After checkpoint_first
+What happened: oracle_reconstitute(checkpoint_first: true) internally runs salvage when no daemon is available. Salvage rewrites v1-checkpoint.md with fresh Gemini output (new sha256) and updates manifest.json on disk. But reconstitute holds a stale in-memory manifest from function entry and uses it for corpus hash validation — mismatching the just-written file every time.
+Lesson: After any sub-operation that writes to the manifest (checkpoint, salvage, update_entry), callers must re-read the manifest from disk before any hash validation step. Never trust an in-memory manifest copy after a write that could have changed it. Fix: re-read manifest after checkpoint_first completes in oracle_reconstitute.
+Scope: project
+
+## 2026-03-10 — oracle_salvage Stores Wrong sha256 in Manifest Entry
+What happened: After calling oracle_salvage, the sha256 stored in the manifest for v1-checkpoint.md did not match the actual sha256 of the file on disk. oracle_reconstitute and resolveCorpusForSpawn then rejected the corpus entry with HASH_MISMATCH.
+Lesson: In oracle_salvage, sha256 for the manifest entry must be computed from the on-disk file AFTER atomicWriteFile completes — not from the content string in memory (encoding, newlines, or BOM differences could cause a mismatch). Verify by reading back the file post-write and hashing that.
+Scope: project
+
 ## 2026-03-10 — spawn_oracle on Resume Does Not Reset last_query_at — Idle Sweep Fires Immediately
 What happened: During integration testing, every `spawn_oracle` (resume path, `corpus_files_loaded: 0`) was followed immediately by `DAEMON_NOT_FOUND` on the next oracle tool call. Root cause: `last_query_at` on the pool member was not updated to `now()` when resuming. The idle sweep (60s interval, 300s timeout) saw `last_query_at` as 20-30 minutes old and dismissed the daemon on the next tick (0-60s after spawn). The caller had no chance to use the daemon.
 Lesson: `spawn_oracle` on the resume path MUST write `last_query_at = new Date().toISOString()` into state.json for all resumed pool members. This gives the caller a fresh 5-minute idle window after every resume, identical to what a fresh spawn provides.
