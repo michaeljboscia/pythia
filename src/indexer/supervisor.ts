@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { EmbeddingsBackendConfig } from "./embedder.js";
 import type { MainToWorker, WorkerToMain } from "./worker-protocol.js";
 
 type SupervisorEventMap = {
@@ -21,15 +22,16 @@ type WorkerLike = {
 };
 
 type SupervisorOptions = {
+  embeddingsConfig?: EmbeddingsBackendConfig;
   now?: () => number;
   retentionDays?: number;
-  workerFactory?: (dbPath: string, workspaceRoot: string, retentionDays?: number) => WorkerLike;
+  workerFactory?: (dbPath: string, workspaceRoot: string, retentionDays?: number, embeddingsConfig?: EmbeddingsBackendConfig) => WorkerLike;
 };
 
 const CRASH_WINDOW_MS = 600_000;
 const MAX_CRASHES = 3;
 
-function createWorker(dbPath: string, workspaceRoot: string, retentionDays = 30): Worker {
+function createWorker(dbPath: string, workspaceRoot: string, retentionDays = 30, embeddingsConfig?: EmbeddingsBackendConfig): Worker {
   const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
   const candidatePaths = [
     path.resolve(moduleDirectory, "worker.js"),
@@ -43,7 +45,7 @@ function createWorker(dbPath: string, workspaceRoot: string, retentionDays = 30)
   }
 
   return new Worker(workerPath, {
-    workerData: { dbPath, workspaceRoot, retentionDays }
+    workerData: { dbPath, workspaceRoot, retentionDays, embeddingsConfig }
   });
 }
 
@@ -51,9 +53,10 @@ export class IndexingSupervisor {
   private readonly dbPath: string;
   private readonly workspaceRoot: string;
   private readonly retentionDays: number;
+  private readonly embeddingsConfig: EmbeddingsBackendConfig;
   private readonly emitter = new EventEmitter();
   private readonly now: () => number;
-  private readonly workerFactory: (dbPath: string, workspaceRoot: string, retentionDays?: number) => WorkerLike;
+  private readonly workerFactory: (dbPath: string, workspaceRoot: string, retentionDays?: number, embeddingsConfig?: EmbeddingsBackendConfig) => WorkerLike;
   private readonly pendingBatches = new Map<string, { resolve: () => void; reject: (error: Error) => void }>();
   private crashLog: number[] = [];
   private worker: WorkerLike;
@@ -65,6 +68,7 @@ export class IndexingSupervisor {
     this.dbPath = dbPath;
     this.workspaceRoot = workspaceRoot;
     this.retentionDays = options.retentionDays ?? 30;
+    this.embeddingsConfig = options.embeddingsConfig ?? { mode: "local" };
     this.now = options.now ?? (() => Date.now());
     this.workerFactory = options.workerFactory ?? createWorker;
     this.worker = this.spawnWorker();
@@ -103,7 +107,7 @@ export class IndexingSupervisor {
   }
 
   private spawnWorker(): WorkerLike {
-    const worker = this.workerFactory(this.dbPath, this.workspaceRoot, this.retentionDays);
+    const worker = this.workerFactory(this.dbPath, this.workspaceRoot, this.retentionDays, this.embeddingsConfig);
 
     worker.on("message", this.handleWorkerMessage);
     worker.on("error", this.handleWorkerError);

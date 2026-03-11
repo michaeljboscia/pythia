@@ -94,3 +94,80 @@ export async function embedQuery(text: string): Promise<Float32Array> {
   const [embedding] = await embedTexts([`search_query: ${text}`]);
   return embedding;
 }
+
+// ─── Factory API ──────────────────────────────────────────────────────────────
+
+export type EmbeddingsBackendConfig =
+  | { mode: "local" }
+  | { mode: "openai_compatible"; base_url: string; api_key: string; model: string };
+
+export type Embedder = {
+  embedChunks: (texts: string[]) => Promise<Float32Array[]>;
+  embedQuery: (text: string) => Promise<Float32Array>;
+  warm: () => Promise<void>;
+};
+
+type OpenAiEmbeddingsResponse = {
+  data: { index: number; embedding: number[] }[];
+};
+
+async function httpEmbedTexts(
+  config: { base_url: string; api_key: string; model: string },
+  texts: string[]
+): Promise<Float32Array[]> {
+  const response = await fetch(`${config.base_url}/embeddings`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${config.api_key}`
+    },
+    body: JSON.stringify({ model: config.model, input: texts })
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP embeddings request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const json = await response.json() as OpenAiEmbeddingsResponse;
+
+  // Sort by index — the API does not guarantee response order matches input order
+  const sorted = [...json.data].sort((a, b) => a.index - b.index);
+
+  return sorted.map(({ embedding }) => {
+    const full = new Float32Array(embedding);
+
+    if (full.length < 256) {
+      throw new Error(`HTTP embedding dimension ${full.length} is smaller than 256`);
+    }
+
+    // Apply same 256d Matryoshka truncation + L2 normalize as local backend
+    return normalizeVector(full.slice(0, 256));
+  });
+}
+
+export function createEmbedder(config: EmbeddingsBackendConfig): Embedder {
+  if (config.mode === "local") {
+    return {
+      embedChunks,
+      embedQuery,
+      warm: warmEmbedder
+    };
+  }
+
+  const httpConfig = config;
+
+  return {
+    embedChunks: (texts) =>
+      httpEmbedTexts(httpConfig, texts.map((t) => `search_document: ${t}`)),
+
+    embedQuery: async (text) => {
+      const [embedding] = await httpEmbedTexts(httpConfig, [`search_query: ${text}`]);
+      return embedding;
+    },
+
+    warm: async () => {
+      // Probe the endpoint with a single token to verify connectivity
+      await httpEmbedTexts(httpConfig, ["warm"]);
+    }
+  };
+}

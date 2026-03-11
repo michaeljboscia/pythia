@@ -45,6 +45,7 @@ export async function runInit(
   const scanWorkspaceImpl = dependencies.scanWorkspaceImpl ?? scanWorkspace;
   const supervisorFactory = dependencies.supervisorFactory ?? ((resolvedDbPath, resolvedWorkspaceRoot) => (
     new IndexingSupervisor(resolvedDbPath, resolvedWorkspaceRoot, {
+      embeddingsConfig: config.embeddings,
       retentionDays: config.gc.deleted_chunk_retention_days
     })
   ));

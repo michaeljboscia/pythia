@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { PythiaConfig } from "../config.js";
+import { createEmbedder } from "../indexer/embedder.js";
 import type { IndexingSupervisor } from "../indexer/supervisor.js";
 import { createReasoningProvider } from "../oracle/provider.js";
 import { SessionReaper } from "../oracle/reaper.js";
@@ -42,7 +43,9 @@ export function registerTools(
       description: "Force a file, directory, or full workspace scan into the local code search index.",
       inputSchema: forceIndexInputSchema
     },
-    createForceIndexHandler(db, config, {}, supervisor)
+    createForceIndexHandler(db, config, {
+      embedChunksImpl: createEmbedder(config.embeddings).embedChunks
+    }, supervisor)
   );
 
   server.registerTool(

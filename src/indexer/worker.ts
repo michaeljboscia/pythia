@@ -2,7 +2,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { parentPort, workerData } from "node:worker_threads";
 
 import { chunkFile } from "./chunker-treesitter.js";
-import { embedChunks } from "./embedder.js";
+import { createEmbedder, type EmbeddingsBackendConfig } from "./embedder.js";
 import { hashFile } from "./hasher.js";
 import { extractEdges, initLanguageService } from "./slow-path.js";
 import { indexFile } from "./sync.js";
@@ -14,6 +14,7 @@ import { initReranker } from "../retrieval/reranker.js";
 
 type WorkerInitData = {
   dbPath: string;
+  embeddingsConfig?: EmbeddingsBackendConfig;
   retentionDays?: number;
   workspaceRoot: string;
 };
@@ -30,6 +31,8 @@ initLanguageService(data.workspaceRoot);
 await initReranker().catch((error) => {
   console.error("[worker] Reranker init failed:", error);
 });
+
+const workerEmbedder = createEmbedder(data.embeddingsConfig ?? { mode: "local" });
 
 let paused = false;
 let dying = false;
@@ -61,7 +64,7 @@ async function createEmbeddings(texts: string[]): Promise<Float32Array[]> {
     return texts.map(() => new Float32Array(256));
   }
 
-  return embedChunks(texts);
+  return workerEmbedder.embedChunks(texts);
 }
 
 function isBinaryBuffer(buffer: Buffer): boolean {

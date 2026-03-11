@@ -60,6 +60,7 @@ export async function initializeRuntimeWithConfig(
   runMigrations(db);
   runGc(db, config.gc.deleted_chunk_retention_days);
   const supervisor = new IndexingSupervisor(dbPath, config.workspace_path, {
+    embeddingsConfig: config.embeddings,
     retentionDays: config.gc.deleted_chunk_retention_days
   });
   const server = new McpServer({ name: "pythia", version: "1.0.0" });
