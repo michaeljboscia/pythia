@@ -1996,6 +1996,526 @@ const vaultPath = `${vaultRoot}/Pythia/${madrId}-${slug}.md`;
 
 ---
 
+## §21 — Garbage Collection
+
+**Sprint 5.** `src/db/gc.ts` deletes hard-deleted chunks older than the retention window
+from all 4 tables in a single `BEGIN IMMEDIATE` transaction, then runs `PRAGMA incremental_vacuum`.
+
+---
+
+### GC trigger conditions
+
+GC fires at two points:
+1. **Boot** — once when MCP server starts (`pythia start`) and once when `pythia init` completes
+2. **After sync batch** — only if tombstone count exceeds either threshold:
+   - `tombstones > 10_000`, OR
+   - `tombstones / total_chunks > 0.20` (>20% of corpus is deleted)
+
+Check tombstone thresholds AFTER a batch completes, never after individual file syncs.
+
+---
+
+### GC transaction (exact — all 4 tables or none)
+
+```typescript
+import type { Database } from 'better-sqlite3';
+
+export function runGc(db: Database, retentionDays: number): void {
+  const cutoff = new Date(Date.now() - retentionDays * 86_400_000).toISOString();
+
+  db.transaction(() => {
+    // 1. Hard-delete expired tombstoned chunks
+    db.prepare(`
+      DELETE FROM lcs_chunks
+      WHERE is_deleted = 1 AND updated_at < ?
+    `).run(cutoff);
+
+    // 2. Cascade: remove orphaned vector rows
+    db.prepare(`
+      DELETE FROM vec_lcs_chunks
+      WHERE chunk_id NOT IN (SELECT id FROM lcs_chunks)
+    `).run();
+
+    // 3. Cascade: remove orphaned FTS rows (active chunks only in FTS)
+    db.prepare(`
+      DELETE FROM fts_lcs_chunks_kw
+      WHERE rowid NOT IN (SELECT id FROM lcs_chunks WHERE is_deleted = 0)
+    `).run();
+
+    db.prepare(`
+      DELETE FROM fts_lcs_chunks_sub
+      WHERE rowid NOT IN (SELECT id FROM lcs_chunks WHERE is_deleted = 0)
+    `).run();
+  })();
+
+  // Outside the transaction — advisory vacuum, not atomic
+  db.pragma('incremental_vacuum');
+}
+```
+
+---
+
+### Threshold check after batch
+
+```typescript
+export function shouldRunGc(db: Database): boolean {
+  const row = db.prepare(`
+    SELECT
+      SUM(CASE WHEN is_deleted = 1 THEN 1 ELSE 0 END) AS tombstones,
+      COUNT(*) AS total
+    FROM lcs_chunks
+  `).get() as { tombstones: number; total: number };
+
+  if (row.total === 0) return false;
+  return row.tombstones > 10_000 || row.tombstones / row.total > 0.20;
+}
+```
+
+---
+
+### Common mistakes
+
+```ts
+// ❌ WRONG — no retention window (deletes everything immediately)
+DELETE FROM lcs_chunks WHERE is_deleted = 1
+
+// ✅ CORRECT — retention cutoff as datetime comparison
+DELETE FROM lcs_chunks WHERE is_deleted = 1 AND updated_at < ?
+
+// ❌ WRONG — four separate transactions
+db.exec('DELETE FROM lcs_chunks WHERE ...');
+db.exec('DELETE FROM vec_lcs_chunks WHERE ...');
+
+// ✅ CORRECT — single BEGIN IMMEDIATE covers all 4 tables
+db.transaction(() => { /* all 4 deletes */ })();
+
+// ❌ WRONG — GC after every individual file sync
+await syncFile(file); runGc(db, retentionDays);
+
+// ✅ CORRECT — GC only after batch, only when thresholds exceeded
+await syncBatch(files);
+if (shouldRunGc(db)) runGc(db, retentionDays);
+
+// ❌ WRONG — PRAGMA incremental_vacuum inside the transaction
+db.transaction(() => {
+  // ... deletes ...
+  db.pragma('incremental_vacuum'); // advisory pragma inside tx = no-op or error
+})();
+
+// ✅ CORRECT — pragma runs after COMMIT
+db.transaction(() => { /* deletes */ })();
+db.pragma('incremental_vacuum');
+```
+
+---
+
+## §22 — Commander CLI
+
+**Sprint 5.** `src/cli/main.ts` uses `commander` to define the `pythia` binary.
+Four commands: `init`, `start`, `mcp install <target>`, `migrate`.
+
+---
+
+### Entry point
+
+```typescript
+// src/cli/main.ts
+import { Command } from 'commander';
+import { initCommand }       from './init.js';
+import { startCommand }      from './start.js';
+import { mcpInstallCommand } from './mcp-install.js';
+import { migrateCommand }    from './migrate.js';
+
+const program = new Command();
+
+program
+  .name('pythia')
+  .description('Pythia v1 — codebase-aware MCP server')
+  .version('1.0.0');
+
+program.addCommand(initCommand);
+program.addCommand(startCommand);
+
+const mcp = new Command('mcp');
+mcp.description('MCP integration commands');
+mcp.addCommand(mcpInstallCommand);
+program.addCommand(mcp);
+
+program.addCommand(migrateCommand);
+
+await program.parseAsync(process.argv);
+```
+
+---
+
+### `pythia init`
+
+```typescript
+// src/cli/init.ts
+import { Command } from 'commander';
+import { getDb }       from '../db/connection.js';
+import { runMigrations } from '../db/migrate.js';
+import { runGc }       from '../db/gc.js';
+
+export const initCommand = new Command('init')
+  .description('Bootstrap a workspace: create .pythia/, run migrations, cold-start index')
+  .action(async () => {
+    const workspace = process.cwd();
+    const dbPath = path.join(workspace, '.pythia', 'lcs.db');
+
+    await fs.mkdir(path.join(workspace, '.pythia'), { recursive: true });
+
+    const db = getDb(dbPath);
+    runMigrations(db);           // idempotent — safe on existing DB
+    runGc(db, cfg.gc.deleted_chunk_retention_days);  // boot GC
+
+    // Cold-start CDC scan: queue ALL files (ignore mtime/hash cache)
+    await cdcScan(workspace, db, { force: true });
+
+    console.log('✓ Pythia initialized');
+    process.exit(0);
+  });
+```
+
+---
+
+### `pythia start`
+
+```typescript
+// src/cli/start.ts
+export const startCommand = new Command('start')
+  .description('Launch the MCP server (requires prior `pythia init`)')
+  .action(async () => {
+    const workspace = process.cwd();
+    const dbPath = path.join(workspace, '.pythia', 'lcs.db');
+
+    // Fail fast if not initialized
+    if (!existsSync(dbPath)) {
+      console.error('Error: workspace not initialized. Run `pythia init` first.');
+      process.exit(1);
+    }
+
+    const db = getDb(dbPath);
+    runMigrations(db);           // idempotent migration check
+    runGc(db, cfg.gc.deleted_chunk_retention_days);  // boot GC
+
+    // Warm-start CDC scan: only changed files
+    await cdcScan(workspace, db, { force: false });
+
+    // Launch MCP server on stdio (never returns)
+    await startMcpServer(db);
+  });
+```
+
+---
+
+### `pythia mcp install claude-code` — preview-before-write
+
+```typescript
+// src/cli/mcp-install.ts
+export const mcpInstallCommand = new Command('install')
+  .argument('<target>', 'Integration target: claude-code')
+  .option('--yes', 'Skip confirmation prompt')
+  .action(async (target: string, opts: { yes?: boolean }) => {
+    if (target !== 'claude-code') {
+      console.error(`Unknown target: ${target}`);
+      process.exit(1);
+    }
+
+    const configPath = path.join(os.homedir(), '.claude', 'claude_desktop_config.json');
+    const existing = JSON.parse(await fs.readFile(configPath, 'utf-8').catch(() => '{}'));
+    const preview = buildMcpEntry(process.cwd());
+
+    // Always print preview first
+    console.log('\nWill add to mcpServers:');
+    console.log(JSON.stringify(preview, null, 2));
+
+    if (!opts.yes) {
+      const confirmed = await promptYesNo('Apply? [y/N] ');
+      if (!confirmed) { console.log('Aborted.'); process.exit(0); }
+    }
+
+    // Idempotent write
+    const updated = { ...existing, mcpServers: { ...existing.mcpServers, ...preview } };
+    await fs.writeFile(configPath, JSON.stringify(updated, null, 2));
+    console.log('✓ MCP server registered');
+  });
+```
+
+---
+
+### Critical distinction: `init` vs `start`
+
+```
+pythia init  = bootstrap only
+               creates .pythia/, runs migrations, cold-start index
+               does NOT launch MCP server
+               safe to run multiple times (idempotent)
+
+pythia start = MCP server only
+               requires prior `pythia init`
+               warm-start index (only changed files)
+               does NOT bootstrap
+               runs forever (stdio MCP server)
+```
+
+```ts
+// ❌ WRONG — start auto-inits if .pythia/ missing
+if (!existsSync(dbPath)) {
+  await init(workspace); // silently bootstraps
+}
+await startMcpServer();
+
+// ✅ CORRECT — start fails fast with a clear message
+if (!existsSync(dbPath)) {
+  console.error('Run `pythia init` first.');
+  process.exit(1);
+}
+```
+
+---
+
+## §23 — tsup Bundling
+
+**Sprint 5.** `tsup.config.ts` bundles src/ into dist/ for npm distribution.
+Native modules must be marked external — tsup cannot bundle .node bindings.
+
+---
+
+### tsup.config.ts (exact)
+
+```typescript
+import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: {
+    'cli/main': 'src/cli/main.ts',
+    'index':    'src/index.ts',
+  },
+  format: ['esm'],
+  target: 'node22',
+  splitting: false,
+  sourcemap: true,
+  clean: true,
+  dts: true,
+  external: [
+    // Native bindings — cannot be bundled
+    'better-sqlite3',
+    'sqlite-vec',
+    'tree-sitter',
+    'tree-sitter-typescript',
+    // Large ONNX runtime — distributed separately
+    '@huggingface/transformers',
+    'onnxruntime-node',
+  ],
+});
+```
+
+---
+
+### package.json fields (exact)
+
+```json
+{
+  "name": "@pythia/lcs",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": { "pythia": "./dist/cli/main.js" },
+  "main":  "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types":  "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "src/migrations/"
+  ],
+  "scripts": {
+    "build":          "tsup",
+    "prepublishOnly": "npm run build && npm test"
+  }
+}
+```
+
+`src/migrations/` must be in `files` — the `.sql` migration files are read at runtime
+from disk and are NOT inlined into the bundle.
+
+---
+
+### Common mistakes
+
+```ts
+// ❌ WRONG — bin as string (npm will name it after the package, not 'pythia')
+"bin": "./dist/cli/main.js"
+
+// ✅ CORRECT — bin as object with explicit name
+"bin": { "pythia": "./dist/cli/main.js" }
+
+// ❌ WRONG — missing src/migrations/ in files
+"files": ["dist/"]
+// → migrations .sql files absent on install → migration runner throws ENOENT
+
+// ✅ CORRECT
+"files": ["dist/", "src/migrations/"]
+
+// ❌ WRONG — not marking better-sqlite3 as external
+// tsup will attempt to bundle it → fails on .node binding import
+
+// ✅ CORRECT — ALL native deps in external[]
+external: ['better-sqlite3', 'sqlite-vec', 'tree-sitter', 'tree-sitter-typescript']
+```
+
+---
+
+## §24 — VectorStore + GraphStore Interfaces
+
+**Sprint 5.** Progressive enhancement adapters. All retrieval code goes through these
+interfaces so backends can be swapped without rewriting retrieval logic.
+
+---
+
+### VectorStore interface + SQLite implementation
+
+```typescript
+// src/indexer/vector-store.ts
+import type { Database } from 'better-sqlite3';
+
+export interface VectorStore {
+  upsert(chunkId: string, embedding: Float32Array): Promise<void>;
+  query(embedding: Float32Array, limit: number): Promise<Array<{ chunkId: string; distance: number }>>;
+  delete(chunkId: string): Promise<void>;
+}
+
+export class SqliteVectorStore implements VectorStore {
+  constructor(private db: Database) {}
+
+  async upsert(chunkId: string, embedding: Float32Array): Promise<void> {
+    this.db.prepare(`
+      INSERT OR REPLACE INTO vec_lcs_chunks (chunk_id, embedding)
+      VALUES (?, ?)
+    `).run(chunkId, JSON.stringify(Array.from(embedding)));
+  }
+
+  async query(embedding: Float32Array, limit: number): Promise<Array<{ chunkId: string; distance: number }>> {
+    const rows = this.db.prepare(`
+      SELECT chunk_id, distance
+      FROM vec_lcs_chunks
+      WHERE embedding MATCH ?
+        AND k = ?
+      ORDER BY distance
+    `).all(JSON.stringify(Array.from(embedding)), limit) as Array<{ chunk_id: string; distance: number }>;
+
+    return rows.map((r) => ({ chunkId: r.chunk_id, distance: r.distance }));
+  }
+
+  async delete(chunkId: string): Promise<void> {
+    this.db.prepare('DELETE FROM vec_lcs_chunks WHERE chunk_id = ?').run(chunkId);
+  }
+}
+
+// Stub for future Qdrant backend
+export class QdrantVectorStore implements VectorStore {
+  async upsert(): Promise<void>   { throw new Error('NOT_IMPLEMENTED'); }
+  async query():  Promise<never[]> { throw new Error('NOT_IMPLEMENTED'); }
+  async delete(): Promise<void>   { throw new Error('NOT_IMPLEMENTED'); }
+}
+
+export function createVectorStore(backend: 'sqlite' | 'qdrant', db: Database): VectorStore {
+  if (backend === 'qdrant') return new QdrantVectorStore();
+  return new SqliteVectorStore(db);
+}
+```
+
+---
+
+### GraphStore interface + SQLite implementation
+
+```typescript
+// src/retrieval/graph-store.ts
+import type { Database } from 'better-sqlite3';
+
+export interface TraversalResult {
+  cni: string;
+  depth: number;
+  edgeType: string;
+}
+
+export interface GraphStore {
+  upsertEdge(source: string, target: string, edgeType: string): Promise<void>;
+  traverse(startCni: string, maxDepth: number, maxNodes: number): Promise<TraversalResult[]>;
+  deleteEdgesForFile(filePath: string): Promise<void>;
+}
+
+export class SqliteGraphStore implements GraphStore {
+  constructor(private db: Database) {}
+
+  async upsertEdge(source: string, target: string, edgeType: string): Promise<void> {
+    this.db.prepare(`
+      INSERT OR IGNORE INTO graph_edges (source_id, target_id, edge_type)
+      VALUES (?, ?, ?)
+    `).run(source, target, edgeType);
+  }
+
+  async traverse(startCni: string, maxDepth: number, maxNodes: number): Promise<TraversalResult[]> {
+    // Delegates to existing BFS CTE in src/retrieval/graph.ts
+    return traverseGraph(startCni, this.db, maxDepth, maxNodes);
+  }
+
+  async deleteEdgesForFile(filePath: string): Promise<void> {
+    this.db.prepare(`
+      DELETE FROM graph_edges
+      WHERE source_id LIKE ? OR target_id LIKE ?
+    `).run(`${filePath}::%`, `${filePath}::%`);
+  }
+}
+
+// Stub for future FalkorDB backend
+export class FalkorDbGraphStore implements GraphStore {
+  async upsertEdge():        Promise<void>            { throw new Error('NOT_IMPLEMENTED'); }
+  async traverse():          Promise<TraversalResult[]> { throw new Error('NOT_IMPLEMENTED'); }
+  async deleteEdgesForFile(): Promise<void>            { throw new Error('NOT_IMPLEMENTED'); }
+}
+
+export function createGraphStore(backend: 'sqlite' | 'falkordb', db: Database): GraphStore {
+  if (backend === 'falkordb') return new FalkorDbGraphStore();
+  return new SqliteGraphStore(db);
+}
+```
+
+---
+
+### Common mistakes
+
+```ts
+// ❌ WRONG — calling sqlite-vec directly in retrieval code (no interface layer)
+const rows = db.prepare('SELECT chunk_id, distance FROM vec_lcs_chunks WHERE embedding MATCH ?')
+              .all(embedding, limit);
+
+// ✅ CORRECT — go through VectorStore interface
+const results = await vectorStore.query(embedding, limit);
+
+// ❌ WRONG — QdrantVectorStore silently returns empty results
+async query() { return []; }
+
+// ✅ CORRECT — stub throws NOT_IMPLEMENTED so unimplemented backends are obvious
+async query(): Promise<never[]> { throw new Error('NOT_IMPLEMENTED'); }
+
+// ❌ WRONG — rewriting traverseGraph() inside SqliteGraphStore
+async traverse(start, depth, max) {
+  // duplicate BFS CTE logic here
+}
+
+// ✅ CORRECT — SqliteGraphStore.traverse() delegates to existing traverseGraph()
+async traverse(start, depth, max) {
+  return traverseGraph(start, this.db, depth, max);
+}
+```
+
+---
+
 ## Reference Files
 
 These docs contain full working examples for each library. Load only the refs for your current sprint.
