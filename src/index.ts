@@ -1,5 +1,4 @@
 import { existsSync } from "node:fs";
-import { pathToFileURL } from "node:url";
 import path from "node:path";
 
 import type Database from "better-sqlite3";
@@ -102,7 +101,10 @@ async function main(): Promise<void> {
 }
 
 const invokedPath = process.argv[1];
-const isDirectExecution = invokedPath !== undefined && import.meta.url === pathToFileURL(invokedPath).href;
+const modulePath = path.normalize(new URL(import.meta.url).pathname);
+const isDirectExecution = invokedPath !== undefined
+  && modulePath === path.normalize(path.resolve(invokedPath))
+  && path.basename(modulePath).startsWith("index.");
 
 if (isDirectExecution) {
   main().catch((error) => {

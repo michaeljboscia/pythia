@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { Worker } from "node:worker_threads";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { MainToWorker, WorkerToMain } from "./worker-protocol.js";
@@ -28,7 +30,17 @@ const CRASH_WINDOW_MS = 600_000;
 const MAX_CRASHES = 3;
 
 function createWorker(dbPath: string, workspaceRoot: string, retentionDays = 30): Worker {
-  const workerPath = fileURLToPath(new URL("./worker.js", import.meta.url));
+  const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
+  const candidatePaths = [
+    path.resolve(moduleDirectory, "worker.js"),
+    path.resolve(moduleDirectory, "indexer", "worker.js"),
+    path.resolve(moduleDirectory, "..", "indexer", "worker.js")
+  ];
+  const workerPath = candidatePaths.find((candidatePath) => existsSync(candidatePath));
+
+  if (workerPath === undefined) {
+    throw new Error("Unable to resolve worker entry point");
+  }
 
   return new Worker(workerPath, {
     workerData: { dbPath, workspaceRoot, retentionDays }

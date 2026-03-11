@@ -1,87 +1,72 @@
 # Session Work Plan — 2026-03-11
 
-**Phase:** Sprint 4
-**Plan Ref:** /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md Sprint 4
+**Phase:** Sprint 5
+**Plan Ref:** /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md Sprint 5
 
 ---
 
 ## Context
 
-Sprint 3 is complete and passing. Sprint 4 adds hybrid retrieval, oracle providers, session lifecycle management, MADR commit flow, vault writing, retry handling, and decommissioning. Sprint 5 remains out of scope.
+Sprint 4 was complete and passing at handoff. Sprint 5 added garbage collection, the commander CLI, progressive enhancement adapters, migration lifecycle enforcement, npm bundling, and the final proof script.
 
 ---
 
-## Sprint 4
+## Sprint 5
 
-### Step 4.1 — Full hybrid retrieval
-- [x] Replace /Users/mikeboscia/pythia/src/retrieval/hybrid.ts with RRF fusion, FTS routing, and reranker integration
-- [x] Create /Users/mikeboscia/pythia/src/retrieval/reranker.ts
-- [x] Update /Users/mikeboscia/pythia/src/mcp/lcs-investigate.ts for reranker-unavailable metadata
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/hybrid.test.ts
+### Step 5.1 — GC implementation
+- [x] Create /Users/mikeboscia/pythia/src/db/gc.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/gc.test.ts
 - [x] Run `npm test`
-- [x] Git commit: "Sprint 4 Step 4.1: Full hybrid retrieval — RRF fusion, FTS routing, cross-encoder reranker"
+- [x] Git commit: "Sprint 5 Step 5.1: GC implementation with retention and threshold checks"
 
-### Step 4.2 — Reasoning providers
-- [x] Create /Users/mikeboscia/pythia/src/oracle/provider.ts
-- [x] Create /Users/mikeboscia/pythia/src/oracle/cli-provider.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/cli-provider.test.ts
+### Step 5.2 — Commander CLI
+- [x] Create /Users/mikeboscia/pythia/src/cli/main.ts
+- [x] Create /Users/mikeboscia/pythia/src/cli/init.ts
+- [x] Create /Users/mikeboscia/pythia/src/cli/start.ts
+- [x] Create /Users/mikeboscia/pythia/src/cli/mcp-install.ts
+- [x] Create /Users/mikeboscia/pythia/src/cli/migrate.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/cli.test.ts
 - [x] Run `npm test`
-- [x] Git commit: "Sprint 4 Step 4.2: ReasoningProvider interface + CliReasoningProvider with exponential backoff"
+- [x] Git commit: "Sprint 5 Step 5.2: Commander CLI for init, start, mcp install, and migrate"
 
-### Step 4.3 — Session management
-- [x] Create /Users/mikeboscia/pythia/src/oracle/session.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/session.test.ts
+### Step 5.3 — Progressive enhancement adapters
+- [x] Create /Users/mikeboscia/pythia/src/indexer/vector-store.ts
+- [x] Create /Users/mikeboscia/pythia/src/retrieval/graph-store.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/vector-store.test.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/graph-store.test.ts
 - [x] Run `npm test`
-- [x] Git commit: "Sprint 4 Step 4.3: Session management — spawn matrix, generation_id, idle reconstitution"
+- [x] Git commit: "Sprint 5 Step 5.3: Progressive enhancement adapters for vector and graph stores"
 
-### Step 4.4 — spawn_oracle tool
-- [x] Create /Users/mikeboscia/pythia/src/mcp/spawn-oracle.ts
-- [x] Update /Users/mikeboscia/pythia/src/mcp/tools.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/spawn-oracle.test.ts
+### Step 5.4 — Migration lifecycle enforcement
+- [x] Update /Users/mikeboscia/pythia/src/index.ts
+- [x] Update /Users/mikeboscia/pythia/src/cli/init.ts
+- [x] Update /Users/mikeboscia/pythia/src/cli/start.ts
+- [x] Update supporting worker/supervisor hooks for post-batch GC
+- [x] Extend MCP and CLI lifecycle tests
 - [x] Run `npm test`
-- [x] Git commit: "Sprint 4 Step 4.4: spawn_oracle MCP tool with exact response contract"
+- [x] Git commit: "Sprint 5 Step 5.4: Migration lifecycle enforcement across init, start, and MCP startup"
 
-### Step 4.5 — ask_oracle + reaper
-- [x] Create /Users/mikeboscia/pythia/src/mcp/ask-oracle.ts
-- [x] Create /Users/mikeboscia/pythia/src/oracle/reaper.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/ask-oracle.test.ts
-- [x] Run `npm test`
-- [x] Git commit: "Sprint 4 Step 4.5: ask_oracle — FIFO queue, write-ahead, idle reconstitution, reaper"
-
-### Step 4.6 — commit decision + vault writer + retry queue
-- [x] Create /Users/mikeboscia/pythia/src/mcp/commit-decision.ts
-- [x] Create /Users/mikeboscia/pythia/src/obsidian/writer.ts
-- [x] Create /Users/mikeboscia/pythia/src/obsidian/retry.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/commit-decision.test.ts
-- [x] Run `npm test`
-- [x] Git commit: "Sprint 4 Step 4.6: oracle_commit_decision — BEGIN IMMEDIATE, MADR id from AUTOINCREMENT, Obsidian retry"
-
-### Step 4.7 — decommission tool
-- [x] Create /Users/mikeboscia/pythia/src/mcp/decommission.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/decommission.test.ts
-- [x] Run `npm test`
-- [x] Git commit: "Sprint 4 Step 4.7: oracle_decommission — Argon2id verify, hard-delete transcripts, MADRs preserved"
-
-### Step 4.8 — SDK provider
-- [x] Create /Users/mikeboscia/pythia/src/oracle/sdk-provider.ts
-- [x] Update provider selection paths and package metadata as needed
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/sdk-provider.test.ts
-- [x] Run `npm test`
-- [x] Git commit: "Sprint 4 Step 4.8: SdkReasoningProvider (@google/genai) with CLI fallback"
-
-### Sprint 4 Proof
-- [x] Create /Users/mikeboscia/pythia/scripts/sprint4-proof.ts
+### Step 5.5 — NPM package bundling
+- [x] Create /Users/mikeboscia/pythia/tsup.config.ts
+- [x] Update /Users/mikeboscia/pythia/package.json for bin/exports/files/build
+- [x] Update migration resolution so packaged builds can read src/migrations/
 - [x] Run `npm test`
 - [x] Run `npm run build`
-- [x] Run `npx tsx scripts/sprint4-proof.ts`
+- [x] Run `npm pack --dry-run`
+- [x] Git commit: "Sprint 5 Step 5.5: NPM package bundling with tsup and packaged migrations"
+
+### Sprint 5 Proof
+- [x] Create /Users/mikeboscia/pythia/scripts/sprint5-proof.ts
+- [x] Run `npx tsx scripts/sprint5-proof.ts`
+- [x] Run the manual Sprint 5 smoke test
 - [x] Update /Users/mikeboscia/pythia/progress.txt
 - [x] Update /Users/mikeboscia/pythia/tasks/todo.md
-- [x] Git commit: "Sprint 4 complete: Oracle tools + hybrid retrieval + proof script passes"
+- [ ] Git commit: "Sprint 5 complete: CLI + GC + distribution — proof passes"
 
 ---
 
 ## Review
 
-- [x] All Sprint 1–3 tests remain green
-- [x] Sprint 4 proof passes end-to-end
-- [x] Await user direction before beginning Sprint 5
+- [x] All Sprint 1–4 tests remain green
+- [x] Sprint 5 proof passes end-to-end
+- [x] Await user direction before beginning Sprint 6

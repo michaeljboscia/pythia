@@ -2,14 +2,14 @@ PYTHIA v1 — PROGRESS TRACKER
 ========================================
 Last Updated: 2026-03-11
 
-CURRENT PHASE: Sprint 4 (Oracle Tools + Hybrid Retrieval) — COMPLETE
+CURRENT PHASE: Sprint 5 (CLI + GC + Distribution) — COMPLETE
 IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md
 
 STATUS SUMMARY
 --------------
 Design:          COMPLETE — pythia-lcs-spec.md, 7 interrogation cycles, 17 bound decisions
 Documentation:   COMPLETE — 11 canonical docs generated (v2 suite + session files)
-Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [ ]
+Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [x]
 
 WHAT EXISTS
 -----------
@@ -103,11 +103,13 @@ SPRINT STATUS (from IMPLEMENTATION_PLAN-v2.md)
     [x] Step 4.8: SDK provider fallback selection
     [x] Sprint 4 proof script
 
-[ ] SPRINT 5: CLI + GC + Distribution
-    [ ] Step 5.1: pythia init / start / mcp install CLI commands
-    [ ] Step 5.2: GC loop
-    [ ] Step 5.3: npm package + publish config
-    [ ] Step 5.4: README + end-to-end smoke test
+[x] SPRINT 5: CLI + GC + Distribution
+    [x] Step 5.1: GC implementation
+    [x] Step 5.2: pythia init / start / mcp install CLI commands
+    [x] Step 5.3: Progressive enhancement adapters
+    [x] Step 5.4: Migration lifecycle enforcement
+    [x] Step 5.5: npm package bundling + distribution config
+    [x] Sprint 5 proof script
 
 KEY FILE PATHS
 --------------
@@ -123,7 +125,7 @@ None.
 
 NEXT STEP
 ---------
-Await user direction before beginning Sprint 5.
+Await user direction before beginning Sprint 6.
 
 SESSION HISTORY
 ---------------
@@ -135,3 +137,4 @@ SESSION HISTORY
 2026-03-11: Sprint 2 implementation completed with passing proof script
 2026-03-11: Sprint 3 implementation completed with passing proof script
 2026-03-11: Sprint 4 implementation completed with passing proof script
+2026-03-11: Sprint 5 implementation completed with passing proof script

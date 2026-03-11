@@ -3,6 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: {
     "cli/main": "src/cli/main.ts",
+    "indexer/worker": "src/indexer/worker.ts",
     index: "src/index.ts"
   },
   format: ["esm"],
@@ -17,6 +18,7 @@ export default defineConfig({
     "tree-sitter",
     "tree-sitter-typescript",
     "@huggingface/transformers",
-    "onnxruntime-node"
+    "onnxruntime-node",
+    "typescript"
   ]
 });
