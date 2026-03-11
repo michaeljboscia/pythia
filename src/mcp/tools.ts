@@ -4,6 +4,9 @@ import { z } from "zod";
 
 import type { PythiaConfig } from "../config.js";
 import type { IndexingSupervisor } from "../indexer/supervisor.js";
+import { CliReasoningProvider } from "../oracle/cli-provider.js";
+import { SessionReaper } from "../oracle/reaper.js";
+import { createAskOracleHandler, askOracleInputSchema } from "./ask-oracle.js";
 import { createForceIndexHandler, forceIndexInputSchema } from "./force-index.js";
 import { createLcsInvestigateHandler, lcsInvestigateInputSchema } from "./lcs-investigate.js";
 import { createSpawnOracleHandler, spawnOracleInputSchema } from "./spawn-oracle.js";
@@ -20,6 +23,9 @@ export function registerTools(
   config: PythiaConfig,
   supervisor?: IndexingSupervisor
 ): void {
+  const reasoningProvider = new CliReasoningProvider();
+  const sessionReaper = new SessionReaper(db, config.limits.session_idle_ttl_minutes);
+
   server.registerTool(
     "lcs_investigate",
     {
@@ -51,12 +57,9 @@ export function registerTools(
     "ask_oracle",
     {
       description: "Send a question to an active oracle session.",
-      inputSchema: {
-        session_id: z.string(),
-        prompt: z.string()
-      }
+      inputSchema: askOracleInputSchema
     },
-    async () => notImplementedResult()
+    createAskOracleHandler(db, config, reasoningProvider, sessionReaper)
   );
 
   server.registerTool(
