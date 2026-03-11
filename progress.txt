@@ -1,101 +1,123 @@
-PYTHIA ORACLE ENGINE — PROGRESS TRACKER
+PYTHIA v1 — PROGRESS TRACKER
 ========================================
-Last Updated: 2026-03-09
+Last Updated: 2026-03-11
 
-CURRENT PHASE: Phase 6 COMPLETE — ALL PHASES DONE
-IMPLEMENTATION_PLAN PHASE: COMPLETE
+CURRENT PHASE: Sprint 1 (SQLite + ONNX Foundation) — NOT STARTED
+IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md
 
 STATUS SUMMARY
 --------------
-Design:          COMPLETE (v6 — 51 resolved decisions, 3 interrogation rounds, twin review + research)
-Documentation:   UPDATED (9 canonical docs + research findings applied to schemas/specs)
-Research:        COMPLETE (6 docs, 18 findings triaged, 12 adopted, 6 deferred)
-Implementation:  Phase 1 ✅  Phase 2 ✅  Phase 3 ✅  Phase 4 ✅  Phase 5 ✅  Phase 6 ✅  COMPLETE
+Design:          COMPLETE — pythia-lcs-spec.md, 7 interrogation cycles, 17 bound decisions
+Documentation:   COMPLETE — 11 canonical docs generated (v2 suite + session files)
+Implementation:  Sprint 1 [ ] Sprint 2 [ ] Sprint 3 [ ] Sprint 4 [ ] Sprint 5 [ ]
 
 WHAT EXISTS
 -----------
-[x] Design spec: /Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md (v6, 1530+ lines, 46 decisions)
-[x] README.md: /Users/mikeboscia/pythia/README.md
-[x] Registry seed: /Users/mikeboscia/pythia/registry.json (empty — no oracles registered yet)
-[x] Git repo: https://github.com/michaeljboscia/pythia (main branch)
-[x] Project CLAUDE.md: /Users/mikeboscia/pythia/CLAUDE.md
-[x] progress.txt: /Users/mikeboscia/pythia/progress.txt (this file)
+DESIGN
+[x] Design spec: /Users/mikeboscia/pythia/design/pythia-lcs-spec.md
+    - 7 interrogation cycles, §17 Cycle 7 binding decisions
+    - §6 pythia_memories table patched: seq AUTOINCREMENT + derived id TEXT
+    - Full DB schema, MCP contracts, error registry, all edge cases resolved
 
-CANONICAL DOCS STATUS
----------------------
-[x] docs/PRD.md — Feature requirements (35 FEAT-IDs)
-[x] docs/APP_FLOW.md — Daemon lifecycle, tool flows, state transitions
-[x] docs/TECH_STACK.md — Exact versions, dependencies
-[x] docs/BACKEND_STRUCTURE.md — JSON schemas, MCP contracts, FEAT-014..035 tagged
-[x] docs/IMPLEMENTATION_PLAN.md — 6-phase build plan (18 steps, 35 FEAT-IDs mapped)
-[x] CLAUDE.md — Project governance
-[x] progress.txt — This file
-[x] LESSONS.md — Design-phase lessons captured
-[x] tasks/todo.md — Session work plan
+DOCUMENTATION (v2 suite — generated 2026-03-11)
+[x] /Users/mikeboscia/pythia/docs/PRD-v2.md
+    - 21 features (FEAT-001..FEAT-021), sprint assignments, acceptance criteria
+    - Full error code registry (fatal + non-fatal)
+    - Out-of-scope section for v1
+[x] /Users/mikeboscia/pythia/docs/TECH_STACK-v2.md
+    - Node.js 22 LTS, TypeScript 5.x, ESM
+    - All deps version-locked: better-sqlite3, sqlite-vec, @huggingface/transformers, etc.
+    - Embedding: nomic-embed-text-v1.5 ONNX 256d
+    - Cross-encoder: Xenova/ms-marco-MiniLM-L-6-v2
+    - Full Zod config schema, SQLite pragma set, src/ file tree
+[x] /Users/mikeboscia/pythia/docs/APP_FLOW-v2.md
+    - 7 lifecycle flows (Setup, Per-Session, Code Investigation, Oracle, Indexing, GC, Obsidian)
+    - All error flows documented
+[x] /Users/mikeboscia/pythia/docs/BACKEND_STRUCTURE-v2.md
+    - Complete SQL for all 9 tables/virtual tables
+    - Canonical graph_edges validation trigger
+    - Full MCP tool API contracts (TypeScript types)
+    - Atomic sync contract pseudocode
+    - Full retrieval pipeline (RRF formula, BFS CTE SQL)
+    - Worker Thread message protocol types
+[x] /Users/mikeboscia/pythia/docs/DESIGN_SYSTEM.md
+    - Obsidian vault structure, MADR file naming, YAML frontmatter schema
+    - Document body template, tag taxonomy, wikilink conventions
+    - Retry queue JSON format, availability states
+[x] /Users/mikeboscia/pythia/docs/FRONTEND_GUIDELINES.md
+    - 17 engineering rules for src/obsidian/writer.ts and src/obsidian/retry.ts
+    - Vault write state machine, atomic queue writes, retry backoff schedule
+[x] /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md
+    - 5 sprints, numbered steps, exact files, proof criteria
+    - Sprint 1: 11 files, Sprint 2: 7 files, Sprint 3: 5 files, Sprint 4: 14 files, Sprint 5: 9 files
+[x] /Users/mikeboscia/pythia/CLAUDE.md — Project governance (v2, merged system)
+[x] /Users/mikeboscia/pythia/progress.txt — This file
+[x] /Users/mikeboscia/pythia/tasks/todo.md — Session work plan
+[x] /Users/mikeboscia/pythia/LESSONS.md — Accumulated lessons
 
-TWIN REVIEWS
-------------
-[x] docs/review-gemini-canonical-docs.md — 5 findings (3 critical, 1 warning, 1 minor)
-[x] docs/review-codex-canonical-docs.md — 8 findings (3 critical, 4 warning, 1 minor)
-[x] All findings resolved (6 straightforward fixes + 3 design decisions → decisions #44-46)
+ORACLE ENGINE (LEGACY — SEPARATE SYSTEM)
+-----------------------------------------
+The pre-merge Pythia oracle engine is complete and running at:
+  /Users/mikeboscia/.claude/mcp-servers/inter-agent/src/
+  77 unit tests passing, 13 MCP tools, live in production
+That system is NOT part of Pythia v1 LCS. Distinct codebase.
 
-IMPLEMENTATION PHASES (from IMPLEMENTATION_PLAN.md)
----------------------------------------------------
-[x] Phase 1: Foundation (Runtime Extraction + Types)
-    [x] Step 1.1: GeminiRuntime singleton (FEAT-014, FEAT-015)
-    [x] Step 1.2: Type definitions (FEAT-016)
-    [x] Step 1.3: Registry + State management (FEAT-017, FEAT-018)
-[x] Phase 2: Core Oracle Operations
-    [x] Step 2.1: Corpus loading pipeline (FEAT-019)
-    [x] Step 2.2: spawn_oracle (FEAT-001)
-    [x] Step 2.3: oracle_sync_corpus (FEAT-002)
-    [x] Step 2.4: oracle_pressure_check (FEAT-003, FEAT-020)
-[x] Phase 3: Lifecycle Management
-    [x] Step 3.1: oracle_log_learning (FEAT-005, FEAT-023)
-    [x] Step 3.2: oracle_checkpoint (FEAT-004)
-    [x] Step 3.3: oracle_reconstitute (FEAT-009)
-    [x] Step 3.4: oracle_salvage (FEAT-008)
-[x] Phase 4: Analysis + Corpus Management
-    [x] Step 4.1: oracle_quality_report (FEAT-010)
-    [x] Step 4.2: oracle_add_to_corpus + oracle_update_entry (FEAT-006, FEAT-007)
-    [x] Step 4.3: Idle timeout enforcement (FEAT-022)
-[x] Phase 5: Decommission + Security
-    [x] Step 5.1: oracle_decommission_request + cancel (FEAT-011, FEAT-013)
-    [x] Step 5.2: oracle_decommission_execute (FEAT-012, FEAT-035)
-    [x] Step 5.3: pythia-auth CLI binary (FEAT-034)
-[x] Phase 6: Integration
-    [x] Step 6.1: Slash command / skill (FEAT-025 through FEAT-032)
-    [x] Step 6.2: Post-tool-use pressure hook (FEAT-033)
-    [x] Step 6.3: MCP server registration (13 tools in server.ts)
+SPRINT STATUS (from IMPLEMENTATION_PLAN-v2.md)
+-----------------------------------------------
+[ ] SPRINT 1: SQLite + ONNX Foundation
+    [x] Step 1.1: Project scaffold + package.json
+    [ ] Step 1.2: Zod config schema + config loader
+    [ ] Step 1.3: SQLite schema + migration runner
+    [ ] Step 1.4: ONNX embedding pipeline
+    [ ] Step 1.5: Vector search integration test
+
+[ ] SPRINT 2: Tree-sitter Indexing + MCP Server
+    [ ] Step 2.1: Tree-sitter chunker (JS/TS/Py/Go/Rust/Java)
+    [ ] Step 2.2: Markdown doc chunker
+    [ ] Step 2.3: Indexing Worker Thread
+    [ ] Step 2.4: lcs_investigate + pythia_force_index MCP tools
+    [ ] Step 2.5: File watcher + sync_workspace
+
+[ ] SPRINT 3: Graph Edges + tsserver
+    [ ] Step 3.1: Tree-sitter CONTAINS edge extraction
+    [ ] Step 3.2: BFS CTE structural traversal
+    [ ] Step 3.3: tsserver CALLS/IMPORTS slow path
+
+[ ] SPRINT 4: Oracle Tools
+    [ ] Step 4.1: spawn_oracle + ask_oracle
+    [ ] Step 4.2: oracle_commit_decision (SQLite + Obsidian write)
+    [ ] Step 4.3: oracle_decommission (Argon2id)
+    [ ] Step 4.4: Obsidian writer + retry queue
+
+[ ] SPRINT 5: CLI + GC + Distribution
+    [ ] Step 5.1: pythia init / start / mcp install CLI commands
+    [ ] Step 5.2: GC loop
+    [ ] Step 5.3: npm package + publish config
+    [ ] Step 5.4: README + end-to-end smoke test
 
 KEY FILE PATHS
 --------------
-Design spec:     /Users/mikeboscia/pythia/design/pythia-persistent-oracle-design.md
-Engine code:     /Users/mikeboscia/pythia/src/
-MCP server:      /Users/mikeboscia/.claude/mcp-servers/inter-agent/src/
-Registry:        /Users/mikeboscia/pythia/registry.json
-Skills:          /Users/mikeboscia/pythia/skills/
+Design spec:          /Users/mikeboscia/pythia/design/pythia-lcs-spec.md
+Source (to be built): /Users/mikeboscia/pythia/src/
+Config (runtime):     ~/.pythia/config.json
+Workspace DB:         <workspace>/.pythia/lcs.db
+Docs:                 /Users/mikeboscia/pythia/docs/
 
 BLOCKERS
 --------
-None.
+None — spec is complete, docs are complete, ready to begin Sprint 1.
 
 NEXT STEP
 ---------
-IMPLEMENTATION COMPLETE. 77 tests passing, 13 MCP tools, 1 skill, 1 compiled binary, 1 hook.
-Remaining deferred items:
-- pythia-auth macOS Keychain + Touch ID (deferred enhancement)
-- .pythia-active/ directory creation during spawn_oracle (convenience feature)
-- End-to-end smoke test with live oracle against a real project
+Begin IMPLEMENTATION_PLAN-v2.md Sprint 1, Step 1.1:
+  Create /Users/mikeboscia/pythia/package.json with all version-locked deps from TECH_STACK-v2.md
+  Create /Users/mikeboscia/pythia/tsconfig.json (ESM, strict mode, Node 22 target)
+  Create /Users/mikeboscia/pythia/src/types.ts (foundational shared types)
 
 SESSION HISTORY
 ---------------
-2026-03-05: Founding design session — created design spec v1-v3
-2026-03-06: Design interrogation rounds 2-3, advanced to v6, twin review (12 findings resolved)
-2026-03-07: Pluggable corpus backend, Living Corpus assessment, /uncompromising-executor invoked
-2026-03-08: Canonical doc generation (9 docs), twin review, 9 findings resolved (decisions #44-46)
-2026-03-08: Pre-implementation research (6 docs, 142KB), twin analysis, 18 findings triaged (decisions #47-51)
-2026-03-09: Phase 1+2+3 implementation complete — 13 MCP tools, 38/38 tests passing, 0 regressions
-2026-03-09: Phase 4 implementation complete — 3 more tools (16 total), 57/57 tests passing, 0 regressions
-2026-03-09: Phase 5 implementation complete — 3 more tools (19 total), pythia-auth Rust binary, 77/77 tests passing, 0 regressions
-2026-03-09: Phase 6 implementation complete — /pythia skill, pressure hook, MCP registration confirmed — ALL 6 PHASES DONE
+2026-03-05 to 2026-03-09: Built oracle engine (separate system — 13 tools, 77 tests, all phases done)
+2026-03-10: Parallel deep research pipeline — 19 Gemini Deep Research docs on CS fundamentals
+2026-03-11: Cycle 7 interrogation synthesis — §17 binding decisions patched into spec
+2026-03-11: /uncompromising-executor — generated complete 11-doc v2 canonical suite
+2026-03-11: Ready to begin Sprint 1 implementation

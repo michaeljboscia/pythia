@@ -48,7 +48,41 @@ What happened: After calling oracle_salvage, the sha256 stored in the manifest f
 Lesson: In oracle_salvage, sha256 for the manifest entry must be computed from the on-disk file AFTER atomicWriteFile completes — not from the content string in memory (encoding, newlines, or BOM differences could cause a mismatch). Verify by reading back the file post-write and hashing that.
 Scope: project
 
+## 2026-03-10 — Slash Commands Require commands/ Directory, Not skills/
+🤔 What happened: The `/pythia` skill file was written to `~/.claude/skills/pythia.md` during Phase 6 implementation, but `/pythia` slash command returned "does not exist" because Claude Code resolves slash commands from `~/.claude/commands/` (global) or `.claude/commands/` (project), not `skills/`.
+✅ Lesson: When creating a new slash command, always place or symlink the file in `~/.claude/commands/`. The `skills/` directory is for programmatic loading by other skills/plugins — not for `/slash` invocation. Symlink is ideal: single source of truth in `skills/`, discoverable in `commands/`.
+Scope: project
+
 ## 2026-03-10 — spawn_oracle on Resume Does Not Reset last_query_at — Idle Sweep Fires Immediately
 What happened: During integration testing, every `spawn_oracle` (resume path, `corpus_files_loaded: 0`) was followed immediately by `DAEMON_NOT_FOUND` on the next oracle tool call. Root cause: `last_query_at` on the pool member was not updated to `now()` when resuming. The idle sweep (60s interval, 300s timeout) saw `last_query_at` as 20-30 minutes old and dismissed the daemon on the next tick (0-60s after spawn). The caller had no chance to use the daemon.
 Lesson: `spawn_oracle` on the resume path MUST write `last_query_at = new Date().toISOString()` into state.json for all resumed pool members. This gives the caller a fresh 5-minute idle window after every resume, identical to what a fresh spawn provides.
+Scope: project
+
+---
+
+## Documentation Phase Lessons (2026-03-11)
+
+## 2026-03-11 — Read Governance Before Touching Source Files
+What happened: Started scaffolding Sprint 1 before reading the repo-level governance file and the full startup context files it requires. That caused an avoidable correction on step scope, file list, and session hygiene.
+Lesson: For Pythia sessions, read `CLAUDE.md`, `progress.txt`, `IMPLEMENTATION_PLAN-v2.md`, `LESSONS.md`, and the current work plan before writing code. Treat the startup sequence as a hard gate, not a suggestion.
+Scope: project
+
+## 2026-03-11 — Codex Wins Spec Disputes by Citing Section Numbers; Gemini Argues Pragmatics
+🔍 What happened: In Cycle 7 dual-daemon synthesis, 8 contested questions were resolved. Codex won 6/8 by quoting specific section numbers (§14.5, §17.16, §10). Gemini argued from engineering pragmatism ("UUID v4 is industry standard," "hand-wired edges are fine for Sprint 3") but lost every time the spec had an explicit contrary rule.
+✅ Lesson: When two daemons disagree on a spec interpretation, the one that cites a specific section number usually wins — the spec is the tie-breaker, not pragmatic preference. When writing future interrogation dispatch prompts, explicitly instruct: "Cite the section number that supports your position."
+Scope: project
+
+## 2026-03-11 — Pythia Was Two Separate Projects Until Cycle 7
+🤔 What happened: The oracle engine (Gemini daemons, MCP tools, JSONL ledger) was built as a separate system from the LCS indexer concept. During Cycle 7 synthesis it became obvious both were always meant to be one `pythia` package — the user confirmed "we're merging Pythia and LCS and just calling it Pythia."
+✅ Lesson: When two systems share the same MCP server entry point and the same user benefit ("Claude remembers your codebase"), they're one product. Don't let naming divergence create false separation. The ruthless interrogation pattern surfaces this: "What does the user install?" forces a single answer.
+Scope: project
+
+## 2026-03-11 — DESIGN_SYSTEM and FRONTEND_GUIDELINES Apply to Obsidian Vault Layer
+🤔 What happened: Initially assumed DESIGN_SYSTEM.md and FRONTEND_GUIDELINES.md were not applicable to Pythia since it has no browser UI. User correctly noted "we have writeups in the spec for Obsidian to be the UI." Both docs were written and are substantive — they govern the MADR markdown file format, vault write rules, and retry queue engineering.
+✅ Lesson: "No browser frontend" does not mean "no DESIGN_SYSTEM." Ask: what IS the UI? In Pythia's case, Obsidian is the passive read-only glass layer — every visual convention (file naming, frontmatter schema, wikilinks, tags, Dataview queries) belongs in DESIGN_SYSTEM.md. The engineering rules for writing to that layer belong in FRONTEND_GUIDELINES.md.
+Scope: project
+
+## 2026-03-11 — §17 Numeric Gap: Cycle 7 Fills a Missing Section Number
+🔍 What happened: A previous session renumbered §17→§16 in the design spec, creating a gap: §16 existed, §18 existed, §17 was missing. When inserting Cycle 7 binding decisions, the gap was used intentionally — §17 was added as "Decision Resolutions — Cycle 7" between the existing §16 and §18. The section order is now sequential (§1..§17..§18) even though cycles are not.
+✅ Lesson: Spec sections should be sequential regardless of cycle order. When inserting a new decisions section, find the next unused number and insert it — don't append to the end if a gap exists earlier. Document the rationale in a comment ("§17 fills the numeric gap left by renumbering in prior session").
 Scope: project

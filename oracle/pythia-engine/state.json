@@ -29,7 +29,7 @@
   "tokens_remaining": 1933796,
   "query_count": 0,
   "last_checkpoint_path": "/Users/mikeboscia/pythia/oracle/pythia-engine/checkpoints/v2-checkpoint.md",
-  "status": "healthy",
+  "status": "cold",
   "lock_held_by": null,
   "lock_expires_at": null,
   "last_error": null,

@@ -1,0 +1,39 @@
+{
+  "name": "@pythia/lcs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build --silent && node --experimental-strip-types --test dist/src/__tests__/*.test.js"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.0.0",
+    "@modelcontextprotocol/sdk": "latest",
+    "@types/better-sqlite3": "latest",
+    "better-sqlite3": "latest",
+    "commander": "^12.0.0",
+    "fast-glob": "^3.0.0",
+    "hash-wasm": "^4.0.0",
+    "ignore": "^5.0.0",
+    "node-tree-sitter": "latest",
+    "sqlite-vec": "latest",
+    "tree-sitter-go": "latest",
+    "tree-sitter-java": "latest",
+    "tree-sitter-javascript": "latest",
+    "tree-sitter-python": "latest",
+    "tree-sitter-rust": "latest",
+    "tree-sitter-typescript": "latest",
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "pythia-engine",
   "project": "pythia",
-  "version": 3,
+  "version": 4,
   "checkpoint_headroom_tokens": 200000,
   "pool_size": 1,
   "static_entries": [
@@ -39,10 +39,18 @@
       "priority": 4
     },
     {
+      "path": "/Users/mikeboscia/pythia/research/deep-research-corpus-combined.md",
+      "role": "reference",
+      "required": false,
+      "sha256": "4bc0cd4cd3a14cc1db10bb2e5ae9c98d88a5bd38720bafad62331a124177d446",
+      "added_at": "2026-03-10T14:59:00.000Z",
+      "priority": 6
+    },
+    {
       "path": "/Users/mikeboscia/pythia/LESSONS.md",
       "role": "other",
       "required": false,
-      "sha256": "8d3ac9b1542a3c301085bfa48c37563f0a2a95faba447cea6583b64dff535e2c",
+      "sha256": "20c402d4b14c80e1698701e78bd30b1304696bbe184b104a4d1e6eca6c5cae99",
       "added_at": "2026-03-10T01:23:34.285Z",
       "priority": 10
     },
