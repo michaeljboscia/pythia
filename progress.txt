@@ -2,14 +2,14 @@ PYTHIA v1 — PROGRESS TRACKER
 ========================================
 Last Updated: 2026-03-11
 
-CURRENT PHASE: Sprint 3 (Graph Engine + Worker Thread) — COMPLETE
+CURRENT PHASE: Sprint 4 (Oracle Tools + Hybrid Retrieval) — COMPLETE
 IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md
 
 STATUS SUMMARY
 --------------
 Design:          COMPLETE — pythia-lcs-spec.md, 7 interrogation cycles, 17 bound decisions
 Documentation:   COMPLETE — 11 canonical docs generated (v2 suite + session files)
-Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [ ] Sprint 5 [ ]
+Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [ ]
 
 WHAT EXISTS
 -----------
@@ -92,11 +92,16 @@ SPRINT STATUS (from IMPLEMENTATION_PLAN-v2.md)
     [x] Step 3.7: Structural MCP routing
     [x] Step 3.8: Sprint 3 proof script
 
-[ ] SPRINT 4: Oracle Tools
-    [ ] Step 4.1: spawn_oracle + ask_oracle
-    [ ] Step 4.2: oracle_commit_decision (SQLite + Obsidian write)
-    [ ] Step 4.3: oracle_decommission (Argon2id)
-    [ ] Step 4.4: Obsidian writer + retry queue
+[x] SPRINT 4: Oracle Tools
+    [x] Step 4.1: Full hybrid retrieval (RRF + FTS routing + cross-encoder)
+    [x] Step 4.2: ReasoningProvider interface + CLI provider
+    [x] Step 4.3: Session management
+    [x] Step 4.4: spawn_oracle MCP tool
+    [x] Step 4.5: ask_oracle + inactivity reaper
+    [x] Step 4.6: oracle_commit_decision + Obsidian writer + retry queue
+    [x] Step 4.7: oracle_decommission
+    [x] Step 4.8: SDK provider fallback selection
+    [x] Sprint 4 proof script
 
 [ ] SPRINT 5: CLI + GC + Distribution
     [ ] Step 5.1: pythia init / start / mcp install CLI commands
@@ -118,7 +123,7 @@ None.
 
 NEXT STEP
 ---------
-Await user direction before beginning Sprint 4.
+Await user direction before beginning Sprint 5.
 
 SESSION HISTORY
 ---------------
@@ -129,3 +134,4 @@ SESSION HISTORY
 2026-03-11: Sprint 1 implementation completed with passing proof script
 2026-03-11: Sprint 2 implementation completed with passing proof script
 2026-03-11: Sprint 3 implementation completed with passing proof script
+2026-03-11: Sprint 4 implementation completed with passing proof script
