@@ -34,10 +34,10 @@ Sprint 1 is complete and passing. Sprint 2 adds the Tree-sitter fast path, CDC, 
 - [ ] Git commit: "Sprint 2 Step 2.3: CDC scanner with mtime/BLAKE3 two-gate and binary detection"
 
 ### Step 2.4 — MCP server scaffold
-- [ ] Create /Users/mikeboscia/pythia/src/mcp/tools.ts
-- [ ] Replace /Users/mikeboscia/pythia/src/index.ts stub with real stdio startup
-- [ ] Create /Users/mikeboscia/pythia/src/__tests__/mcp-server.test.ts
-- [ ] Proof: npm test passes MCP server tests
+- [x] Create /Users/mikeboscia/pythia/src/mcp/tools.ts
+- [x] Replace /Users/mikeboscia/pythia/src/index.ts stub with real stdio startup
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/mcp-server.test.ts
+- [x] Proof: npm test passes MCP server tests
 - [ ] Git commit: "Sprint 2 Step 2.4: MCP server scaffold with all 6 tools registered"
 
 ### Step 2.5 — lcs_investigate
