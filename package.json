@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsup",
     "build:test": "tsc -p tsconfig.json --outDir dist-test",
-    "test": "npm run build:test --silent && node --experimental-strip-types --test dist-test/src/__tests__/*.test.js",
+    "test": "npm run build:test --silent && node --experimental-strip-types --test dist-test/src/__tests__/*.test.js dist-test/src/__tests__/integration/*.test.js dist-test/src/__tests__/performance/*.test.js",
     "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
