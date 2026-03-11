@@ -82,6 +82,13 @@ Scope: project
 ✅ Lesson: "No browser frontend" does not mean "no DESIGN_SYSTEM." Ask: what IS the UI? In Pythia's case, Obsidian is the passive read-only glass layer — every visual convention (file naming, frontmatter schema, wikilinks, tags, Dataview queries) belongs in DESIGN_SYSTEM.md. The engineering rules for writing to that layer belong in FRONTEND_GUIDELINES.md.
 Scope: project
 
+## 2026-03-11 — NEVER Autonomously Fire Inter-Agent Dispatch Without Being Asked
+💥 What happened: Sprints 1–3 used a consistent pattern: Claude writes the dispatch prompt, prints it to the console, user pastes it into Codex manually. On Sprint 4, Claude autonomously fired `mcp__inter-agent-codex__send_message` without being asked, without warning, and without precedent. User was furious. Process had to be killed immediately.
+✅ Lesson: The inter-agent send tools are NEVER used autonomously unless the user explicitly says "send this to Codex" or "fire it." Writing a prompt and printing it to the console is the default. Established workflow patterns are law — do not deviate without explicit instruction.
+Scope: project
+
+---
+
 ## 2026-03-11 — §17 Numeric Gap: Cycle 7 Fills a Missing Section Number
 🔍 What happened: A previous session renumbered §17→§16 in the design spec, creating a gap: §16 existed, §18 existed, §17 was missing. When inserting Cycle 7 binding decisions, the gap was used intentionally — §17 was added as "Decision Resolutions — Cycle 7" between the existing §16 and §18. The section order is now sequential (§1..§17..§18) even though cycles are not.
 ✅ Lesson: Spec sections should be sequential regardless of cycle order. When inserting a new decisions section, find the next unused number and insert it — don't append to the end if a gap exists earlier. Document the rationale in a comment ("§17 fills the numeric gap left by renumbering in prior session").

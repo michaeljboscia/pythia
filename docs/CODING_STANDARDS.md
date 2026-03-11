@@ -1267,6 +1267,735 @@ WHERE t.depth < 6
 
 ---
 
+## §17 — Hybrid Retrieval: RRF Fusion + FTS Routing
+
+**Sprint 4.** Extends the Sprint 2 vector-only `src/retrieval/hybrid.ts` with FTS fusion and
+Reciprocal Rank Fusion (RRF). The cross-encoder reranker runs in §18 after fusion.
+
+---
+
+### RRF formula
+
+```
+score(chunk) = wv / (60 + rank_vec) + wf / (60 + rank_fts)
+```
+
+`rank_vec` and `rank_fts` are 1-based (1 = best). A chunk that appears in vector results
+only gets `wf` term = 0. A chunk that appears in FTS only gets `wv` term = 0.
+
+**Intent weights (§17.5):**
+
+| intent | wv | wf |
+|--------|----|----|
+| `semantic` | 0.7 | 0.3 |
+| `structural` | 0.3 | 0.7 |
+
+The k=60 constant (standard RRF constant) prevents top-ranked items from dominating
+when one list is much longer than the other.
+
+---
+
+### FTS routing rules (§17.5 / §17.19)
+
+Run `fts_lcs_chunks_kw` first. If it returns **zero hits** AND the query string meets
+any of the following conditions, fall back to `fts_lcs_chunks_sub` (trigram FTS):
+
+1. Query is double-quoted: `/^".*"$/` matches
+2. Query contains `::` (CNI path separator)
+3. Query contains `/` (file path)
+4. Query contains `.` (extension or method access)
+
+Fallback occurs only on the **zero-hits** condition. If kw-FTS returns ≥1 result,
+always use kw-FTS regardless of query syntax.
+
+```ts
+// ❌ WRONG — always route by query syntax, ignoring hit count
+function routeFts(query: string): 'kw' | 'sub' {
+  if (query.includes('::') || query.includes('/')) return 'sub';
+  return 'kw';
+}
+
+// ✅ CORRECT — run kw first; only fall back on zero results + syntax signal
+function runFts(query: string, db: Database, limit: number): FtsRow[] {
+  const kwRows = db.prepare(KW_FTS_QUERY).all(query, limit) as FtsRow[];
+  if (kwRows.length > 0) return kwRows;
+
+  const needsTrigram = /^".*"$/.test(query)
+    || query.includes('::')
+    || query.includes('/')
+    || query.includes('.');
+
+  if (!needsTrigram) return []; // no results, no fallback trigger
+  return db.prepare(SUB_FTS_QUERY).all(query, limit) as FtsRow[];
+}
+```
+
+---
+
+### Complete `src/retrieval/hybrid.ts` (Sprint 4 replacement)
+
+```typescript
+import type { Database } from 'better-sqlite3';
+import type { Embedder } from '../indexer/embedder.js';
+import type { LcsChunk } from '../db/types.js';
+
+export type RetrievalIntent = 'semantic' | 'structural';
+
+const VEC_LIMIT = 30;
+const FTS_LIMIT = 30;
+const RRF_TOP_K = 12; // candidates sent to cross-encoder
+
+const INTENT_WEIGHTS: Record<RetrievalIntent, { wv: number; wf: number }> = {
+  semantic:   { wv: 0.7, wf: 0.3 },
+  structural: { wv: 0.3, wf: 0.7 },
+};
+
+// ── SQL ──────────────────────────────────────────────────────────────────────
+
+const VEC_QUERY = `
+  SELECT c.*, v.distance
+  FROM vec_lcs_chunks v
+  JOIN lcs_chunks c ON c.id = v.chunk_id
+  WHERE c.is_deleted = 0
+    AND v.embedding MATCH ?
+    AND k = ?
+  ORDER BY v.distance
+`;
+
+const KW_FTS_QUERY = `
+  SELECT c.*, fts.rank
+  FROM fts_lcs_chunks_kw fts
+  JOIN lcs_chunks c ON c.id = fts.rowid
+  WHERE c.is_deleted = 0
+    AND fts_lcs_chunks_kw MATCH ?
+  ORDER BY fts.rank
+  LIMIT ?
+`;
+
+const SUB_FTS_QUERY = `
+  SELECT c.*, fts.rank
+  FROM fts_lcs_chunks_sub fts
+  JOIN lcs_chunks c ON c.id = fts.rowid
+  WHERE c.is_deleted = 0
+    AND fts_lcs_chunks_sub MATCH ?
+  ORDER BY fts.rank
+  LIMIT ?
+`;
+
+// ── Retrieval ─────────────────────────────────────────────────────────────────
+
+export async function hybridRetrieve(
+  query: string,
+  db: Database,
+  embedder: Embedder,
+  intent: RetrievalIntent,
+): Promise<{ chunks: LcsChunk[]; indexState: 'ready' | 'indexing' | 'empty' }> {
+  const { wv, wf } = INTENT_WEIGHTS[intent];
+
+  // Check corpus state
+  const countRow = db.prepare('SELECT COUNT(*) as n FROM lcs_chunks WHERE is_deleted=0').get() as { n: number };
+  if (countRow.n === 0) {
+    return { chunks: [], indexState: 'empty' };
+  }
+
+  // Vector search
+  const queryEmbedding = await embedder.embed(`search_query: ${query}`);
+  const vecRows = db.prepare(VEC_QUERY).all(
+    JSON.stringify(Array.from(queryEmbedding)),
+    VEC_LIMIT,
+  ) as (LcsChunk & { distance: number })[];
+
+  // FTS search (with routing)
+  const ftsRows = runFts(query, db, FTS_LIMIT);
+
+  // Build rank maps (1-based)
+  const vecRank = new Map<string, number>();
+  vecRows.forEach((r, i) => vecRank.set(r.cni, i + 1));
+  const ftsRank = new Map<string, number>();
+  ftsRows.forEach((r, i) => ftsRank.set(r.cni, i + 1));
+
+  // Union of all candidates
+  const allCnis = new Set([...vecRank.keys(), ...ftsRank.keys()]);
+
+  // Chunk lookup map (avoid N re-queries)
+  const chunkMap = new Map<string, LcsChunk>();
+  [...vecRows, ...ftsRows].forEach((r) => chunkMap.set(r.cni, r));
+
+  // RRF score
+  const scored: Array<{ chunk: LcsChunk; score: number }> = [];
+  for (const cni of allCnis) {
+    const rv = vecRank.get(cni) ?? Infinity;
+    const rf = ftsRank.get(cni) ?? Infinity;
+    const score = (rv === Infinity ? 0 : wv / (60 + rv))
+                + (rf === Infinity ? 0 : wf / (60 + rf));
+    const chunk = chunkMap.get(cni)!;
+    scored.push({ chunk, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  const topK = scored.slice(0, RRF_TOP_K).map(({ chunk, score }) => ({
+    ...chunk,
+    score,
+  }));
+
+  return { chunks: topK, indexState: 'ready' };
+}
+
+// ── FTS routing ───────────────────────────────────────────────────────────────
+
+function runFts(query: string, db: Database, limit: number): LcsChunk[] {
+  const kwRows = db.prepare(KW_FTS_QUERY).all(query, limit) as LcsChunk[];
+  if (kwRows.length > 0) return kwRows;
+
+  const needsTrigram = /^".*"$/.test(query)
+    || query.includes('::')
+    || query.includes('/')
+    || query.includes('.');
+
+  if (!needsTrigram) return [];
+  return db.prepare(SUB_FTS_QUERY).all(query, limit) as LcsChunk[];
+}
+```
+
+### Common mistakes
+
+```ts
+// ❌ WRONG — equal weights for both intents
+const WEIGHTS = { wv: 0.5, wf: 0.5 };
+
+// ✅ CORRECT — intent-specific weights from spec §17.5
+const INTENT_WEIGHTS = {
+  semantic:   { wv: 0.7, wf: 0.3 },
+  structural: { wv: 0.3, wf: 0.7 },
+};
+
+// ❌ WRONG — RRF denominator uses chunk count, not constant k=60
+const score = wv / (vecRows.length + rank_vec);
+
+// ✅ CORRECT — k=60 is a fixed constant (standard RRF formula)
+const score = wv / (60 + rank_vec);
+
+// ❌ WRONG — top-12 limit applied before RRF (loses cross-list candidates)
+const vecRows = db.prepare(VEC_QUERY).all(embedding, 12);
+
+// ✅ CORRECT — fetch top-30 from each source, fuse, then slice to top-12
+const vecRows = db.prepare(VEC_QUERY).all(embedding, 30);
+// ... fuse ... then scored.slice(0, 12)
+```
+
+---
+
+## §18 — Cross-Encoder Reranker
+
+**Sprint 4.** Takes the top-12 RRF candidates from §17 and reranks them using
+`Xenova/ms-marco-MiniLM-L-6-v2`. Outputs a sorted list with float scores ∈ (0.0, 1.0).
+
+**250ms hard timeout:** If scoring exceeds 250ms, return RRF order unchanged and emit
+`[METADATA: RERANKER_UNAVAILABLE]` in the MCP response.
+
+---
+
+### Why `AutoModelForSequenceClassification`, not `pipeline('text-classification')`
+
+`pipeline('text-classification')` wraps models that output label→probability mappings
+(e.g. POSITIVE/NEGATIVE). The ms-marco cross-encoder outputs a single unbounded relevance
+logit — it is a regression model, not a classifier. The `pipeline()` factory handles the
+output incorrectly; use the model directly.
+
+---
+
+### Complete `src/retrieval/reranker.ts`
+
+```typescript
+import {
+  AutoTokenizer,
+  AutoModelForSequenceClassification,
+} from '@huggingface/transformers';
+import type { PreTrainedTokenizer, PreTrainedModel } from '@huggingface/transformers';
+import type { LcsChunk } from '../db/types.js';
+
+const RERANKER_MODEL  = 'Xenova/ms-marco-MiniLM-L-6-v2';
+const TIMEOUT_MS      = 250;
+const MAX_TOKEN_LEN   = 512;
+
+let _tokenizer: PreTrainedTokenizer | null = null;
+let _model: PreTrainedModel | null = null;
+
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
+
+export async function initReranker(cacheDir: string): Promise<void> {
+  if (_tokenizer && _model) return;
+  [_tokenizer, _model] = await Promise.all([
+    AutoTokenizer.from_pretrained(RERANKER_MODEL, { cache_dir: cacheDir }),
+    AutoModelForSequenceClassification.from_pretrained(RERANKER_MODEL, {
+      cache_dir: cacheDir,
+      quantized: true,
+    }),
+  ]);
+}
+
+export function isRerankerReady(): boolean {
+  return _tokenizer !== null && _model !== null;
+}
+
+// ── Reranking ─────────────────────────────────────────────────────────────────
+
+export type RerankerResult = {
+  chunks: LcsChunk[];
+  rerankerUsed: boolean;
+};
+
+export async function rerank(
+  query: string,
+  candidates: LcsChunk[],
+): Promise<RerankerResult> {
+  if (!isRerankerReady() || candidates.length === 0) {
+    return { chunks: candidates, rerankerUsed: false };
+  }
+
+  const passages = candidates.map((c) => c.content);
+  const queries  = new Array(passages.length).fill(query) as string[];
+
+  const scoringPromise = _scorePassages(queries, passages);
+  const timeoutPromise = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), TIMEOUT_MS),
+  );
+
+  const result = await Promise.race([scoringPromise, timeoutPromise]);
+
+  if (result === null) {
+    // Timeout — caller must append [METADATA: RERANKER_UNAVAILABLE] to output
+    return { chunks: candidates, rerankerUsed: false };
+  }
+
+  const scored = candidates.map((chunk, i) => ({ chunk, score: result[i] }));
+  scored.sort((a, b) => b.score - a.score);
+
+  return {
+    chunks: scored.map(({ chunk, score }) => ({ ...chunk, score })),
+    rerankerUsed: true,
+  };
+}
+
+// ── Internal ──────────────────────────────────────────────────────────────────
+
+async function _scorePassages(
+  queries: string[],
+  passages: string[],
+): Promise<number[]> {
+  const inputs = _tokenizer!(queries, {
+    text_pair: passages,
+    padding:    true,
+    truncation: 'only_second',  // preserve full query; truncate only the passage
+    max_length: MAX_TOKEN_LEN,
+  });
+
+  const output = await _model!(inputs);
+
+  // output.logits: Tensor [batch_size, 1]
+  // .data is a Float32Array; stride is 1 because num_labels=1
+  const logitsData = output.logits.data as Float32Array;
+  const scores: number[] = [];
+  for (let i = 0; i < passages.length; i++) {
+    scores.push(_sigmoid(logitsData[i]));
+  }
+  return scores;
+}
+
+function _sigmoid(x: number): number {
+  return 1 / (1 + Math.exp(-x));
+}
+```
+
+---
+
+### Emitting `RERANKER_UNAVAILABLE` in the MCP output
+
+When `rerankerUsed: false` is returned:
+
+```ts
+// In src/mcp/lcs-investigate.ts — append to output string when reranker timed out
+if (!rerankerResult.rerankerUsed && candidates.length > 0) {
+  output += '\n[METADATA: RERANKER_UNAVAILABLE]';
+}
+```
+
+This flag must appear **after** the last `--- CHUNK N ---` block, on its own line.
+
+---
+
+### Initialization in Worker Thread entry point
+
+```ts
+// In src/indexer/worker.ts — call before entering message loop
+import { initReranker } from '../retrieval/reranker.js';
+
+const cfg = getConfig();
+await initReranker(cfg.models.cache_dir).catch((err) => {
+  // Non-fatal. Every rerank() call will return rerankerUsed: false.
+  // Process restart recovers.
+  console.error('[worker] Reranker init failed:', err);
+});
+
+// THEN enter the message loop
+parentPort!.on('message', handleMessage);
+```
+
+---
+
+### Common mistakes
+
+```ts
+// ❌ WRONG — pipeline() approach
+const pipe = await pipeline('text-classification', 'Xenova/ms-marco-MiniLM-L-6-v2');
+const result = await pipe([query, passage]); // output is { label, score } — wrong shape
+
+// ✅ CORRECT — direct AutoModelForSequenceClassification
+const inputs = tokenizer(queries, { text_pair: passages, truncation: 'only_second' });
+const output = await model(inputs); // output.logits.data → Float32Array
+
+// ❌ WRONG — softmax on a single logit (always returns 1.0)
+const score = Math.exp(logit) / (Math.exp(logit) + Math.exp(0));
+
+// ✅ CORRECT — sigmoid converts single logit to (0, 1) range
+const score = 1 / (1 + Math.exp(-logit));
+
+// ❌ WRONG — truncation: true (may cut into query on long inputs)
+truncation: true
+
+// ✅ CORRECT — truncation: 'only_second' (passage is second, preserve full query)
+truncation: 'only_second'
+
+// ❌ WRONG — re-initialize model on every rerank call
+export async function rerank(query, candidates) {
+  const model = await AutoModelForSequenceClassification.from_pretrained(...);
+  // ...
+}
+
+// ✅ CORRECT — singleton, initialized once at Worker Thread startup
+// initReranker() at startup, then isRerankerReady() guard in rerank()
+```
+
+---
+
+## §19 — Oracle Decommission: Argon2id Verification
+
+**Sprint 4.** The `oracle_decommission` tool verifies the `decommission_secret` using
+Argon2id. The secret is stored as a PHC-encoded hash in `pythia_sessions.secret_hash`.
+
+**Hash parameters (§17 binding):** memory_cost=65536 KiB, time_cost=3, parallelism=1.
+
+---
+
+### Hash creation (on `spawn_oracle`)
+
+```typescript
+import { argon2id } from 'hash-wasm';
+import { randomBytes } from 'node:crypto';
+
+// Called once, at session creation
+export async function hashDecommissionSecret(secret: string): Promise<string> {
+  const salt = randomBytes(16); // 16 bytes = 128-bit salt
+
+  return argon2id({
+    password:    secret,
+    salt,
+    iterations:  3,       // time_cost
+    memorySize:  65536,   // 64 MB in KiB — NOT 64
+    parallelism: 1,
+    hashLength:  32,
+    outputType:  'encoded', // PHC format: $argon2id$v=19$...
+  }) as Promise<string>;
+}
+
+// The 32-char hex secret is returned to the caller on spawn (created:true only)
+// The PHC hash is stored in pythia_sessions.secret_hash
+export function generateSecret(): string {
+  return randomBytes(16).toString('hex'); // 32-char hex
+}
+```
+
+---
+
+### Verification (on `oracle_decommission`)
+
+```typescript
+import { argon2Verify } from 'hash-wasm';
+
+export async function verifyDecommissionSecret(
+  provided: string,
+  storedHash: string, // PHC-encoded from pythia_sessions.secret_hash
+): Promise<boolean> {
+  try {
+    return await argon2Verify({ password: provided, hash: storedHash });
+  } catch {
+    return false; // malformed hash → treat as wrong
+  }
+}
+```
+
+---
+
+### Decommission transaction (hard-delete transcripts)
+
+```typescript
+// In src/mcp/decommission.ts
+export async function decommissionSession(
+  sessionId: string,
+  providedSecret: string,
+  db: Database,
+): Promise<void> {
+  const row = db.prepare(
+    'SELECT secret_hash FROM pythia_sessions WHERE session_id=? AND status!=?'
+  ).get(sessionId, 'decommissioned') as { secret_hash: string } | undefined;
+
+  if (!row) throw new PythiaError('SESSION_NOT_FOUND');
+
+  const valid = await verifyDecommissionSecret(providedSecret, row.secret_hash);
+  if (!valid) throw new PythiaError('DECOMMISSION_DENIED');
+
+  // BEGIN IMMEDIATE — hard-delete transcripts, update session in single transaction
+  db.transaction(() => {
+    db.prepare('DELETE FROM pythia_transcripts WHERE session_id=?').run(sessionId);
+    db.prepare(`
+      UPDATE pythia_sessions
+      SET status='decommissioned', secret_hash=NULL, session_secret=NULL
+      WHERE session_id=?
+    `).run(sessionId);
+  })();
+  // MADRs (pythia_memories) are NOT deleted
+}
+```
+
+---
+
+### Hard rules for decommission
+
+- **Wrong secret → hard failure.** No transcripts deleted. No partial state. Return `DECOMMISSION_DENIED`.
+- **BEGIN IMMEDIATE** for the delete+update transaction (not plain `BEGIN TRANSACTION`).
+- **MADRs survive decommission.** `pythia_memories` rows are never touched.
+- **Secrets null'd after success.** Both `secret_hash` and `session_secret` set to NULL.
+- **Session name available for reuse.** After decommission, a new `spawn_oracle` with the same name succeeds (creates `generation_id = N+1`).
+
+---
+
+### Common mistakes
+
+```ts
+// ❌ WRONG — storing raw hex secret in the DB
+db.prepare('INSERT INTO pythia_sessions (..., secret) VALUES (?,...)').run(secret);
+
+// ✅ CORRECT — store PHC-encoded Argon2id hash; return raw secret to caller once only
+const hash = await hashDecommissionSecret(secret);
+db.prepare('INSERT INTO pythia_sessions (..., secret_hash) VALUES (?,...)').run(hash);
+// return { decommission_secret: secret } to caller — never again
+
+// ❌ WRONG — memorySize in MB
+argon2id({ ..., memorySize: 64 }) // 64 KiB — far too weak
+
+// ✅ CORRECT — memorySize in KiB
+argon2id({ ..., memorySize: 65536 }) // 65536 KiB = 64 MB
+
+// ❌ WRONG — outputType: 'hex' (cannot use argon2Verify on hex output)
+argon2id({ ..., outputType: 'hex' })
+// → argon2Verify will throw or return false
+
+// ✅ CORRECT — outputType: 'encoded' (PHC string, self-describing, verifiable)
+argon2id({ ..., outputType: 'encoded' })
+```
+
+---
+
+## §20 — Obsidian MADR Writer + Retry Queue
+
+**Sprint 4.** After `oracle_commit_decision` commits the MADR to SQLite, it writes a
+markdown file to the Obsidian vault as a best-effort side effect. The Obsidian write
+**never rolls back a committed MADR.**
+
+---
+
+### Transaction ordering: SQLite commits before Obsidian writes
+
+```ts
+// In src/mcp/commit-decision.ts — this ordering is MANDATORY
+
+// 1. BEGIN IMMEDIATE — lock DB for MADR insert
+db.transaction(() => {
+  const madrId = insertMadr(db, decision);         // → MADR-001, MADR-002, etc.
+  insertImplementsEdges(db, madrId, decision.impacts_files);
+})();
+// Transaction committed here
+
+// 2. Obsidian write is OUT-OF-TRANSACTION
+// Failure here does NOT roll back the committed MADR
+try {
+  await obsidianWriter.write(madrRow, vaultPath);
+} catch (err) {
+  await retryQueue.enqueue(madrRow); // queue for retry, don't throw
+}
+
+// Return success to caller — MADR is committed regardless of vault outcome
+```
+
+---
+
+### MADR `id` derivation from AUTOINCREMENT `seq`
+
+```ts
+// pythia_memories schema:
+//   seq   INTEGER PRIMARY KEY AUTOINCREMENT  ← SQLite auto-assigns
+//   id    TEXT NOT NULL GENERATED ALWAYS AS ('MADR-' || printf('%03d', seq)) STORED
+
+// ❌ WRONG — computing id in application code
+const count = db.prepare('SELECT COUNT(*) as n FROM pythia_memories').get().n;
+const id = `MADR-${String(count + 1).padStart(3, '0')}`;
+// → COUNT()+1 skips if rows have been deleted; also a TOCTOU race
+
+// ✅ CORRECT — let SQLite derive id from AUTOINCREMENT seq
+// Simply insert; read back the generated id after insert
+const info = db.prepare(`
+  INSERT INTO pythia_memories (session_id, title, context, decision, rationale, impacts_files, status)
+  VALUES (?,?,?,?,?,?,?)
+`).run(sessionId, title, context, decision, rationale, JSON.stringify(impacts_files), 'active');
+
+// id is a generated column — SELECT it back
+const row = db.prepare('SELECT id FROM pythia_memories WHERE seq=?').get(info.lastInsertRowid);
+const madrId = row.id; // 'MADR-001', 'MADR-002', etc.
+```
+
+---
+
+### Vault file path construction
+
+```ts
+// DESIGN_SYSTEM.md §MADR file naming:
+// <vault>/Pythia/MADR-NNN-<slugified-title>.md
+
+function madrVaultPath(vaultRoot: string, id: string, title: string): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);
+  return `${vaultRoot}/Pythia/${id}-${slug}.md`;
+}
+```
+
+---
+
+### Retry queue append (atomic write)
+
+```ts
+// In src/obsidian/retry.ts
+// Queue is a newline-delimited JSON file: <workspace>/.pythia/obsidian-retry.jsonl
+
+export async function enqueueRetry(madrRow: MadrRow): Promise<void> {
+  const entry = JSON.stringify({
+    id:         madrRow.id,
+    session_id: madrRow.session_id,
+    queued_at:  new Date().toISOString(),
+    attempts:   0,
+  }) + '\n';
+
+  // Append is atomic on most POSIX filesystems for small writes (< PIPE_BUF)
+  // Write to temp file + rename for guaranteed atomicity on all platforms
+  const queuePath = path.join(workspacePath, '.pythia', 'obsidian-retry.jsonl');
+  await fs.appendFile(queuePath, entry, 'utf-8');
+}
+```
+
+---
+
+### Complete writer output format (from DESIGN_SYSTEM.md)
+
+```ts
+// In src/obsidian/writer.ts
+function buildMadrMarkdown(madr: MadrRow, sessionName: string): string {
+  return `---
+id: ${madr.id}
+session: ${sessionName}
+status: ${madr.status}
+created: ${madr.created_at}
+impacts:
+${madr.impacts_files.map((f) => `  - ${f}`).join('\n')}
+tags:
+  - pythia/madr
+---
+
+# ${madr.id}: ${madr.title}
+
+## Context
+
+${madr.context}
+
+## Decision
+
+${madr.decision}
+
+## Rationale
+
+${madr.rationale}
+
+## Impacts
+
+${madr.impacts_files.map((f) => `- [[${f}]]`).join('\n')}
+`;
+}
+```
+
+---
+
+### Hard rules for MADR commit
+
+- **BEGIN IMMEDIATE** (not `BEGIN TRANSACTION`) for the MADR + IMPLEMENTS edge transaction.
+- **`oracle_commit_decision` is NOT idempotent.** Two calls with identical arguments create two MADR rows. No deduplication.
+- **IMPLEMENTS edge failure aborts the entire transaction** including the MADR. An invalid `impacts_files` path that fails the graph trigger rolls back both.
+- **Obsidian failure is non-fatal.** Always enqueue to retry, never throw to caller.
+- **Write only inside `<vault>/Pythia/`** subdirectory. Never write outside this prefix.
+- **Never read from the vault** (write-only per FRONTEND_GUIDELINES Rule 7).
+
+---
+
+### Common mistakes
+
+```ts
+// ❌ WRONG — Obsidian write inside the transaction (blocks rollback recovery)
+db.transaction(() => {
+  insertMadr(db, decision);
+  await obsidianWriter.write(madr, vault); // async inside sync transaction — throws
+})();
+
+// ✅ CORRECT — transaction commits first, then async vault write
+db.transaction(() => insertMadr(db, decision))();
+try {
+  await obsidianWriter.write(madr, vault);
+} catch {
+  await retryQueue.enqueue(madr);
+}
+
+// ❌ WRONG — re-using plain BEGIN TRANSACTION for MADR insert
+db.exec('BEGIN TRANSACTION');
+insertMadr(db, decision);
+db.exec('COMMIT');
+
+// ✅ CORRECT — BEGIN IMMEDIATE prevents concurrent writes losing the AUTOINCREMENT seq
+db.transaction(() => {
+  insertMadr(db, decision);
+  insertImplementsEdges(db, madrId, impacts_files);
+})(); // better-sqlite3 .transaction() uses BEGIN DEFERRED by default;
+      // for MADR inserts, use db.prepare('BEGIN IMMEDIATE').run() + manual commit
+      // OR wrap in db.transaction() and note that serialized calls are safe
+      // because better-sqlite3's .transaction() is synchronous and non-reentrant
+
+// ❌ WRONG — vault path outside Pythia/ subdirectory
+const vaultPath = `${vaultRoot}/${madrId}.md`;
+
+// ✅ CORRECT — all vault writes go inside Pythia/ subdirectory
+const vaultPath = `${vaultRoot}/Pythia/${madrId}-${slug}.md`;
+```
+
+---
+
 ## Reference Files
 
 These docs contain full working examples for each library. Load only the refs for your current sprint.
@@ -1280,3 +2009,4 @@ These docs contain full working examples for each library. Load only the refs fo
 | Tree-sitter query API | `/Users/mikeboscia/pythia/docs/reference/tree-sitter-query-reference.md` | Sprint 2+ |
 | TypeScript LanguageService API | `/Users/mikeboscia/pythia/docs/reference/TypeScript LanguageService API- cross-file definition resolution reference.md` | Sprint 3+ |
 | hash-wasm (BLAKE3 + Argon2id) | `/Users/mikeboscia/pythia/docs/reference/hash-wasm-gemini-cli-reference.md` | Sprint 4+ |
+| Cross-encoder reranker | `/Users/mikeboscia/pythia/docs/reference/cross-encoder-reranker-reference.md` | Sprint 4+ |
