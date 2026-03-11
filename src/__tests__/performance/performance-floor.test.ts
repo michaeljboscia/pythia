@@ -63,14 +63,16 @@ test("IT-T-027: keyword FTS query over 5,000 live chunks completes in under 10ms
     }
     db.exec("COMMIT");
 
-    // Warm the FTS index (first query may load the btree into cache)
-    db.prepare("SELECT id FROM fts_lcs_chunks_kw WHERE fts_lcs_chunks_kw MATCH ? LIMIT 1").get("handler_1");
+    // Warm the FTS index (first query may load the btree into cache).
+    // Note: tokenchars '._:/#<>?!-' means underscores are part of tokens —
+    // search for a standalone word like "return" that appears in every row.
+    db.prepare("SELECT id FROM fts_lcs_chunks_kw WHERE fts_lcs_chunks_kw MATCH ? LIMIT 1").get("return");
 
     // Measure
     const t0 = performance.now();
     const rows = db.prepare(
       "SELECT id FROM fts_lcs_chunks_kw WHERE fts_lcs_chunks_kw MATCH ? ORDER BY rank LIMIT 30"
-    ).all("processRequest");
+    ).all("return");
     const elapsed = performance.now() - t0;
 
     assert.ok(rows.length > 0, "FTS query must return results");

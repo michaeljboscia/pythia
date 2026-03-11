@@ -253,13 +253,16 @@ test("IT-T-015: supervisor emits fileFailed for individual file errors but does 
     fileFailures.push(msg.file);
   });
 
-  const batchId = "batch-mixed";
-
   // Simulate batch with one file failure (e.g. invalid graph endpoint)
   // and one success — the batch still completes
   const batchPromise = rig.supervisor.sendBatch(["src/bad.ts", "src/good.ts"], "warm");
 
   const worker = rig.currentWorker();
+
+  // Read the batch_id the supervisor assigned — do NOT hardcode it
+  const sentMsg = worker.messages.at(-1);
+  assert.ok(sentMsg?.type === "INDEX_BATCH", "supervisor must have sent INDEX_BATCH");
+  const batchId = sentMsg.batch_id;
 
   // Worker ACKs the batch
   worker.send({ type: "ACK", ack: "INDEX_BATCH", batch_id: batchId } satisfies WorkerToMain);
