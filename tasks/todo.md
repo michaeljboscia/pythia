@@ -66,9 +66,9 @@ and a passing vector search integration test. No MCP server yet.
 - [x] Proof: npm test passes sync tests
 
 ### Sprint 1 Proof Script
-- [ ] Create /Users/mikeboscia/pythia/scripts/sprint1-proof.ts
-- [ ] Run node --experimental-strip-types scripts/sprint1-proof.ts
-- [ ] Verify Worker Thread connection-sharing guidance appears in top-3
+- [x] Create /Users/mikeboscia/pythia/scripts/sprint1-proof.ts
+- [x] Run node --experimental-strip-types scripts/sprint1-proof.ts
+- [x] Verify Worker Thread connection-sharing guidance appears in top-3
 
 ---
 
@@ -81,6 +81,12 @@ After all Sprint 1 steps are checked:
 - [ ] Git commit: "Sprint 1 Step 1.6: atomic sync contract"
 - [ ] Git commit: "Sprint 1 complete: proof script passes"
 - [ ] Verify plan with user before starting Sprint 2
+- [x] Run npm test — all tests pass with 0 failures
+- [x] Run npm run build — TypeScript compiles cleanly
+- [x] Update /Users/mikeboscia/pythia/progress.txt — mark Sprint 1 complete
+- [x] Git commit: "Sprint 1 Step 1.6: atomic sync contract"
+- [ ] Git commit: "Sprint 1 complete: proof script passes"
+- [x] Verify plan with user before starting Sprint 2
 
 ---
 
