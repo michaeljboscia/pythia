@@ -8,6 +8,7 @@ import { CliReasoningProvider } from "../oracle/cli-provider.js";
 import { SessionReaper } from "../oracle/reaper.js";
 import { createAskOracleHandler, askOracleInputSchema } from "./ask-oracle.js";
 import { commitDecisionInputSchema, createCommitDecisionHandler } from "./commit-decision.js";
+import { createDecommissionHandler, decommissionInputSchema } from "./decommission.js";
 import { createForceIndexHandler, forceIndexInputSchema } from "./force-index.js";
 import { createLcsInvestigateHandler, lcsInvestigateInputSchema } from "./lcs-investigate.js";
 import { createSpawnOracleHandler, spawnOracleInputSchema } from "./spawn-oracle.js";
@@ -76,10 +77,8 @@ export function registerTools(
     "oracle_decommission",
     {
       description: "Decommission an oracle session and persist its final state.",
-      inputSchema: {
-        session_id: z.string()
-      }
+      inputSchema: decommissionInputSchema
     },
-    async () => notImplementedResult()
+    createDecommissionHandler(db)
   );
 }

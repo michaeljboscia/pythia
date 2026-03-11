@@ -4,6 +4,7 @@ export const ErrorCodes = {
   SESSION_ALREADY_ACTIVE: { code: -32020, message: "A session is already active" },
   SESSION_BUSY: { code: -32021, message: "Session queue full" },
   SESSION_NOT_FOUND: { code: -32022, message: "Session not found" },
+  DECOMMISSION_DENIED: { code: -32023, message: "Decommission denied" },
   PROVIDER_UNAVAILABLE: { code: -32040, message: "Reasoning provider unavailable" },
   CONTEXT_BUDGET_EXCEEDED: { code: -32041, message: "Context budget exceeded" },
   INVALID_GRAPH_ENDPOINT: { code: -32060, message: "Invalid graph endpoint" },
