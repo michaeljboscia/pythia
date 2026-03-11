@@ -1,98 +1,70 @@
 # Session Work Plan — 2026-03-11
 
-**Phase:** Sprint 1 Kickoff
-**Plan Ref:** /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md Sprint 1
+**Phase:** Sprint 2
+**Plan Ref:** /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md Sprint 2
 
 ---
 
 ## Context
 
-The complete 11-document canonical documentation suite has been generated. Design spec is final
-with §17 Cycle 7 binding decisions. The repo currently contains only docs and design — no source
-code yet. This session begins implementation.
+Sprint 1 is complete and passing. Sprint 2 adds the Tree-sitter fast path, CDC, MCP server scaffold, vector-only retrieval, and the force-index tool. Sprint 3 concerns are explicitly out of scope.
 
 ---
 
-## Sprint 1: SQLite + ONNX Foundation
+## Sprint 2
 
-**Goal:** A working SQLite database with all tables, a functioning ONNX embedding pipeline,
-and a passing vector search integration test. No MCP server yet.
+### Step 2.1 — Tree-sitter chunker
+- [x] Add a resolvable `tree-sitter` runtime dependency if required by the current manifest
+- [x] Create /Users/mikeboscia/pythia/src/indexer/chunker-treesitter.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/chunker-treesitter.test.ts
+- [x] Proof: npm test passes Tree-sitter chunker tests
+- [ ] Git commit: "Sprint 2 Step 2.1: Tree-sitter chunker with CNI format"
 
-### Step 1.1 — Project Scaffold
-- [x] Create /Users/mikeboscia/pythia/package.json with all deps from TECH_STACK-v2.md
-- [x] Create /Users/mikeboscia/pythia/tsconfig.json (ESM, Node 22, strict)
-- [x] Create /Users/mikeboscia/pythia/.gitignore (node_modules, dist, *.db, .pythia/)
-- [x] Run npm install and verify lockfile created
-- [x] Proof: npm run build exits 0
+### Step 2.2 — Dual FTS5 sync
+- [ ] Modify /Users/mikeboscia/pythia/src/indexer/sync.ts to insert into both FTS tables with delete-then-insert
+- [ ] Extend /Users/mikeboscia/pythia/src/__tests__/sync.test.ts for FTS coverage
+- [ ] Proof: npm test passes sync tests
+- [ ] Git commit: "Sprint 2 Step 2.2: Add FTS5 inserts to atomic sync transaction"
 
-### Step 1.1 Review
-- [x] Create /Users/mikeboscia/pythia/src/errors.ts — error registry from BACKEND_STRUCTURE-v2.md
-- [x] Create /Users/mikeboscia/pythia/src/config.ts — Zod config loader with CONFIG_INVALID failures
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/config.test.ts — 3 config tests passing
+### Step 2.3 — CDC + hasher
+- [ ] Create /Users/mikeboscia/pythia/src/indexer/hasher.ts
+- [ ] Create /Users/mikeboscia/pythia/src/indexer/cdc.ts
+- [ ] Create /Users/mikeboscia/pythia/src/__tests__/cdc.test.ts
+- [ ] Proof: npm test passes CDC tests
+- [ ] Git commit: "Sprint 2 Step 2.3: CDC scanner with mtime/BLAKE3 two-gate and binary detection"
 
-### Step 1.2 — Config Loader
-- [x] Create /Users/mikeboscia/pythia/src/config.ts — Zod schema + loadConfig()
-- [ ] Create ~/.pythia/config.json (minimal test config)
-- [x] Write unit test: valid config parses, invalid config throws
-- [x] Proof: npm test passes config tests
+### Step 2.4 — MCP server scaffold
+- [ ] Create /Users/mikeboscia/pythia/src/mcp/tools.ts
+- [ ] Replace /Users/mikeboscia/pythia/src/index.ts stub with real stdio startup
+- [ ] Create /Users/mikeboscia/pythia/src/__tests__/mcp-server.test.ts
+- [ ] Proof: npm test passes MCP server tests
+- [ ] Git commit: "Sprint 2 Step 2.4: MCP server scaffold with all 6 tools registered"
 
-### Step 1.2 — SQLite connection + pragma set
-- [x] Create /Users/mikeboscia/pythia/src/db/connection.ts — SQLite opener with pragma sequence
-- [x] Load sqlite-vec on every new connection via sqliteVec.load(db)
-- [x] Write /Users/mikeboscia/pythia/src/__tests__/connection.test.ts
-- [x] Proof: npm test passes connection tests
+### Step 2.5 — lcs_investigate
+- [ ] Create /Users/mikeboscia/pythia/src/retrieval/hybrid.ts
+- [ ] Create /Users/mikeboscia/pythia/src/mcp/lcs-investigate.ts
+- [ ] Create /Users/mikeboscia/pythia/src/__tests__/lcs-investigate.test.ts
+- [ ] Proof: npm test passes lcs_investigate tests
+- [ ] Git commit: "Sprint 2 Step 2.5: lcs_investigate with vector search and §14.13 output format"
 
-### Step 1.3 — SQLite Schema + Migrations
-- [x] Create /Users/mikeboscia/pythia/src/migrations/001-initial-schema.sql
-      (All tables from BACKEND_STRUCTURE-v2.md plus _migrations)
-- [x] Create /Users/mikeboscia/pythia/src/migrations/002-graph-trigger.sql
-- [x] Create /Users/mikeboscia/pythia/src/db/migrate.ts — forward-only migration runner
-- [x] Write unit test: fresh DB has all tables, migrations are idempotent
-- [x] Proof: npm test passes schema tests, trigger aborts invalid graph inserts
+### Step 2.6 — pythia_force_index
+- [ ] Create /Users/mikeboscia/pythia/src/mcp/force-index.ts
+- [ ] Create /Users/mikeboscia/pythia/src/__tests__/force-index.test.ts
+- [ ] Proof: npm test passes force-index tests
+- [ ] Git commit: "Sprint 2 Step 2.6: pythia_force_index with path validation and force re-embed"
 
-### Step 1.4 — ONNX Embedding Pipeline
-- [x] Create /Users/mikeboscia/pythia/src/indexer/embedder.ts
-      (nomic-embed-text-v1.5, prefix protocol, 256d truncation, singleton)
-- [x] Write unit tests for shape, determinism, and normalization
-- [x] Proof: npm test passes embedder tests
-
-### Step 1.5 — Basic chunker
-- [x] Create /Users/mikeboscia/pythia/src/indexer/chunker-basic.ts
-      (line-based chunks, ~50 lines with 10-line overlap)
-
-### Step 1.6 — Atomic sync contract
-- [x] Create /Users/mikeboscia/pythia/src/indexer/sync.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/sync.test.ts
-- [x] Proof: npm test passes sync tests
-
-### Sprint 1 Proof Script
-- [x] Create /Users/mikeboscia/pythia/scripts/sprint1-proof.ts
-- [x] Run node --experimental-strip-types scripts/sprint1-proof.ts
-- [x] Verify Worker Thread connection-sharing guidance appears in top-3
+### Step 2.7 — Sprint 2 proof
+- [ ] Create /Users/mikeboscia/pythia/scripts/sprint2-proof.ts
+- [ ] Run npx tsx scripts/sprint2-proof.ts
+- [ ] Verify AST-bounded function chunk output, CNI format, and line numbers
+- [ ] Update /Users/mikeboscia/pythia/progress.txt for Sprint 2 completion
+- [ ] Git commit: "Sprint 2 complete: Tree-sitter + MCP scaffold + proof script passes"
 
 ---
 
 ## Review
 
-After all Sprint 1 steps are checked:
-- [ ] Run npm test — all tests pass with 0 failures
-- [ ] Run npm run build — TypeScript compiles cleanly
-- [ ] Update /Users/mikeboscia/pythia/progress.txt — mark Sprint 1 complete
-- [ ] Git commit: "Sprint 1 Step 1.6: atomic sync contract"
-- [ ] Git commit: "Sprint 1 complete: proof script passes"
-- [ ] Verify plan with user before starting Sprint 2
-- [x] Run npm test — all tests pass with 0 failures
-- [x] Run npm run build — TypeScript compiles cleanly
-- [x] Update /Users/mikeboscia/pythia/progress.txt — mark Sprint 1 complete
-- [x] Git commit: "Sprint 1 Step 1.6: atomic sync contract"
-- [ ] Git commit: "Sprint 1 complete: proof script passes"
-- [x] Verify plan with user before starting Sprint 2
-
----
-
-## Notes
-
-- Do NOT start MCP server setup in this sprint — that is Sprint 2
-- Do NOT start Tree-sitter parsing in this sprint — that is Sprint 2
-- sqlite-vec is a native extension loaded via .loadExtension() — test this loads correctly
-- node-tree-sitter: include in package.json but don't wire up until Sprint 2
+- [ ] npm test passes with zero failures across Sprint 1 + Sprint 2
+- [ ] npm run build passes cleanly
+- [ ] Sprint 2 proof script passes
+- [ ] Verify with user before beginning Sprint 3

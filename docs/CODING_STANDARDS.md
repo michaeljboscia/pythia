@@ -610,13 +610,673 @@ describe("embedder", () => {
 
 ---
 
+---
+
+## 14. Worker Thread Bipartite Protocol (§17.15)
+
+All messages between Main Thread and Worker Thread are plain JSON-serializable objects.
+The protocol is bipartite — each type flows in exactly one direction. These are the
+canonical definitions from §17.15. Copy them verbatim into `src/indexer/worker-protocol.ts`.
+
+```ts
+// src/indexer/worker-protocol.ts — types only, no logic
+
+// ── Main → Worker ────────────────────────────────────────────────────────
+export type MainToWorker =
+  | { type: "INDEX_BATCH"; batch_id: string; files: string[]; reason: "boot" | "warm" | "force" }
+  | { type: "PAUSE";  batch_id?: string }
+  | { type: "RESUME" }
+  | { type: "DIE" }    // Only on MCP server SIGTERM — NOT from the inactivity reaper
+  | { type: "PING" }
+
+// ── Worker → Main ────────────────────────────────────────────────────────
+export type WorkerToMain =
+  | { type: "ACK"; ack: "INDEX_BATCH"|"PAUSE"|"RESUME"|"DIE"|"PING"; batch_id?: string }
+  | { type: "BATCH_STARTED";  batch_id: string; total_files: number }
+  | { type: "BATCH_COMPLETE"; batch_id: string; succeeded: number; failed: number; duration_ms: number }
+  | { type: "FILE_FAILED";    batch_id: string; file: string; error_code: string; detail: string }
+  | { type: "PAUSED";         batch_id?: string }
+  | { type: "HEARTBEAT";      batch_id?: string; timestamp: string; in_flight_file?: string }
+  | { type: "FATAL";          batch_id?: string; error_code: string; detail: string }
+```
+
+### Spawning the Worker (Main Thread)
+
+```ts
+// src/indexer/supervisor.ts
+import { Worker } from "node:worker_threads";
+import { fileURLToPath } from "node:url";
+import type { MainToWorker, WorkerToMain } from "./worker-protocol.js";
+
+function spawnWorker(dbPath: string, workspaceRoot: string): Worker {
+  // fileURLToPath + new URL resolves the compiled worker.js relative to THIS file.
+  // Do NOT use __dirname (not available in ESM) or a relative string literal
+  // (breaks if the process cwd is not the project root).
+  const workerPath = fileURLToPath(new URL("./worker.js", import.meta.url));
+
+  const worker = new Worker(workerPath, {
+    workerData: { dbPath, workspaceRoot }   // plain strings only — no Database objects
+  });
+
+  worker.on("message", (msg: WorkerToMain) => {
+    // dispatch to your handler
+  });
+  worker.on("error", (err) => {
+    console.error("[supervisor] worker error:", err);
+  });
+  worker.on("exit", (code) => {
+    if (code !== 0) console.error(`[supervisor] worker exited with code ${code}`);
+    // circuit breaker logic here
+  });
+
+  return worker;
+}
+
+// Sending a message to the worker
+// Use `satisfies` for compile-time type checking — NOT `as`
+worker.postMessage({ type: "INDEX_BATCH", batch_id: "b1", files: ["/abs/path/auth.ts"], reason: "boot" } satisfies MainToWorker);
+worker.postMessage({ type: "PING" } satisfies MainToWorker);
+worker.postMessage({ type: "DIE"  } satisfies MainToWorker);
+```
+
+### Worker Thread Entry (src/indexer/worker.ts)
+
+```ts
+// src/indexer/worker.ts
+import { workerData, parentPort } from "node:worker_threads";
+import Database from "better-sqlite3";
+import * as sqliteVec from "sqlite-vec";
+import { openDb } from "../db/connection.js";
+import { runMigrations } from "../db/migrate.js";
+import type { MainToWorker, WorkerToMain } from "./worker-protocol.js";
+
+// Step 1: Worker opens its OWN connection. NEVER share a Database across threads.
+const db = openDb(workerData.dbPath as string);   // openDb applies full pragma sequence
+runMigrations(db);                                 // idempotent — safe to call again
+
+let paused = false;
+let dying  = false;
+
+// Step 2: Listen for messages from Main Thread
+parentPort!.on("message", async (msg: MainToWorker) => {
+  switch (msg.type) {
+
+    case "PING":
+      send({ type: "ACK", ack: "PING" });
+      break;
+
+    case "INDEX_BATCH":
+      send({ type: "ACK", ack: "INDEX_BATCH", batch_id: msg.batch_id });
+      await handleBatch(msg.batch_id, msg.files, msg.reason);
+      break;
+
+    case "PAUSE":
+      paused = true;
+      send({ type: "PAUSED", batch_id: msg.batch_id });
+      break;
+
+    case "RESUME":
+      paused = false;
+      send({ type: "ACK", ack: "RESUME" });
+      break;
+
+    case "DIE":
+      // Set flag — handleBatch will see it and stop after current file
+      dying = true;
+      // The ACK is sent AFTER the in-flight file finishes (see handleBatch)
+      break;
+  }
+});
+
+// Step 3: type-safe postMessage wrapper
+function send(msg: WorkerToMain): void {
+  parentPort!.postMessage(msg);
+}
+
+// Step 4: The batch loop — one file at a time
+async function handleBatch(batchId: string, files: string[], reason: string): Promise<void> {
+  send({ type: "BATCH_STARTED", batch_id: batchId, total_files: files.length });
+
+  let succeeded = 0;
+  let failed    = 0;
+  const t0      = Date.now();
+
+  for (const file of files) {
+    // Respect PAUSE — poll until resumed
+    while (paused && !dying) await sleep(100);
+
+    // DIE — finish current file then exit cleanly
+    if (dying) break;
+
+    try {
+      await indexOneFile(file, db);
+      succeeded++;
+    } catch (err) {
+      failed++;
+      const errorCode = err instanceof Error && "code" in err
+        ? String((err as any).code)
+        : "INDEXER_FILE_FAILED";
+      send({ type: "FILE_FAILED", batch_id: batchId, file, error_code: errorCode,
+             detail: err instanceof Error ? err.message : String(err) });
+    }
+
+    // Heartbeat every 5 files
+    if ((succeeded + failed) % 5 === 0) {
+      send({ type: "HEARTBEAT", batch_id: batchId,
+             timestamp: new Date().toISOString(), in_flight_file: file });
+    }
+  }
+
+  send({ type: "BATCH_COMPLETE", batch_id: batchId, succeeded, failed,
+         duration_ms: Date.now() - t0 });
+
+  // Now it is safe to honor DIE — no transaction is open
+  if (dying) {
+    send({ type: "ACK", ack: "DIE" });
+    process.exit(0);
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+```
+
+### DIE sequence — critical ordering
+
+```ts
+// ❌ WRONG — exits before committing the active transaction
+case "DIE":
+  process.exit(0);   // data loss if a file is mid-index
+
+// ❌ WRONG — sends ACK before finishing the current file
+case "DIE":
+  send({ type: "ACK", ack: "DIE" });
+  dying = true;      // batch will see dying=true AFTER it already moved to next file
+
+// ✅ CORRECT — set flag, let the batch loop finish its current file,
+//              then the batch loop itself sends ACK and exits
+case "DIE":
+  dying = true;
+  // handleBatch() checks dying after each file, sends ACK: DIE, then process.exit(0)
+```
+
+### Circuit Breaker (src/indexer/supervisor.ts)
+
+```ts
+// Process-local state — NOT persisted across restarts
+const CRASH_WINDOW_MS = 600_000;   // 10 minutes
+const MAX_CRASHES     = 3;
+let crashLog: number[] = [];       // timestamps of recent crashes
+
+function recordCrash(): void {
+  crashLog.push(Date.now());
+}
+
+function shouldRestart(): boolean {
+  // Prune entries older than the window, then count what remains
+  crashLog = crashLog.filter(t => Date.now() - t < CRASH_WINDOW_MS);
+  return crashLog.length < MAX_CRASHES;
+}
+
+function onBatchSuccess(): void {
+  // A clean batch resets the window — prune old entries
+  crashLog = crashLog.filter(t => Date.now() - t < CRASH_WINDOW_MS);
+}
+
+worker.on("exit", (code) => {
+  if (code === 0) return;   // clean DIE exit — no restart needed
+  recordCrash();
+  if (shouldRestart()) {
+    console.error("[supervisor] worker crashed — restarting");
+    worker = spawnWorker(dbPath, workspaceRoot);
+  } else {
+    console.error("[supervisor] circuit breaker open — 3 crashes in 10 min, not restarting");
+    emitFatal("WORKER_CIRCUIT_OPEN");
+  }
+});
+```
+
+---
+
+## 15. TypeScript LanguageService — Edge Extraction Pattern
+
+Pythia uses the **embedded TypeScript LanguageService API** — NOT a raw `tsserver`
+child process with custom IPC. This means: `import * as ts from "typescript"`,
+create a `LanguageServiceHost`, call `ts.createLanguageService()`, done.
+No child_process.spawn, no JSON-RPC messages, no process management.
+
+The LanguageService lives inside the Worker Thread. Create it once at startup.
+The first semantic query triggers a full parse — all subsequent queries are fast.
+
+### Complete slow-path.ts module (copy and adapt)
+
+```ts
+// src/indexer/slow-path.ts
+import * as ts   from "typescript";
+import * as fs   from "node:fs";
+import * as path from "node:path";
+import type Database from "better-sqlite3";
+
+export interface GraphEdge {
+  source_id: string;
+  target_id: string;
+  edge_type: "CALLS" | "IMPORTS" | "RE_EXPORTS";
+}
+
+// ── In-memory file registry ───────────────────────────────────────────────
+// The LanguageService polls getScriptVersion() on every query.
+// If the version string changes, it re-parses from getScriptSnapshot().
+// If the version stays the same, it uses its cached AST — changes are INVISIBLE.
+const fileStore = new Map<string, { version: number; content: string }>();
+
+export function registerFileInLS(absPath: string, content: string): void {
+  const existing = fileStore.get(absPath);
+  fileStore.set(absPath, {
+    version: (existing?.version ?? 0) + 1,   // MUST increment or LS ignores new content
+    content,
+  });
+}
+
+// ── LanguageServiceHost ───────────────────────────────────────────────────
+// Created once, captured by closure. workspaceRoot is the absolute path to the
+// workspace (config.workspace_path). Set it before creating the LS.
+let workspaceRoot = "";
+
+const host: ts.LanguageServiceHost = {
+  getScriptFileNames: () => [...fileStore.keys()],
+
+  getScriptVersion: (f) => (fileStore.get(f)?.version ?? 0).toString(),
+
+  getScriptSnapshot: (f) => {
+    // Serve from in-memory store first (indexed files)
+    const entry = fileStore.get(f);
+    if (entry) return ts.ScriptSnapshot.fromString(entry.content);
+    // Fall back to disk for lib files, node_modules, etc.
+    try {
+      return ts.ScriptSnapshot.fromString(fs.readFileSync(f, "utf-8"));
+    } catch {
+      return undefined;
+    }
+  },
+
+  getCurrentDirectory: () => workspaceRoot,
+
+  getCompilationSettings: (): ts.CompilerOptions => ({
+    allowJs: true,           // REQUIRED — without this, .js files are silently ignored
+    checkJs: false,          // skip type-errors; still enables go-to-definition
+    target: ts.ScriptTarget.ES2020,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    noEmit: true,
+    esModuleInterop: true,
+    maxNodeModuleJsDepth: 0, // don't follow .js into node_modules
+  }),
+
+  // ❌ WRONG: ts.getDefaultLibFileName returns "lib.d.ts" — a filename, not a path
+  // ✅ CORRECT: ts.getDefaultLibFilePath returns "/abs/path/to/node_modules/typescript/lib/lib.d.ts"
+  // The host method is misleadingly named "...FileName" but MUST return a full path.
+  getDefaultLibFileName: (opts) => ts.getDefaultLibFilePath(opts),
+
+  // These four are "optional" in the type but CRITICAL for cross-file module resolution.
+  // Without them, import("./auth") fails to resolve and getDefinitionAtPosition returns undefined.
+  fileExists:      ts.sys.fileExists,
+  readFile:        ts.sys.readFile,
+  readDirectory:   ts.sys.readDirectory,
+  directoryExists: ts.sys.directoryExists,
+  getDirectories:  ts.sys.getDirectories,
+};
+
+// ── LanguageService singleton ─────────────────────────────────────────────
+// Create ONCE. First query is slow (parses all registered files).
+// All subsequent queries on unchanged files are fast (reuse cached ASTs).
+const registry = ts.createDocumentRegistry();   // share AST nodes across LS instances
+let   service: ts.LanguageService | null = null;
+
+export function initLanguageService(wsRoot: string): void {
+  workspaceRoot = wsRoot;
+  service = ts.createLanguageService(host, registry);
+}
+
+// ── Edge extraction ───────────────────────────────────────────────────────
+
+export function extractEdges(absFilePath: string, content: string): GraphEdge[] {
+  if (!service) throw new Error("LanguageService not initialized — call initLanguageService() first");
+
+  registerFileInLS(absFilePath, content);
+
+  const program    = service.getProgram();
+  if (!program) return [];
+  const sourceFile = program.getSourceFile(absFilePath);
+  if (!sourceFile) return [];
+
+  const edges: GraphEdge[] = [];
+  const relPath = toRepoRelative(absFilePath);
+
+  function visit(node: ts.Node): void {
+
+    // ── IMPORTS: import { x } from './module' ──────────────────────────
+    if (ts.isImportDeclaration(node)) {
+      const specText = (node.moduleSpecifier as ts.StringLiteral).text;
+      const resolved = ts.resolveModuleName(
+        specText, absFilePath, host.getCompilationSettings(), ts.sys
+      );
+      const targetAbs = resolved.resolvedModule?.resolvedFileName;
+      if (targetAbs && isInWorkspace(targetAbs)) {
+        edges.push({
+          source_id: `${relPath}::module::default`,
+          target_id: `${toRepoRelative(targetAbs)}::module::default`,
+          edge_type: "IMPORTS",
+        });
+      }
+    }
+
+    // ── RE_EXPORTS: export { x } from './module' ───────────────────────
+    if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
+      const specText = (node.moduleSpecifier as ts.StringLiteral).text;
+      const resolved = ts.resolveModuleName(
+        specText, absFilePath, host.getCompilationSettings(), ts.sys
+      );
+      const targetAbs = resolved.resolvedModule?.resolvedFileName;
+      if (targetAbs && isInWorkspace(targetAbs)) {
+        const targetRel = toRepoRelative(targetAbs);
+        // Walk the export specifiers to emit one RE_EXPORTS edge per named symbol
+        if (node.exportClause && ts.isNamedExports(node.exportClause)) {
+          for (const spec of node.exportClause.elements) {
+            const symName = (spec.propertyName ?? spec.name).text;
+            edges.push({
+              source_id: `${relPath}::module::default`,
+              target_id: `${targetRel}::function::${symName}`,  // best guess; trigger will validate
+              edge_type: "RE_EXPORTS",
+            });
+          }
+        } else {
+          // export * from './module' — emit a module-level RE_EXPORTS
+          edges.push({
+            source_id: `${relPath}::module::default`,
+            target_id: `${targetRel}::module::default`,
+            edge_type: "RE_EXPORTS",
+          });
+        }
+      }
+    }
+
+    // ── CALLS: someFunction() ──────────────────────────────────────────
+    if (ts.isCallExpression(node)) {
+      const calleeNode = node.expression;
+      const offset     = calleeNode.getStart(sourceFile);
+      const defs       = service!.getDefinitionAtPosition(absFilePath, offset);
+
+      if (defs) {
+        for (const def of defs) {
+          if (def.fileName === absFilePath) continue;   // same-file calls: skip
+          if (!isInWorkspace(def.fileName))  continue;  // node_modules: skip
+
+          const targetCni = defToCni(def);
+          const sourceCni = enclosingFunctionCni(node, sourceFile, relPath);
+
+          if (targetCni && sourceCni) {
+            edges.push({ source_id: sourceCni, target_id: targetCni, edge_type: "CALLS" });
+          }
+        }
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return edges;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+function toRepoRelative(absPath: string): string {
+  // Strip workspaceRoot prefix, normalize to forward slashes, remove leading ./
+  return absPath
+    .replace(workspaceRoot.endsWith("/") ? workspaceRoot : workspaceRoot + "/", "")
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "");
+}
+
+function isInWorkspace(absPath: string): boolean {
+  return absPath.startsWith(workspaceRoot) && !absPath.includes("node_modules");
+}
+
+function defToCni(def: ts.DefinitionInfo): string | null {
+  const rel  = toRepoRelative(def.fileName);
+  const kind = def.kind as string;
+  const name = def.name;
+  if (!rel || !name) return null;
+  // method inside a class: containerName is the class name
+  if (def.containerName) return `${rel}::class::${def.containerName}::method::${name}`;
+  if (["function", "class", "interface", "enum", "type", "variable"].includes(kind)) {
+    return `${rel}::${kind}::${name}`;
+  }
+  return null;
+}
+
+function enclosingFunctionCni(
+  node: ts.Node,
+  sf: ts.SourceFile,
+  relPath: string
+): string {
+  let cur: ts.Node | undefined = node.parent;
+  while (cur) {
+    if (
+      ts.isFunctionDeclaration(cur) ||
+      ts.isMethodDeclaration(cur)   ||
+      ts.isArrowFunction(cur)       ||
+      ts.isFunctionExpression(cur)
+    ) {
+      const nameNode = (cur as ts.FunctionDeclaration).name;
+      if (nameNode) return `${relPath}::function::${nameNode.text}`;
+    }
+    cur = cur.parent;
+  }
+  // Fallback: attribute call to the module chunk
+  return `${relPath}::module::default`;
+}
+```
+
+### Inserting edges into graph_edges
+
+```ts
+// src/indexer/worker.ts (inside slow path step, after extractEdges())
+const stmt = db.prepare(`
+  INSERT OR IGNORE INTO graph_edges (source_id, target_id, edge_type)
+  VALUES (?, ?, ?)
+`);
+
+for (const edge of edges) {
+  try {
+    stmt.run(edge.source_id, edge.target_id, edge.edge_type);
+  } catch (err: any) {
+    if (err?.message?.includes("INVALID_GRAPH_ENDPOINT")) {
+      // Target file not yet indexed — expected, skip the edge quietly
+      console.error(`[slow-path] skipping edge (endpoint not indexed): ${edge.target_id}`);
+      continue;
+    }
+    throw err;   // unexpected DB error — propagate
+  }
+}
+```
+
+**Why INSERT OR IGNORE and not a transaction?** Slow path edges are idempotent
+(same source+target+type = same primary key). The graph_edges trigger aborts on
+invalid endpoints — that exception must be caught per-edge, not per-file, so
+you can skip bad edges and continue. Wrapping in a transaction would abort the
+entire file's edge set on one bad endpoint.
+
+**Why does the trigger fire?** When file A imports file B but B hasn't been indexed
+yet, B's module CNI doesn't exist in lcs_chunks. The trigger fires on A's IMPORTS
+edge. This is expected — the next boot scan will re-run the slow path and the edge
+will succeed once B is indexed.
+
+---
+
+## 16. BFS CTE SQL — Graph Traversal
+
+SQLite's `WITH RECURSIVE` implements the BFS. Cycle detection uses a comma-delimited
+path string — each row appends its node ID, and `INSTR` checks prevent revisits.
+The 50-node LIMIT and depth < 6 WHERE clause together cap the result set.
+
+### The full traverseGraph() function (src/retrieval/graph.ts)
+
+```ts
+// src/retrieval/graph.ts
+import type Database from "better-sqlite3";
+
+interface BfsRow {
+  node_id:   string;
+  min_depth: number;
+  edge_type: string;
+}
+
+// Parameters are passed 3 times: once for seed SELECT, once for path init, once for WHERE exclusion
+const BFS_QUERY = `
+  WITH RECURSIVE traversal(node_id, depth, path, edge_type) AS (
+
+    -- Seed row: the starting node itself (depth 0, empty edge_type)
+    SELECT
+      ?       AS node_id,
+      0       AS depth,
+      ','||?||',' AS path,   -- delimiters prevent partial-ID matches in INSTR check below
+      ''      AS edge_type
+
+    UNION ALL
+
+    -- Outbound traversal: follow edges WHERE this node is the source
+    SELECT
+      ge.target_id,
+      t.depth + 1,
+      t.path || ge.target_id || ',',
+      ge.edge_type
+    FROM graph_edges ge
+    JOIN traversal t ON ge.source_id = t.node_id
+    WHERE t.depth < 6
+      AND INSTR(t.path, ','||ge.target_id||',') = 0    -- not already visited
+
+    UNION ALL
+
+    -- Inbound traversal: follow edges WHERE this node is the target
+    SELECT
+      ge.source_id,
+      t.depth + 1,
+      t.path || ge.source_id || ',',
+      ge.edge_type
+    FROM graph_edges ge
+    JOIN traversal t ON ge.target_id = t.node_id
+    WHERE t.depth < 6
+      AND INSTR(t.path, ','||ge.source_id||',') = 0    -- not already visited
+
+  )
+  SELECT node_id, MIN(depth) AS min_depth, edge_type
+  FROM traversal
+  WHERE node_id != ?        -- exclude the seed node itself
+  GROUP BY node_id
+  ORDER BY min_depth
+  LIMIT 50
+`;
+
+const GET_CHUNK = `
+  SELECT id, file_path, chunk_type, content, start_line, end_line
+  FROM lcs_chunks
+  WHERE id = ? AND is_deleted = 0
+`;
+
+export function traverseGraph(startCni: string, db: Database.Database): string {
+  // Three ? bindings: seed node_id, seed path init, WHERE exclusion
+  const rows = db.prepare(BFS_QUERY).all(startCni, startCni, startCni) as BfsRow[];
+
+  if (rows.length === 0) {
+    return `[METADATA: NO_GRAPH_EDGES]\n\nNo graph edges found starting from: ${startCni}`;
+  }
+
+  const blocks: string[] = [];
+  let rank = 1;
+
+  for (const row of rows) {
+    const chunk = db.prepare(GET_CHUNK).get(row.node_id) as
+      { id: string; file_path: string; chunk_type: string; content: string;
+        start_line: number; end_line: number } | undefined;
+
+    if (!chunk) continue;   // chunk was soft-deleted after the edge was created — skip
+
+    const lang  = detectLanguage(chunk.file_path);
+    const score = "1.0000";  // structural traversal — not scored by similarity
+
+    blocks.push(
+      `[DEPTH:${row.min_depth} via ${row.edge_type}]\n` +
+      `--- CHUNK ${rank} score=${score}\n` +
+      `PATH: ${chunk.file_path}\n` +
+      `CNI: ${chunk.id}\n` +
+      `TYPE: ${chunk.chunk_type}\n` +
+      `LINES: ${chunk.start_line}-${chunk.end_line}\n` +
+      `\`\`\`${lang}\n${chunk.content}\n\`\`\``
+    );
+    rank++;
+  }
+
+  return blocks.join("\n\n");
+}
+
+function detectLanguage(filePath: string): string {
+  const ext = filePath.slice(filePath.lastIndexOf("."));
+  const map: Record<string, string> = {
+    ".ts": "typescript", ".tsx": "typescript",
+    ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript", ".cjs": "javascript",
+    ".py": "python", ".go": "go", ".rs": "rust", ".java": "java",
+    ".md": "markdown", ".mdx": "markdown",
+  };
+  return map[ext] ?? "text";
+}
+```
+
+### Why the comma delimiters on the path?
+
+```sql
+-- Without delimiters:
+-- path = ",auth,AuthManager,"  and  node_id = "Auth"
+-- INSTR(",auth,AuthManager,", "Auth") = 7  ← FALSE POSITIVE — "Auth" matches inside "AuthManager"
+
+-- With delimiter wrapping:
+-- INSTR(",auth,AuthManager,", ",Auth,") = 0  ← CORRECT — no match
+
+-- Always wrap BOTH the stored path entries AND the INSTR search term with commas
+t.path || ge.target_id || ','                        -- append: "...Auth,"
+INSTR(t.path, ','||ge.target_id||',') = 0            -- search for: ",Auth,"
+```
+
+### Common mistakes
+
+```ts
+// ❌ WRONG — only 2 bindings (missing the WHERE node_id != ? exclusion)
+db.prepare(BFS_QUERY).all(startCni, startCni)
+// → returns the seed node itself in the results, rank=1 is always the query node
+
+// ✅ CORRECT — 3 bindings
+db.prepare(BFS_QUERY).all(startCni, startCni, startCni)
+
+// ❌ WRONG — depth <= 6 allows 7 hops (0..6 inclusive)
+WHERE t.depth <= 6
+
+// ✅ CORRECT — depth < 6 stops at 6 hops (0..5 in the recursive rows, results at depth 1..6)
+WHERE t.depth < 6
+```
+
+---
+
 ## Reference Files
 
-These docs contain full working examples for each library:
+These docs contain full working examples for each library. Load only the refs for your current sprint.
 
-| Library | Reference |
-|---|---|
-| sqlite-vec | `/Users/mikeboscia/pythia/docs/reference/sqlite-vec-node-reference.md` |
-| better-sqlite3 + Worker Threads | `/Users/mikeboscia/pythia/docs/reference/better-sqlite3-worker-threads-reference.md` |
-| @huggingface/transformers v3 | `/Users/mikeboscia/pythia/docs/reference/transformers-v3-onnx-reference.md` |
-| MCP SDK | `/Users/mikeboscia/pythia/docs/reference/mcp-sdk-tool-registration-reference.md` |
+| Library | Reference | Sprint |
+|---|---|---|
+| sqlite-vec | `/Users/mikeboscia/pythia/docs/reference/sqlite-vec-node-reference.md` | Sprint 1+ |
+| better-sqlite3 + Worker Threads | `/Users/mikeboscia/pythia/docs/reference/better-sqlite3-worker-threads-reference.md` | Sprint 1+ |
+| @huggingface/transformers v3 | `/Users/mikeboscia/pythia/docs/reference/transformers-v3-onnx-reference.md` | Sprint 1+ |
+| MCP SDK tool registration | `/Users/mikeboscia/pythia/docs/reference/mcp-sdk-tool-registration-reference.md` | Sprint 2+ |
+| Tree-sitter query API | `/Users/mikeboscia/pythia/docs/reference/tree-sitter-query-reference.md` | Sprint 2+ |
+| TypeScript LanguageService API | `/Users/mikeboscia/pythia/docs/reference/TypeScript LanguageService API- cross-file definition resolution reference.md` | Sprint 3+ |
+| hash-wasm (BLAKE3 + Argon2id) | `/Users/mikeboscia/pythia/docs/reference/hash-wasm-gemini-cli-reference.md` | Sprint 4+ |
