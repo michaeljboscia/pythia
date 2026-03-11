@@ -43,11 +43,12 @@ and a passing vector search integration test. No MCP server yet.
 - [x] Proof: npm test passes connection tests
 
 ### Step 1.3 — SQLite Schema + Migrations
-- [ ] Create /Users/mikeboscia/pythia/src/migrations/0001_initial_schema.sql
-      (All 9 tables from BACKEND_STRUCTURE-v2.md, both FTS5 tables, graph_edges trigger)
-- [ ] Create /Users/mikeboscia/pythia/src/db.ts — migration runner + WAL pragma set
-- [ ] Write unit test: fresh DB has all tables, migrations are idempotent
-- [ ] Proof: npm test passes schema tests, PRAGMA table_list shows all 9
+- [x] Create /Users/mikeboscia/pythia/src/migrations/001-initial-schema.sql
+      (All tables from BACKEND_STRUCTURE-v2.md plus _migrations)
+- [x] Create /Users/mikeboscia/pythia/src/migrations/002-graph-trigger.sql
+- [x] Create /Users/mikeboscia/pythia/src/db/migrate.ts — forward-only migration runner
+- [x] Write unit test: fresh DB has all tables, migrations are idempotent
+- [x] Proof: npm test passes schema tests, trigger aborts invalid graph inserts
 
 ### Step 1.4 — ONNX Embedding Pipeline
 - [ ] Create /Users/mikeboscia/pythia/src/embedder.ts
