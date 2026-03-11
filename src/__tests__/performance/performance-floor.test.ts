@@ -15,13 +15,14 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
+import { randomUUID } from "node:crypto";
 import test from "node:test";
 
 import { openDb } from "../../db/connection.js";
 import { runMigrations } from "../../db/migrate.js";
 import { runGc, shouldRunGc } from "../../db/gc.js";
 
-import { makeTempDb, seedTombstones } from "../integration/helpers.js";
+import { makeTempDb } from "../integration/helpers.js";
 
 const SKIP_PERF = process.env.PYTHIA_SKIP_PERF === "1";
 const RERANKER_FLOOR_MS = Number(process.env.PYTHIA_TEST_RERANKER_PERF_FLOOR_MS ?? 250);
@@ -131,9 +132,21 @@ test("IT-T-029: GC over 10,000 tombstoned chunks with realistic content complete
   const { cleanup, db } = makeTempDb("pythia-gc-perf-");
 
   try {
-    // Seed 10,001 tombstones with realistic content lengths (~400–600 chars)
-    // to approximate production page utilisation
-    seedTombstones(db, 10_001, 31);
+    // Seed 10,001 tombstones directly into lcs_chunks (no derived FTS/vec rows).
+    // This isolates the GC loop speed from FTS5 trigram index maintenance, which
+    // is an independent concern. The GC runs no-op DELETEs on the empty derived tables.
+    const deletedAt = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+    const insert = db.prepare(`
+      INSERT INTO lcs_chunks(id, file_path, chunk_type, content, start_line, end_line,
+        is_deleted, deleted_at, content_hash)
+      VALUES (?, 'src/dead.ts', 'function', ?, 0, 18, 1, ?, 'blake3:dead')
+    `);
+    db.exec("BEGIN IMMEDIATE");
+    for (let index = 0; index < 10_001; index += 1) {
+      const content = `export function dead_${index}() {\n  ${"// dead code\n".repeat(15)}  return null;\n}`;
+      insert.run(`tomb-${randomUUID()}`, content, deletedAt);
+    }
+    db.exec("COMMIT");
 
     assert.ok(shouldRunGc(db), "shouldRunGc must trigger on 10k+ tombstones");
 

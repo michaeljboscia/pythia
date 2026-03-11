@@ -91,9 +91,9 @@ test("IT-T-018: running runMigrations twice produces no error and leaves schema 
       assert.doesNotThrow(() => runMigrations(db));
 
       const version = db.prepare(
-        "SELECT MAX(version) AS v FROM schema_migrations"
+        "SELECT MAX(id) AS v FROM _migrations"
       ).get() as { v: number };
-      assert.ok(version.v >= 1, "schema_migrations has at least one entry");
+      assert.ok(version.v >= 1, "_migrations has at least one entry");
     } finally {
       db.close();
     }
@@ -122,16 +122,17 @@ export function logout(): void {
 
     const chunks = chunkFile(filePath, content, dir);
 
+    const relativeFilePath = path.relative(dir, filePath);
     assert.ok(chunks.length > 0, "at least one chunk produced");
     for (const chunk of chunks) {
-      // CNI format: <file_path>::<chunk_type>::<identifier>
+      // CNI format: <repo_relative_path>::<chunk_type>::<identifier>
       assert.ok(
         chunk.id.includes("::"),
         `chunk id "${chunk.id}" must use CNI format (contains "::")`
       );
       assert.ok(
-        chunk.id.startsWith(filePath),
-        `chunk id "${chunk.id}" must start with the file path`
+        chunk.id.startsWith(relativeFilePath),
+        `chunk id "${chunk.id}" must start with the repo-relative file path "${relativeFilePath}"`
       );
       assert.ok(chunk.start_line >= 0, "start_line must be non-negative");
       assert.ok(chunk.end_line >= chunk.start_line, "end_line >= start_line");
