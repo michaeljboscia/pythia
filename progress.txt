@@ -2,14 +2,14 @@ PYTHIA v1 — PROGRESS TRACKER
 ========================================
 Last Updated: 2026-03-11
 
-CURRENT PHASE: Sprint 1 (SQLite + ONNX Foundation) — NOT STARTED
+CURRENT PHASE: Sprint 2 (Tree-sitter Fast Path + MCP scaffold) — COMPLETE
 IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md
 
 STATUS SUMMARY
 --------------
 Design:          COMPLETE — pythia-lcs-spec.md, 7 interrogation cycles, 17 bound decisions
 Documentation:   COMPLETE — 11 canonical docs generated (v2 suite + session files)
-Implementation:  Sprint 1 [x] Sprint 2 [ ] Sprint 3 [ ] Sprint 4 [ ] Sprint 5 [ ]
+Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [ ] Sprint 4 [ ] Sprint 5 [ ]
 
 WHAT EXISTS
 -----------
@@ -73,12 +73,14 @@ SPRINT STATUS (from IMPLEMENTATION_PLAN-v2.md)
     [x] Step 1.6: Atomic sync contract
     [x] Sprint 1 proof script
 
-[ ] SPRINT 2: Tree-sitter Indexing + MCP Server
-    [ ] Step 2.1: Tree-sitter chunker (JS/TS/Py/Go/Rust/Java)
-    [ ] Step 2.2: Markdown doc chunker
-    [ ] Step 2.3: Indexing Worker Thread
-    [ ] Step 2.4: lcs_investigate + pythia_force_index MCP tools
-    [ ] Step 2.5: File watcher + sync_workspace
+[x] SPRINT 2: Tree-sitter Fast Path + MCP Scaffold
+    [x] Step 2.1: Tree-sitter chunker with strict CNI format
+    [x] Step 2.2: Dual FTS5 sync in atomic transaction
+    [x] Step 2.3: CDC scanner with mtime/BLAKE3 two-gate
+    [x] Step 2.4: MCP server scaffold with all 6 tools registered
+    [x] Step 2.5: lcs_investigate vector search + §14.13 output
+    [x] Step 2.6: pythia_force_index with path validation + force re-embed
+    [x] Step 2.7: Sprint 2 proof script
 
 [ ] SPRINT 3: Graph Edges + tsserver
     [ ] Step 3.1: Tree-sitter CONTAINS edge extraction
@@ -107,11 +109,11 @@ Docs:                 /Users/mikeboscia/pythia/docs/
 
 BLOCKERS
 --------
-None — spec is complete, docs are complete, ready to begin Sprint 1.
+None.
 
 NEXT STEP
 ---------
-Await user direction before beginning IMPLEMENTATION_PLAN-v2.md Sprint 2.
+Await user direction before beginning Sprint 3.
 
 SESSION HISTORY
 ---------------
@@ -120,3 +122,4 @@ SESSION HISTORY
 2026-03-11: Cycle 7 interrogation synthesis — §17 binding decisions patched into spec
 2026-03-11: /uncompromising-executor — generated complete 11-doc v2 canonical suite
 2026-03-11: Sprint 1 implementation completed with passing proof script
+2026-03-11: Sprint 2 implementation completed with passing proof script

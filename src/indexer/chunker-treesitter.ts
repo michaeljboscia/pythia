@@ -178,7 +178,12 @@ function extractTopLevelChunk(
       for (const child of node.namedChildren) {
         const chunk = extractTopLevelChunk(child, filePath, language);
         if (chunk !== null) {
-          return chunk;
+          return {
+            ...chunk,
+            content: node.text,
+            start_line: node.startPosition.row,
+            end_line: node.endPosition.row
+          };
         }
       }
       return null;
