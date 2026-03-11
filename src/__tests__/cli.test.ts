@@ -92,6 +92,31 @@ test("pythia init twice is idempotent", async () => {
   }
 });
 
+test("pythia init runs migrations before any CDC scan starts", async () => {
+  const { cleanup, workspaceRoot } = createWorkspace();
+  const events: string[] = [];
+
+  try {
+    await runInit({ workspace: workspaceRoot }, {
+      runGcImpl: () => ({
+        bytesReclaimed: 0,
+        chunksDeleted: 0
+      }),
+      runMigrationsImpl: () => {
+        events.push("migrate");
+      },
+      scanWorkspaceImpl: async () => {
+        events.push("scan");
+        return [];
+      }
+    });
+
+    assert.deepEqual(events, ["migrate", "scan"]);
+  } finally {
+    cleanup();
+  }
+});
+
 test("pythia start without prior init fails fast", async () => {
   const { cleanup, workspaceRoot } = createWorkspace();
 
@@ -127,6 +152,35 @@ test("pythia start after init starts the MCP server on stdio-compatible transpor
     await runtime.server.close();
     await runtime.supervisor.die();
     runtime.db.close();
+  } finally {
+    cleanup();
+  }
+});
+
+test("pythia start runs migrations before the MCP server starts", async () => {
+  const { cleanup, workspaceRoot } = createWorkspace();
+  const events: string[] = [];
+
+  try {
+    await runInit({ workspace: workspaceRoot });
+
+    await runStart({ workspace: workspaceRoot }, {
+      createTransport: () => {
+        events.push("connect");
+        return InMemoryTransport.createLinkedPair()[1];
+      },
+      startServerImpl: async (config) => {
+        events.push("start");
+        return {
+          config,
+          db: {} as never,
+          server: {} as never,
+          supervisor: {} as never
+        };
+      }
+    });
+
+    assert.deepEqual(events, ["connect", "start"]);
   } finally {
     cleanup();
   }

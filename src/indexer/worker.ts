@@ -8,11 +8,13 @@ import { extractEdges, initLanguageService } from "./slow-path.js";
 import { indexFile } from "./sync.js";
 import type { MainToWorker, WorkerToMain } from "./worker-protocol.js";
 import { openDb } from "../db/connection.js";
+import { runGc, shouldRunGc } from "../db/gc.js";
 import { runMigrations } from "../db/migrate.js";
 import { initReranker } from "../retrieval/reranker.js";
 
 type WorkerInitData = {
   dbPath: string;
+  retentionDays?: number;
   workspaceRoot: string;
 };
 
@@ -183,6 +185,10 @@ async function handleBatch(
     if (dying) {
       break;
     }
+  }
+
+  if (shouldRunGc(db)) {
+    runGc(db, data.retentionDays ?? 30);
   }
 
   send({

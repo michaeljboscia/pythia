@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -7,6 +7,7 @@ import test from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
+import { openDb } from "../db/connection.js";
 import { initializeRuntime, startServer } from "../index.js";
 
 function createConfigFile(): { cleanup: () => void; configPath: string } {
@@ -71,10 +72,10 @@ test("all 6 tool names are registered", async () => {
   const { cleanup, configPath } = createConfigFile();
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "pythia-test-client", version: "1.0.0" });
-  let runtime: ReturnType<typeof initializeRuntime> | null = null;
+  let runtime: Awaited<ReturnType<typeof initializeRuntime>> | null = null;
 
   try {
-    runtime = initializeRuntime(configPath);
+    runtime = await initializeRuntime(configPath);
     await runtime.server.connect(serverTransport);
     await client.connect(clientTransport);
 
@@ -94,6 +95,69 @@ test("all 6 tool names are registered", async () => {
     await runtime?.server.close();
     await runtime?.supervisor.die();
     runtime?.db.close();
+    cleanup();
+  }
+});
+
+test("MCP startup with no lcs.db auto-initializes the workspace", async () => {
+  const { cleanup, configPath } = createConfigFile();
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: "pythia-test-client", version: "1.0.0" });
+  let runtime: Awaited<ReturnType<typeof startServer>> | null = null;
+
+  try {
+    runtime = await startServer(serverTransport, configPath);
+    await client.connect(clientTransport);
+
+    assert.equal(runtime.db.open, true);
+    assert.equal(existsSync(path.join(runtime.config.workspace_path, ".pythia", "lcs.db")), true);
+  } finally {
+    await client.close();
+    await runtime?.server.close();
+    await runtime?.supervisor.die();
+    runtime?.db.close();
+    cleanup();
+  }
+});
+
+test("MCP startup with current schema is a migration no-op", async () => {
+  const { cleanup, configPath } = createConfigFile();
+  let firstRuntime: Awaited<ReturnType<typeof initializeRuntime>> | null = null;
+  let secondRuntime: Awaited<ReturnType<typeof initializeRuntime>> | null = null;
+
+  try {
+    firstRuntime = await initializeRuntime(configPath);
+    const dbPath = path.join(firstRuntime.config.workspace_path, ".pythia", "lcs.db");
+    const before = openDb(dbPath);
+
+    let migrationCountBefore = 0;
+
+    try {
+      const row = before.prepare("SELECT COUNT(*) AS count FROM _migrations").get() as { count: number };
+      migrationCountBefore = row.count;
+    } finally {
+      before.close();
+    }
+
+    await firstRuntime.supervisor.die();
+    firstRuntime.db.close();
+    firstRuntime = null;
+
+    secondRuntime = await initializeRuntime(configPath);
+
+    const after = openDb(dbPath);
+
+    try {
+      const row = after.prepare("SELECT COUNT(*) AS count FROM _migrations").get() as { count: number };
+      assert.equal(row.count, migrationCountBefore);
+    } finally {
+      after.close();
+    }
+  } finally {
+    await firstRuntime?.supervisor.die();
+    firstRuntime?.db.close();
+    await secondRuntime?.supervisor.die();
+    secondRuntime?.db.close();
     cleanup();
   }
 });

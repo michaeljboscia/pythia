@@ -43,7 +43,9 @@ export async function runInit(
   const runGcImpl = dependencies.runGcImpl ?? runGc;
   const scanWorkspaceImpl = dependencies.scanWorkspaceImpl ?? scanWorkspace;
   const supervisorFactory = dependencies.supervisorFactory ?? ((resolvedDbPath, resolvedWorkspaceRoot) => (
-    new IndexingSupervisor(resolvedDbPath, resolvedWorkspaceRoot)
+    new IndexingSupervisor(resolvedDbPath, resolvedWorkspaceRoot, {
+      retentionDays: config.gc.deleted_chunk_retention_days
+    })
   ));
   const alreadyInitialized = existsSync(dbPath);
 
