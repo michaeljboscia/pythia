@@ -1,0 +1,134 @@
+# Concurrency patterns for SQLite and LanceDB in embedded single-process applications
+
+**SQLite's WAL mode and LanceDB's MVCC versioning both enable concurrent reads alongside serialized writes, but they achieve this through fundamentally different mechanisms — and each carries distinct failure modes that demand different application-level strategies.** SQLite coordinates via file-level locks and a shared-memory WAL index, achieving **70,000+ reads/s and 3,600+ writes/s** under concurrent load. LanceDB relies on immutable versioned manifests with atomic storage operations, offering lock-free reads but defaulting to stale snapshots unless explicitly configured. For a Node.js daemon using better-sqlite3, the optimal pattern is a single long-lived connection with WAL mode enabled and `synchronous=NORMAL` — not a connection pool — with write serialization handled either by SQLite's internal locking or an application-level queue.
+
+---
+
+## How SQLite WAL mode actually works under the hood
+
+SQLite's Write-Ahead Logging inverts the traditional rollback journal approach. Instead of copying original pages to a journal before modifying the database file, WAL mode preserves the original database untouched and **appends changes to a separate `-wal` file**. A commit occurs when a special commit record is appended to the WAL — the main database file is never modified during normal write operations. This is the mechanism that unlocks concurrent reads: readers continue operating from the original unaltered database while the writer appends to the WAL ([SQLite WAL documentation](https://sqlite.org/wal.html)).
+
+Three files constitute a WAL-mode database. The main database file (`X`) holds the baseline data. The WAL file (`X-wal`) accumulates committed changes. The shared-memory file (`X-shm`) contains the **wal-index**, a memory-mapped data structure rarely exceeding **32 KiB** that helps readers locate pages in the WAL efficiently. The wal-index is the coordination mechanism: it is implemented via `mmap()` so that all processes accessing the same database share the same memory region. This shared-memory requirement is why WAL mode cannot function over network filesystems like NFS — all readers and writers must reside on the same host ([SQLite WAL documentation](https://sqlite.org/wal.html)).
+
+When a read transaction begins in WAL mode, it records the location of the last valid commit in the WAL — its **"end mark"**. For the duration of that transaction, the reader sees only changes committed before its end mark, providing **snapshot isolation**. The [SQLite isolation documentation](https://sqlite.org/isolation.html) states this precisely: "When a read transaction starts, that reader continues to see an unchanging 'snapshot' of the database file as it existed at the moment in time when the read transaction started. Any write transactions that commit while the read transaction is active are still invisible to the read transaction." Each reader can have a different end mark, so multiple readers at different points in time coexist without interference.
+
+Writers are strictly serialized. The [WAL documentation](https://sqlite.org/wal.html) is unambiguous: "since there is only one WAL file, there can only be one writer at a time." A second writer attempting to acquire the write lock receives `SQLITE_BUSY`. This is fundamentally different from the traditional rollback journal mode, where writers must escalate through five lock states — UNLOCKED → SHARED → RESERVED → PENDING → EXCLUSIVE — and where a writer needing to flush to disk must **expel all readers** by acquiring an EXCLUSIVE lock. In WAL mode, the writer never needs to block readers at all. Writers append to the WAL; readers consult the original database plus their snapshot of the WAL. The two operations are geometrically independent ([SQLite locking documentation](https://www.sqlite.org/lockingv3.html)).
+
+**Checkpointing** transfers accumulated WAL changes back into the main database file. By default, SQLite triggers an automatic (PASSIVE) checkpoint when the WAL reaches **1,000 pages** (~4 MB with default 4 KB pages). PASSIVE checkpoints never block — they transfer as many frames as possible without waiting for readers or writers, but cannot complete past any active reader's end mark. FULL checkpoints block until all readers see the latest snapshot, then checkpoint all frames. RESTART and TRUNCATE go further, waiting until no reader uses the WAL at all, then optionally truncating the WAL file to zero bytes ([sqlite3_wal_checkpoint_v2 documentation](https://sqlite.org/c3ref/wal_checkpoint_v2.html)). The critical failure mode here is **checkpoint starvation**: if overlapping readers always keep at least one transaction active, no checkpoint can run to completion, and the WAL grows without bound. Mozilla documented this in Firefox, where `places.sqlite-wal` grew to 70 MB+ on mobile devices.
+
+---
+
+## PRAGMA settings that determine real-world performance
+
+The gap between default SQLite configuration and a properly tuned WAL-mode database is enormous. Benchmarks by [Victor Skvortsov](https://tenthousandmeters.com/blog/sqlite-concurrent-writes-and-database-is-locked-errors/) on an M1 MacBook Pro measured single-writer insert throughput at **29,400 ops/s** with default `synchronous=FULL` versus **103,887 ops/s** with `synchronous=NORMAL` — a **3.5× improvement** for small (10-byte) records. The [High Performance SQLite course](https://highperformancesqlite.com/watch/wal-vs-journal-benchmarks) benchmarked 25 concurrent processes with 95% reads and 5% writes: rollback mode delivered 5,600 reads/s and 291 writes/s, while WAL mode achieved **70,000 reads/s and 3,600 writes/s** — roughly 12× faster on both axes.
+
+The essential PRAGMA configuration for a production WAL-mode database:
+
+**`journal_mode=WAL`** is persistent — once set, it survives connection close and reopen. The [PRAGMA documentation](https://sqlite.org/pragma.html) notes that "the WAL journal mode will be set on all connections to the same database file if it is set on any one connection." This only needs to be executed once per database.
+
+**`synchronous=NORMAL`** is the single most impactful performance setting. In WAL mode specifically, this means fsync occurs only during checkpoints, not on every transaction commit. The [WAL documentation](https://sqlite.org/wal.html) explains: "Writers sync the WAL on every transaction commit if PRAGMA synchronous is set to FULL but omit this sync if PRAGMA synchronous is set to NORMAL." The durability trade-off is narrow: committed transactions survive application crashes, but the last transaction(s) may be lost on an OS crash or power failure. The database itself is never corrupted. The better-sqlite3 npm package compiles SQLite with `SQLITE_DEFAULT_WAL_SYNCHRONOUS=1`, making NORMAL the automatic default when WAL mode is active ([better-sqlite3 performance documentation](https://github.com/WiseLibs/better-sqlite3/blob/master/docs/performance.md)).
+
+**`busy_timeout`** determines how long a connection waits when encountering a lock. The default is **0 ms** — immediate `SQLITE_BUSY` failure with no retry. This is the single most common source of "database is locked" errors in production. Recommended values range from 5,000 to 30,000 ms depending on workload. The [SkyPilot engineering team](https://blog.skypilot.co/abusing-sqlite-to-handle-concurrency/) found that even 60 seconds was sometimes necessary with 1,000+ concurrent writers. better-sqlite3 sets a **5,000 ms default** via its constructor `timeout` option ([better-sqlite3 API documentation](https://github.com/WiseLibs/better-sqlite3/blob/master/docs/api.md)).
+
+**`wal_autocheckpoint`** defaults to 1,000 pages. Setting it to 0 disables automatic checkpointing entirely, which is required when using Litestream for WAL-based replication ([Litestream tips](https://litestream.io/tips/)). For most applications, the default is adequate.
+
+**`cache_size=-20000`** (20 MB) and **`mmap_size=30000000000`** (~30 GB, letting the OS manage actual usage) round out the performance-critical settings recommended across multiple production guides ([phiresky's SQLite performance tuning](https://phiresky.github.io/blog/2020/sqlite-performance-tuning/), [Django SQLite benchmark](https://blog.pecar.me/django-sqlite-benchmark/)).
+
+Transaction type selection matters enormously. **`BEGIN IMMEDIATE`** should be used for all write transactions. A `BEGIN DEFERRED` (the default) acquires no lock until the first statement executes. If a read transaction later attempts to upgrade to a write, and another connection holds the write lock, SQLite returns `SQLITE_BUSY` **immediately** — the busy timeout is not respected for this lock upgrade. `BEGIN IMMEDIATE` acquires the write lock at transaction start, where the busy timeout functions correctly. The [Django SQLite benchmark](https://blog.pecar.me/django-sqlite-benchmark/) showed this switch alone eliminated virtually all failures: error rate dropped from 27.4/s to 0.01/s while throughput increased from 781 to 999 requests/s.
+
+---
+
+## LanceDB's version-based concurrency through MVCC
+
+LanceDB takes a fundamentally different approach. Built on the [Lance columnar format](https://lance.org/format/table/), it implements **Multi-Version Concurrency Control (MVCC)** where every write creates a new immutable table version described by a manifest file. There are no file locks in the traditional sense. Instead, the commit protocol relies on **atomic storage primitives** — `rename-if-not-exists` on local POSIX filesystems (via the `renameat2` syscall with `RENAME_NOREPLACE`) or `put-if-not-exists` on object stores like S3 and GCS ([Lance Transaction Specification](https://lance.org/format/table/transaction/)).
+
+The commit algorithm works through optimistic concurrency control. A writer builds data files, prepares a transaction, then attempts to atomically write a new manifest file (e.g., `67.manifest`). If another writer already committed that version number, conflict detection kicks in: the system loads transaction files (`.txn`) to determine whether the conflicting transactions can coexist. Two append operations can be automatically **rebased** — fragment IDs are adjusted and the commit is retried, up to **20 times** by default. Delete, update, and `merge_insert` operations that touch overlapping data typically **cannot be rebased** and fail with a `CommitConflict` error that the application must handle ([LanceDB FAQ](https://docs.lancedb.com/faq/faq-oss)).
+
+Multiple readers coexist freely with writers because readers see immutable snapshots. However, **the default read behavior is the biggest gotcha**: a table handle in LanceDB **never checks for updates from other writers** unless explicitly configured. The [LanceDB consistency documentation](https://lancedb.com/docs/tables/consistency/) states: "The database does not check for updates to tables made by other processes. This provides the best query performance, but means that clients may not see the most up-to-date data." For a single-process application where the same code path writes and reads, this means a table opened at version N will continue returning version-N data even after the process itself has committed version N+1 through a different table handle.
+
+The fix is the `readConsistencyInterval` parameter. Setting it to `0` provides strong consistency (check on every read). Setting it to a duration like 5 seconds provides eventual consistency. In Node.js: `await lancedb.connect({ uri: "./.lancedb", readConsistencyInterval: 0 })`. Alternatively, calling `await table.checkoutLatest()` manually refreshes a table handle to the latest version ([LanceDB JS Table API](https://lancedb.github.io/lancedb/js/classes/Table/)).
+
+Known failure modes cluster around version management. Setting `cleanup_older_than=0` during compaction deletes old versions immediately, which **breaks concurrent writers** that still reference those versions — a pitfall called out by LanceDB engineer Will Jones in [GitHub Issue #2470](https://github.com/lancedb/lancedb/issues/2470). A [reported bug](https://github.com/lancedb/lancedb/issues/2426) showed a table becoming "stuck" on S3, failing all writes with "Commit conflict for version 66" after exhausting 20 retries, because the table handle cached a stale version internally. Cross-table consistency is also unsupported: there is no mechanism to read Table A and Table B at the same point in time, creating a race condition even with strong consistency enabled ([GitHub Issue #2293](https://github.com/lancedb/lancedb/issues/2293)). As of September 2024, `delete`, `update`, and `merge_insert` do not automatically retry on `CommitConflict` — only appends benefit from automatic retry ([GitHub Issue #1597](https://github.com/lancedb/lancedb/issues/1597)).
+
+Each version retains metadata and the new/changed data — not a full copy. But **100 versions means 100× the metadata overhead**, which degrades query performance. Deleted rows are not physically removed; they are marked via deletion files (Arrow IPC or Roaring Bitmap format). Periodic compaction merges small fragments and can reclaim space, but compaction is itself a write operation subject to conflict with concurrent writes ([LanceDB Lance format overview](https://docs.lancedb.com/lance)).
+
+---
+
+## Connection management for Node.js daemons
+
+better-sqlite3's **fully synchronous API** is a deliberate design choice that simplifies concurrency reasoning. Every database call blocks the Node.js event loop until completion. The maintainer Joshua Wise argues this provides better real-world performance than asynchronous wrappers because SQLite serializes operations internally anyway — async APIs like node-sqlite3's add "mutex thrashing which has devastating effects on performance" ([better-sqlite3 GitHub Issue #32](https://github.com/JoshuaWise/better-sqlite3/issues/32)). The practical implication: in a single-threaded Node.js process, all database operations execute sequentially by construction. There is zero risk of concurrent write contention within the same thread.
+
+**A single long-lived connection is the correct default pattern**, not a connection pool. Connection pooling — the standard approach for PostgreSQL or MySQL — is counterproductive for SQLite. Multiple connections competing for SQLite's exclusive write lock causes contention at the file-locking level, which is far slower than in-memory coordination. [Evan Schwartz's benchmarks](https://emschwartz.me/psa-your-sqlite-connection-pool-might-be-ruining-your-write-performance/) with Rust's SQLx showed a single dedicated write connection delivering **60,061 rows/s** versus 2,586 rows/s with a shared pool — a **23× difference**. Knex.js explicitly uses pool size 1 for SQLite "due to issues with utilizing multiple connections on a single file" ([Knex.js documentation](https://knexjs.org/guide/)).
+
+For a moderate-load daemon, the setup is straightforward:
+
+```js
+const Database = require('better-sqlite3');
+const db = new Database('app.db', { timeout: 5000 });
+db.pragma('journal_mode = WAL');
+// synchronous=NORMAL is already the default in better-sqlite3's WAL mode
+db.pragma('cache_size = -20000');
+db.pragma('foreign_keys = ON');
+```
+
+This single `db` instance serves all reads and writes. Prepared statements are cached per connection, so reusing one connection maximizes cache hit rates. The connection should be closed on process exit via `process.on('SIGTERM', () => { db.close(); })`.
+
+Drizzle ORM adds a **thin query-builder layer** over better-sqlite3 without introducing connection management, pooling, or async wrappers. WAL mode and pragmas must be configured on the underlying better-sqlite3 instance before passing it to Drizzle. All Drizzle queries remain synchronous under the hood. The `db.transaction()` method maps directly to better-sqlite3's transaction mechanism ([Drizzle ORM SQLite documentation](https://orm.drizzle.team/docs/get-started-sqlite)). A critical constraint: better-sqlite3's transactions **do not work with async functions** — the transaction commits after the first `await`, before any async code executes ([better-sqlite3 API docs](https://github.com/WiseLibs/better-sqlite3/blob/master/docs/api.md)).
+
+For high-load daemons where queries exceeding ~10 ms would block HTTP request handling, **worker threads** provide the escape hatch. Each worker opens its own better-sqlite3 connection to the same database file. The emerging best practice across ecosystems (Rails, Rust, Node.js) is a **single dedicated write worker** with one read-write connection, plus **N read workers** with read-only connections. Write requests are queued to the single writer — moving contention from SQLite's file-based lock to an in-memory application-level queue. [Stephen Margheim's Rails implementation](https://fractaledmind.com/2024/04/11/sqlite-on-rails-isolated-connection-pools/) of this pattern, with isolated reader and writer connection pools, has become the standard reference for this architecture.
+
+For LanceDB in Node.js, the `@lancedb/lancedb` package provides native Rust bindings via NAPI-RS. The [Connection class](https://lancedb.github.io/lancedb/js/classes/Connection/) is documented as "intended to be a long lived object" — a single connection should be shared across the application. Table objects are independent and continue functioning even if the underlying connection is closed. All operations return Promises (truly async, backed by Rust's multi-threaded runtime), so they do not block the Node.js event loop. The key configuration decision is `readConsistencyInterval`: set to `0` for strong consistency in single-process apps where the same process reads and writes.
+
+---
+
+## Contrasting the two models and choosing the right strategy
+
+SQLite and LanceDB converge on **single-writer semantics** but diverge on read consistency defaults and failure characteristics. SQLite readers in WAL mode automatically see a consistent snapshot as of transaction start — no configuration required. LanceDB readers see a frozen snapshot from connection time unless explicitly refreshed. SQLite's failure mode under write contention is `SQLITE_BUSY` with configurable retry (busy timeout). LanceDB's failure mode is `CommitConflict` after exhausting a fixed retry count (20), with no built-in backoff or timeout configuration.
+
+For a single-process Node.js daemon, the practical implications are:
+
+SQLite with WAL mode and better-sqlite3 provides a nearly frictionless concurrency model. The synchronous API means write serialization is handled by the event loop itself — contention literally cannot occur in a single thread. The only scenario requiring explicit concurrency management is worker threads, where `busy_timeout` and `BEGIN IMMEDIATE` transactions provide the safety net. Under this configuration, benchmarks consistently show **70,000–120,000 reads/s** and **70,000+ single-writer inserts/s** with `synchronous=NORMAL`.
+
+LanceDB requires more application-level awareness. Append operations scale well with concurrent writers thanks to automatic rebasing, but mutating operations (delete, update, merge_insert) demand application-level retry logic since automatic retry is not yet implemented for these operations. The MVCC model means disk usage grows with version count — periodic compaction is necessary, but must be coordinated to avoid breaking concurrent writers. The version-based architecture excels for append-heavy vector search workloads (its primary use case) but adds complexity for general-purpose CRUD patterns where SQLite's mature locking protocol handles edge cases transparently.
+
+---
+
+## Conclusion
+
+The research reveals three non-obvious insights. First, **connection pooling actively harms SQLite write performance** — a 23× throughput penalty in benchmarked scenarios — making the single-connection pattern not just simpler but measurably faster. Second, **LanceDB's default eventual consistency** (never checking for updates) is the opposite of what most developers expect from an embedded database and must be explicitly overridden for correct behavior in read-after-write scenarios. Third, the choice between `BEGIN DEFERRED` and `BEGIN IMMEDIATE` has an outsized impact on real-world reliability — switching to IMMEDIATE for write transactions can eliminate virtually all `SQLITE_BUSY` errors while simultaneously improving throughput, because it moves lock acquisition to a point where the busy timeout is respected.
+
+For a single-process Node.js daemon, the recommended architecture is: one better-sqlite3 connection with WAL mode, `synchronous=NORMAL`, `busy_timeout=5000`, and `BEGIN IMMEDIATE` for writes; Drizzle as a query builder on top; and LanceDB with `readConsistencyInterval=0`, append-batched writes, and application-level retry for mutations. Worker threads should be added only when query latency demonstrably blocks the event loop.
+
+---
+
+## Bibliography
+
+| Title | URL | Key Contribution |
+|-------|-----|-----------------|
+| SQLite WAL Mode Documentation | [sqlite.org/wal.html](https://sqlite.org/wal.html) | Authoritative specification of WAL mechanics, checkpointing, concurrency model, and limitations |
+| SQLite File Locking and Concurrency | [sqlite.org/lockingv3.html](https://www.sqlite.org/lockingv3.html) | Detailed explanation of the five lock states and escalation protocol in rollback journal mode |
+| SQLite Isolation Documentation | [sqlite.org/isolation.html](https://sqlite.org/isolation.html) | Defines snapshot isolation semantics in WAL mode and SQLITE_BUSY_SNAPSHOT behavior |
+| SQLite PRAGMA Reference | [sqlite.org/pragma.html](https://sqlite.org/pragma.html) | Complete reference for journal_mode, synchronous, busy_timeout, wal_autocheckpoint, cache_size |
+| sqlite3_wal_checkpoint_v2 API | [sqlite.org/c3ref/wal_checkpoint_v2.html](https://sqlite.org/c3ref/wal_checkpoint_v2.html) | Specification of PASSIVE, FULL, RESTART, and TRUNCATE checkpoint modes |
+| How To Corrupt An SQLite Database | [sqlite.org/howtocorrupt.html](https://sqlite.org/howtocorrupt.html) | Comprehensive catalog of corruption vectors including WAL-specific scenarios |
+| Lance Transaction Specification | [lance.org/format/table/transaction/](https://lance.org/format/table/transaction/) | Authoritative spec for MVCC commit protocol, conflict resolution, and atomic storage primitives |
+| Lance Table Format | [lance.org/format/table/](https://lance.org/format/table/) | Manifest file structure, versioning model, and fragment organization |
+| LanceDB FAQ (OSS) | [docs.lancedb.com/faq/faq-oss](https://docs.lancedb.com/faq/faq-oss) | Concurrent read/write capabilities, retry limits, multiprocessing caveats |
+| LanceDB Consistency Documentation | [lancedb.com/docs/tables/consistency/](https://lancedb.com/docs/tables/consistency/) | readConsistencyInterval configuration and default stale-read behavior |
+| LanceDB JS Connection API | [lancedb.github.io/lancedb/js/classes/Connection/](https://lancedb.github.io/lancedb/js/classes/Connection/) | Connection lifecycle, long-lived usage pattern, table independence |
+| LanceDB JS Table API | [lancedb.github.io/lancedb/js/classes/Table/](https://lancedb.github.io/lancedb/js/classes/Table/) | checkoutLatest(), version(), add/delete/update methods |
+| LanceDB GitHub Issue #1597 | [github.com/lancedb/lancedb/issues/1597](https://github.com/lancedb/lancedb/issues/1597) | Lack of automatic retry for delete/update/merge_insert on CommitConflict |
+| LanceDB GitHub Issue #2426 | [github.com/lancedb/lancedb/issues/2426](https://github.com/lancedb/lancedb/issues/2426) | "Stuck table" bug from cached stale version in table handle |
+| LanceDB GitHub Issue #2470 | [github.com/lancedb/lancedb/issues/2470](https://github.com/lancedb/lancedb/issues/2470) | cleanup_older_than=0 breaking concurrent writes |
+| better-sqlite3 API Documentation | [github.com/WiseLibs/better-sqlite3/blob/master/docs/api.md](https://github.com/WiseLibs/better-sqlite3/blob/master/docs/api.md) | Synchronous API design, timeout option, transaction constraints with async functions |
+| better-sqlite3 Performance Documentation | [github.com/WiseLibs/better-sqlite3/blob/master/docs/performance.md](https://github.com/WiseLibs/better-sqlite3/blob/master/docs/performance.md) | SQLITE_DEFAULT_WAL_SYNCHRONOUS=1 compile flag, benchmark methodology |
+| Drizzle ORM SQLite Getting Started | [orm.drizzle.team/docs/get-started-sqlite](https://orm.drizzle.team/docs/get-started-sqlite) | Drizzle as thin wrapper over better-sqlite3, no connection management layer |
+| SQLite Concurrent Writes and "database is locked" Errors (Skvortsov) | [tenthousandmeters.com/blog/sqlite-concurrent-writes-and-database-is-locked-errors/](https://tenthousandmeters.com/blog/sqlite-concurrent-writes-and-database-is-locked-errors/) | Detailed throughput benchmarks by record size, thread count, and synchronous mode; app-level mutex pattern |
+| High Performance SQLite: WAL vs Journal Benchmarks | [highperformancesqlite.com](https://highperformancesqlite.com/watch/wal-vs-journal-benchmarks) | 25-process benchmark showing 12× improvement with WAL mode |
+| Django SQLite Benchmark (Pecar) | [blog.pecar.me/django-sqlite-benchmark/](https://blog.pecar.me/django-sqlite-benchmark/) | Real-world benchmark showing IMMEDIATE transactions eliminating SQLITE_BUSY failures |
+| PSA: Your SQLite Connection Pool Might Be Ruining Your Write Performance (Schwartz) | [emschwartz.me](https://emschwartz.me/psa-your-sqlite-connection-pool-might-be-ruining-your-write-performance/) | 23× throughput difference between pooled and single-writer connection patterns |
+| SQLite on Rails: Isolated Connection Pools (Margheim) | [fractaledmind.com](https://fractaledmind.com/2024/04/11/sqlite-on-rails-isolated-connection-pools/) | Reader pool + single writer pool architecture pattern |
+| SQLite Performance Tuning (phiresky) | [phiresky.github.io/blog/2020/sqlite-performance-tuning/](https://phiresky.github.io/blog/2020/sqlite-performance-tuning/) | Comprehensive PRAGMA tuning guide with measured impact of each setting |
+| Abusing SQLite to Handle Concurrency (SkyPilot) | [blog.skypilot.co/abusing-sqlite-to-handle-concurrency/](https://blog.skypilot.co/abusing-sqlite-to-handle-concurrency/) | Real-world experience with 1000+ concurrent writers, busy_timeout of 60s |
+| A Brief Post on SQLite3 "database locked" Despite Timeout (Berthub) | [berthub.eu](https://berthub.eu/articles/posts/a-brief-post-on-sqlite3-database-locked-despite-timeout/) | Explanation of why busy_timeout is ignored during DEFERRED→write lock upgrade |
+| Litestream: How It Works | [litestream.io/how-it-works/](https://litestream.io/how-it-works/) | WAL-based replication architecture, checkpoint takeover pattern |

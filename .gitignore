@@ -5,3 +5,6 @@ dist-test/
 .pythia/
 .cache/
 *.tgz
+.DS_Store
+**/.DS_Store
+research/lcs/prompts-web/

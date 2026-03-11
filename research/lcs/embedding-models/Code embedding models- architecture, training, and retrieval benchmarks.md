@@ -1,0 +1,73 @@
+# Code embedding models: architecture, training, and retrieval benchmarks
+
+**Code-specialized embedding models outperform general-purpose alternatives by wide margins on code retrieval tasks — often 14–18 percentage points in NDCG@10.** The performance gap stems from targeted training strategies: contrastive learning on code-docstring pairs, AST-aware pre-training objectives, and multi-language corpus design. This survey covers the major models across three architecture families (encoder-only, decoder-only, and proprietary), examines the training techniques that differentiate them, and addresses the practical question of single-model versus dual-model design for mixed code-and-documentation corpora.
+
+The field has evolved rapidly. Early encoder-only models like CodeBERT (125M parameters) established baseline performance on CodeSearchNet, while recent decoder-only models scaled to 7B parameters now dominate the MTEB-Code leaderboard. Proprietary offerings from Voyage AI and Mistral push code retrieval NDCG@10 above 92%, and open-source alternatives from Salesforce and Amazon close the gap.
+
+## Encoder-only models built the foundation for code search
+
+Microsoft Research's progression from CodeBERT through GraphCodeBERT to UniXcoder illustrates how encoder-only architectures evolved to capture code semantics. All three share a RoBERTa-base backbone with **125M parameters, 768-dimensional embeddings, and a 512-token context window** — modest specs by 2026 standards, but architecturally influential.
+
+**CodeBERT** (Feng et al., EMNLP 2020) was the first bimodal pre-trained model for natural language and programming languages. It trains on the CodeSearchNet dataset — roughly **2.1 million NL-code pairs plus 6.4 million unimodal functions** across Python, Java, JavaScript, PHP, Ruby, and Go — using masked language modeling (MLM) combined with replaced token detection (RTD) adapted from ELECTRA. On the cleaned CodeSearchNet benchmark with full-corpus retrieval, CodeBERT achieves an **overall MRR of 0.693**, a 7.6-point improvement over a fine-tuned RoBERTa baseline.
+
+**GraphCodeBERT** (Guo et al., ICLR 2021) introduced the first semantic structure awareness by incorporating data flow graphs — encoding "where-the-value-comes-from" relationships between variables rather than raw AST syntax. Its three pre-training objectives (MLM, data flow edge prediction, and variable-node alignment) push CodeSearchNet MRR to **0.713**, a 2.0-point gain over CodeBERT. The deliberate choice of data flow over AST avoided the deep hierarchy problem that makes tree structures difficult to encode in flat attention.
+
+**UniXcoder** (Guo et al., ACL 2022) made the largest architectural leap by unifying encoder-only, decoder-only, and encoder-decoder modes within a single model through prefix-controlled attention masks. Its key innovation is a bijective mapping function that flattens ASTs into sequences while preserving all structural information — no graph neural network required. UniXcoder trains with five objectives: MLM, unidirectional LM, span denoising, multi-modal contrastive learning (SimCSE-style with dropout augmentation), and cross-modal generation that forces code embeddings to align across programming languages through shared natural language descriptions. The result: **CodeSearchNet MRR of 0.744** (+3.1 over GraphCodeBERT) and dramatic gains on harder benchmarks like CosQA (MRR 41.3 vs. GraphCodeBERT's 35.2).
+
+These three models demonstrate a clear pattern: each generation improved by incorporating richer structural and cross-modal signals into training, not by scaling parameters.
+
+## Proprietary models achieve the highest code retrieval scores
+
+Among proprietary offerings, **voyage-code-3** (Voyage AI, December 2024) currently leads published benchmarks. Trained on a curated corpus of trillions of tokens spanning text, code, and mathematical content — with contrastive learning on docstring-code and code-code pairs from public GitHub repositories across **300+ programming languages** — it supports Matryoshka embedding dimensions (2048, 1024, 512, 256) and a **32,000-token context window**. On Voyage AI's evaluation suite of 32 code retrieval datasets, voyage-code-3 achieves **92.28% average NDCG@10 at 1024 dimensions**.
+
+The gap to general-purpose models is stark. **OpenAI's text-embedding-3-large** — a strong general-purpose model with 3072-dimensional embeddings and an 8,191-token context — scores **78.48% NDCG@10** on the same Voyage evaluation suite, trailing voyage-code-3 by **13.8 points** despite using 3× the embedding dimensions. Even at reduced 256 dimensions, voyage-code-3 (91.34%) beats OpenAI at full 3072 dimensions. Voyage's binary-quantized embeddings at 256 dimensions still outperform OpenAI's full-precision 3072-dimensional vectors by 4.81 points while using 1/384th the storage.
+
+**Codestral Embed** (Mistral AI, May 2025) entered the market claiming to surpass voyage-code-3 across benchmarks including SWE-Bench, CodeSearchNet, and CommitPack, with an 8,192-token context at $0.15 per million tokens. Independent verification of these claims remains limited.
+
+**Cohere's Embed v3 and v4** models have **no published code-specific benchmarks**. Embed v3's 512-token context is a severe limitation for code, and while Embed v4 expanded to ~128,000 tokens with multimodal support, Mistral's Codestral Embed explicitly claims to "significantly outperform Cohere Embed v4.0" on code tasks. For teams evaluating embedding providers, the absence of Cohere's code benchmarks is itself informative.
+
+A critical caveat: Voyage AI's benchmark numbers are self-reported on their own 32-dataset evaluation suite. Mistral's claims are similarly self-reported on a different evaluation suite. Cross-provider comparisons require careful attention to which benchmark is cited.
+
+## Decoder-only models now lead the MTEB-Code leaderboard
+
+The MTEB-Code benchmark, based on the COIR (Code Information Retrieval Benchmark) integrated into the MTEB framework at ACL 2025, comprises **10+ code datasets spanning 8 retrieval tasks** including text-to-code, code-to-code, cross-language code retrieval, and Stack Overflow QA. The evaluation metric is **NDCG@10**.
+
+The leaderboard tells a surprising story: **decoder-only models adapted for embeddings dominate**. As of late 2025, **C2LLM-7B** (built on Qwen2.5-Coder-7B) leads at **80.75 average NDCG@10**, followed closely by Seed1.6-Embedding (80.71) and Qwen3-Embedding-8B (80.69). Traditional encoder-only models like CodeBERT and UniXcoder, at 125M parameters, are no longer competitive at the top.
+
+The key technique enabling decoder-only models to produce quality embeddings is architectural adaptation. Standard causal attention creates an information bottleneck — early tokens cannot see later tokens, making last-token pooling lossy. Three approaches address this. **LLM2Vec** (BehnamGhader et al., 2024) enables bidirectional attention, applies masked next-token prediction, then contrastive learning. **NV-Embed** (NVIDIA, ICLR 2025) uses a latent attention layer that aggregates across all positions, removing the causal mask during contrastive training. C2LLM's **Pooling by Multihead Attention (PMA)** uses a learnable query to attend to all token representations via cross-attention, outperforming both mean pooling and EOS-token extraction.
+
+BigCode also released **StarEncoder** — a separate 125M-parameter BERT-style encoder (not StarCoder itself) trained on The Stack dataset with MLM and next sentence prediction across **86 programming languages**. This model was designed for tasks like PII detection rather than retrieval, and no direct retrieval benchmarks compare it to CodeBERT or UniXcoder.
+
+**CodeXEmbed** (Salesforce, COLM 2025) offers the most compelling open-source alternative. Available at 400M, 2B, and 7B parameter sizes, it uses multi-stage training with merged LoRA adapters on a Mistral backbone, handling 12 programming languages and 5 retrieval categories. The 7B model claimed SOTA on the CoIR leaderboard, outperforming Voyage-Code-002 (the predecessor to voyage-code-3) by over 20%.
+
+## Training strategies that separate code from text embeddings
+
+Three techniques consistently differentiate code embedding training from general text embedding training: contrastive learning on code-docstring pairs, structure-aware objectives, and multi-language pre-training.
+
+**Contrastive learning with InfoNCE loss** is the dominant paradigm. Given a batch of N code-text pairs, the model classifies each anchor's matching document among N−1 in-batch negatives. ContraCode (Jain et al., EMNLP 2021) pioneered applying this to code using automated source-to-source compiler transforms (variable renaming, dead code elimination, constant folding) to generate semantically equivalent augmented examples, achieving +7.9% code summarization F1 over supervised baselines. CodeT5+ extends this with a text-code matching objective enabling "more fine-grained text-code alignments" beyond batch-level contrastive learning. A critical finding from ContraCode: **hybrid contrastive + reconstruction (MLM) objectives transfer best to downstream tasks**, outperforming either objective alone.
+
+**AST and structure-aware objectives** improve retrieval quality, though evidence suggests their potential is not fully realized. UniXcoder's bijective AST-to-sequence mapping lets standard Transformers encode structural information without graph components. GraphCodeBERT's data flow approach captures semantic rather than syntactic structure. A comprehensive survey (Sun et al., ACM TOSEM 2023) concluded that AST-based representation's value is "not maximized" by current approaches. Practically, the **cAST system (2025)** showed that AST-based structural chunking — splitting code at function and class boundaries rather than arbitrary line counts — improves exact match by **+2.9 points** on code and +3.0 on identifiers compared to fixed-size chunking in RAG pipelines.
+
+**Multi-language pre-training** produces embeddings that transfer across programming languages. CodeXEmbed's ablation study (Table 6 in their paper) demonstrates that training on all programming languages versus only Python and Java improves generalization. UniXcoder's cross-modal generation objective explicitly forces cross-language alignment by generating natural language descriptions from code, using shared NL as a "pivot" between languages. CodeSage V2 (Amazon, December 2024) adds "consistency filtering" to remove noisy contrastive pairs from training data, producing meaningful quality gains over V1.
+
+Parameter-efficient fine-tuning also matters. Applying **AdaLoRA with contrastive loss to CodeT5+** produced MRR improvements of +17% for C++ and C#, +9% for Python, and +6% for SQL — showing that contrastive fine-tuning on domain-specific data can dramatically improve retrieval for specific languages without full retraining.
+
+## One model or two for mixed code-and-documentation corpora
+
+For systems that must retrieve both code snippets and natural language documentation from a single query, **the evidence strongly favors a unified single-model approach**. Every major code embedding model is designed to encode both modalities in a shared embedding space. CodeXEmbed provides the strongest evidence: its 7B model achieves SOTA on the CoIR code retrieval benchmark while scoring above 60 on the BEIR text retrieval benchmark — demonstrating that a single model need not sacrifice quality on either modality.
+
+Voyage AI's voyage-code-3, while marketed as code-specific, is trained on "text, code, and mathematical content with a carefully tuned code-to-text ratio" and uses the general text pair dataset from their voyage-3 model during training. It handles NL documentation alongside code in a single embedding space. Voyage nonetheless maintains separate model lines (voyage-code-3 for code, voyage-3/voyage-4 for general text), acknowledging that specialization still provides measurable advantages for each domain.
+
+The measured tradeoffs break down as follows:
+
+- **Single unified model** provides natural cross-modal retrieval (NL queries find both code and docs in one index), simpler infrastructure (one index, one model), and lower latency. CodeXEmbed proves this can work at SOTA quality for both modalities.
+- **Separate specialized models** maximize quality within each modality but require maintaining two indices, two inference pipelines, and a result-merging strategy. This adds operational complexity and latency.
+- **Hybrid search** — combining vector similarity with BM25 keyword matching — consistently improves results regardless of model choice. Code contains unique identifiers where exact match excels, while semantic search handles conceptual queries.
+
+The practical recommendation for most teams: **start with a single code-aware embedding model** (voyage-code-3 for API-based, CodeSage-large-v2 at 1.3B parameters for self-hosted), implement hybrid search with BM25, and add a cross-encoder reranker. Splitting into separate models is warranted only when benchmarks on your specific corpus show meaningful degradation in one modality.
+
+## Conclusion
+
+The code embedding landscape divides into three tiers. **Proprietary API models** (voyage-code-3 at 92.28% NDCG@10, Codestral Embed) deliver the highest measured code retrieval quality with minimal infrastructure overhead. **Large open-source decoder-based models** (CodeXEmbed-7B, C2LLM-7B, Nomic Embed Code) approach or match proprietary performance while offering deployment flexibility. **Compact encoder-only models** (CodeBERT, UniXcoder at 125M parameters) remain useful for latency-sensitive or resource-constrained deployments but are no longer competitive on aggregate benchmarks.
+
+The most actionable insight is that **training strategy matters more than raw architecture**. Contrastive learning on code-docstring pairs, multi-language pre-training with cross-modal alignment, and structure-aware chunking at indexing time collectively explain most of the performance variance between models. General-purpose models like OpenAI's text-embedding-3-large lose 14+ NDCG points to code-specialized alternatives not because of architectural inferiority, but because their training data and objectives do not emphasize code-specific semantics. For any team building a code search system, investing in a code-specialized embedding model is the single highest-impact architectural decision.
