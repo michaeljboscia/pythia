@@ -52,7 +52,7 @@ test("IT-T-030: spawn → ask (write-ahead) → commit_decision → decommission
     const spawn1 = await spawnOracleSession("lifecycle-test", db, {
       generateSecret: () => "secret-abc".padEnd(32, "x"),
       generateSessionId: () => "sess-0001-0001-0001-0001-000000000001",
-      hashSecret: async (s) => `stub-hash:${s}`,
+      hashSecret: async (s) => `$argon2id$v=19$m=65536,t=3,p=1$fakesalt$${Buffer.from(s).toString("base64url")}`,
       now: () => "2026-03-11T10:00:00.000Z",
       reconstituteMadrs: async () => undefined
     });
