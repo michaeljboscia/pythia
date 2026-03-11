@@ -4,6 +4,7 @@ import { parentPort, workerData } from "node:worker_threads";
 import { chunkFile } from "./chunker-treesitter.js";
 import { embedChunks } from "./embedder.js";
 import { hashFile } from "./hasher.js";
+import { extractEdges, initLanguageService } from "./slow-path.js";
 import { indexFile } from "./sync.js";
 import type { MainToWorker, WorkerToMain } from "./worker-protocol.js";
 import { openDb } from "../db/connection.js";
@@ -22,6 +23,7 @@ const port = parentPort;
 const data = workerData as WorkerInitData;
 const db = openDb(data.dbPath);
 runMigrations(db);
+initLanguageService(data.workspaceRoot);
 
 let paused = false;
 let dying = false;
@@ -79,6 +81,27 @@ async function indexOneFile(filePath: string): Promise<void> {
     mtimeNs: stats.mtimeNs,
     sizeBytes: stats.size
   });
+
+  const insertGraphEdge = db.prepare(`
+    INSERT OR IGNORE INTO graph_edges(source_id, target_id, edge_type)
+    VALUES (?, ?, ?)
+  `);
+  const edges = extractEdges(filePath, content);
+
+  for (const edge of edges) {
+    try {
+      insertGraphEdge.run(edge.source_id, edge.target_id, edge.edge_type);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      if (message.includes("INVALID_GRAPH_ENDPOINT")) {
+        console.error("[worker] skipping invalid graph edge:", edge.source_id, edge.target_id, edge.edge_type);
+        continue;
+      }
+
+      throw error;
+    }
+  }
 }
 
 function toErrorCode(error: unknown): string {
