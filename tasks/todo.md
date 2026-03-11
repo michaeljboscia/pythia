@@ -45,12 +45,12 @@ Sprint 1 is complete and passing. Sprint 2 adds the Tree-sitter fast path, CDC, 
 - [x] Create /Users/mikeboscia/pythia/src/mcp/lcs-investigate.ts
 - [x] Create /Users/mikeboscia/pythia/src/__tests__/lcs-investigate.test.ts
 - [x] Proof: npm test passes lcs_investigate tests
-- [ ] Git commit: "Sprint 2 Step 2.5: lcs_investigate with vector search and §14.13 output format"
+- [x] Git commit: "Sprint 2 Step 2.5: lcs_investigate with vector search and §14.13 output format"
 
 ### Step 2.6 — pythia_force_index
-- [ ] Create /Users/mikeboscia/pythia/src/mcp/force-index.ts
-- [ ] Create /Users/mikeboscia/pythia/src/__tests__/force-index.test.ts
-- [ ] Proof: npm test passes force-index tests
+- [x] Create /Users/mikeboscia/pythia/src/mcp/force-index.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/force-index.test.ts
+- [x] Proof: npm test passes force-index tests
 - [ ] Git commit: "Sprint 2 Step 2.6: pythia_force_index with path validation and force re-embed"
 
 ### Step 2.7 — Sprint 2 proof

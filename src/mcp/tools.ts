@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { PythiaConfig } from "../config.js";
+import { createForceIndexHandler, forceIndexInputSchema } from "./force-index.js";
 import { createLcsInvestigateHandler, lcsInvestigateInputSchema } from "./lcs-investigate.js";
 
 function notImplementedResult() {
@@ -29,11 +30,9 @@ export function registerTools(
     "pythia_force_index",
     {
       description: "Force a file, directory, or full workspace scan into the local code search index.",
-      inputSchema: {
-        path: z.string().optional()
-      }
+      inputSchema: forceIndexInputSchema
     },
-    async () => notImplementedResult()
+    createForceIndexHandler(db, config)
   );
 
   server.registerTool(
