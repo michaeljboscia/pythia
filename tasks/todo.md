@@ -51,10 +51,10 @@ and a passing vector search integration test. No MCP server yet.
 - [x] Proof: npm test passes schema tests, trigger aborts invalid graph inserts
 
 ### Step 1.4 — ONNX Embedding Pipeline
-- [ ] Create /Users/mikeboscia/pythia/src/embedder.ts
+- [x] Create /Users/mikeboscia/pythia/src/indexer/embedder.ts
       (nomic-embed-text-v1.5, prefix protocol, 256d truncation, singleton)
-- [ ] Write unit test: embed("hello") returns Float32Array of length 256
-- [ ] Proof: npm test passes embedder tests
+- [x] Write unit tests for shape, determinism, and normalization
+- [x] Proof: npm test passes embedder tests
 
 ### Step 1.5 — Vector Search Integration Test
 - [ ] Create /Users/mikeboscia/pythia/src/__tests__/vector-search.test.ts
