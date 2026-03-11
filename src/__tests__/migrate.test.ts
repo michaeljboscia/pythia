@@ -31,7 +31,8 @@ test("running migrations twice is idempotent", () => {
     assert.deepEqual(rows.map((row) => row.name), [
       "001-initial-schema.sql",
       "002-graph-trigger.sql",
-      "003-oracle-session-columns.sql"
+      "003-oracle-session-columns.sql",
+      "004-pythia-memories-generated-id.sql"
     ]);
   } finally {
     db.close();

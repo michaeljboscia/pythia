@@ -7,6 +7,7 @@ import type { IndexingSupervisor } from "../indexer/supervisor.js";
 import { CliReasoningProvider } from "../oracle/cli-provider.js";
 import { SessionReaper } from "../oracle/reaper.js";
 import { createAskOracleHandler, askOracleInputSchema } from "./ask-oracle.js";
+import { commitDecisionInputSchema, createCommitDecisionHandler } from "./commit-decision.js";
 import { createForceIndexHandler, forceIndexInputSchema } from "./force-index.js";
 import { createLcsInvestigateHandler, lcsInvestigateInputSchema } from "./lcs-investigate.js";
 import { createSpawnOracleHandler, spawnOracleInputSchema } from "./spawn-oracle.js";
@@ -66,12 +67,9 @@ export function registerTools(
     "oracle_commit_decision",
     {
       description: "Commit an oracle decision to durable architectural memory.",
-      inputSchema: {
-        session_id: z.string(),
-        title: z.string()
-      }
+      inputSchema: commitDecisionInputSchema
     },
-    async () => notImplementedResult()
+    createCommitDecisionHandler(db, config)
   );
 
   server.registerTool(
