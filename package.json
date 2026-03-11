@@ -11,6 +11,7 @@
     "test": "npm run build --silent && node --experimental-strip-types --test dist/src/__tests__/*.test.js"
   },
   "dependencies": {
+    "@google/genai": "latest",
     "@huggingface/transformers": "^3.0.0",
     "@modelcontextprotocol/sdk": "latest",
     "@types/better-sqlite3": "latest",

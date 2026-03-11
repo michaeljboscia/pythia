@@ -17,7 +17,7 @@ const reasoningSchema = z.discriminatedUnion("mode", [
   }),
   z.object({
     mode: z.literal("sdk"),
-    gemini_api_key: z.string().min(1)
+    gemini_api_key: z.string().min(1).optional()
   })
 ]);
 

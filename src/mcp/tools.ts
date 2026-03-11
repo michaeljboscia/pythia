@@ -1,10 +1,9 @@
 import type Database from "better-sqlite3";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
 
 import type { PythiaConfig } from "../config.js";
 import type { IndexingSupervisor } from "../indexer/supervisor.js";
-import { CliReasoningProvider } from "../oracle/cli-provider.js";
+import { createReasoningProvider } from "../oracle/provider.js";
 import { SessionReaper } from "../oracle/reaper.js";
 import { createAskOracleHandler, askOracleInputSchema } from "./ask-oracle.js";
 import { commitDecisionInputSchema, createCommitDecisionHandler } from "./commit-decision.js";
@@ -25,7 +24,7 @@ export function registerTools(
   config: PythiaConfig,
   supervisor?: IndexingSupervisor
 ): void {
-  const reasoningProvider = new CliReasoningProvider();
+  const reasoningProvider = createReasoningProvider(config);
   const sessionReaper = new SessionReaper(db, config.limits.session_idle_ttl_minutes);
 
   server.registerTool(

@@ -88,7 +88,6 @@ test("unknown fields strip without error", () => {
   configWithUnknownFields.extra = "ignore-me";
   configWithUnknownFields.reasoning = {
     mode: "sdk",
-    gemini_api_key: "test-key",
     nested_extra: "ignore-me-too"
   };
 
@@ -99,7 +98,7 @@ test("unknown fields strip without error", () => {
     assert.equal("extra" in config, false);
     assert.equal(config.reasoning.mode, "sdk");
     assert.equal("nested_extra" in config.reasoning, false);
-    assert.equal(config.reasoning.gemini_api_key, "test-key");
+    assert.equal("gemini_api_key" in config.reasoning, false);
   } finally {
     cleanup();
   }
