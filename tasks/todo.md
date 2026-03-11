@@ -31,10 +31,10 @@ and a passing vector search integration test. No MCP server yet.
 - [x] Create /Users/mikeboscia/pythia/src/__tests__/config.test.ts — 3 config tests passing
 
 ### Step 1.2 — Config Loader
-- [ ] Create /Users/mikeboscia/pythia/src/config.ts — Zod schema + loadConfig()
+- [x] Create /Users/mikeboscia/pythia/src/config.ts — Zod schema + loadConfig()
 - [ ] Create ~/.pythia/config.json (minimal test config)
-- [ ] Write unit test: valid config parses, invalid config throws
-- [ ] Proof: npm test passes config tests
+- [x] Write unit test: valid config parses, invalid config throws
+- [x] Proof: npm test passes config tests
 
 ### Step 1.2 — SQLite connection + pragma set
 - [x] Create /Users/mikeboscia/pythia/src/db/connection.ts — SQLite opener with pragma sequence
@@ -56,10 +56,19 @@ and a passing vector search integration test. No MCP server yet.
 - [x] Write unit tests for shape, determinism, and normalization
 - [x] Proof: npm test passes embedder tests
 
-### Step 1.5 — Vector Search Integration Test
-- [ ] Create /Users/mikeboscia/pythia/src/__tests__/vector-search.test.ts
-      (Insert 5 synthetic chunks, query, assert top result cosine distance < 0.3)
-- [ ] Proof: npm test passes — validates full SQLite ↔ ONNX pipeline
+### Step 1.5 — Basic chunker
+- [x] Create /Users/mikeboscia/pythia/src/indexer/chunker-basic.ts
+      (line-based chunks, ~50 lines with 10-line overlap)
+
+### Step 1.6 — Atomic sync contract
+- [x] Create /Users/mikeboscia/pythia/src/indexer/sync.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/sync.test.ts
+- [x] Proof: npm test passes sync tests
+
+### Sprint 1 Proof Script
+- [ ] Create /Users/mikeboscia/pythia/scripts/sprint1-proof.ts
+- [ ] Run node --experimental-strip-types scripts/sprint1-proof.ts
+- [ ] Verify Worker Thread connection-sharing guidance appears in top-3
 
 ---
 
@@ -69,7 +78,8 @@ After all Sprint 1 steps are checked:
 - [ ] Run npm test — all tests pass with 0 failures
 - [ ] Run npm run build — TypeScript compiles cleanly
 - [ ] Update /Users/mikeboscia/pythia/progress.txt — mark Sprint 1 complete
-- [ ] Git commit: "Sprint 1 complete: SQLite schema + ONNX embedding pipeline"
+- [ ] Git commit: "Sprint 1 Step 1.6: atomic sync contract"
+- [ ] Git commit: "Sprint 1 complete: proof script passes"
 - [ ] Verify plan with user before starting Sprint 2
 
 ---
