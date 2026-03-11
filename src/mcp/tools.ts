@@ -6,6 +6,7 @@ import type { PythiaConfig } from "../config.js";
 import type { IndexingSupervisor } from "../indexer/supervisor.js";
 import { createForceIndexHandler, forceIndexInputSchema } from "./force-index.js";
 import { createLcsInvestigateHandler, lcsInvestigateInputSchema } from "./lcs-investigate.js";
+import { createSpawnOracleHandler, spawnOracleInputSchema } from "./spawn-oracle.js";
 
 function notImplementedResult() {
   return {
@@ -41,11 +42,9 @@ export function registerTools(
     "spawn_oracle",
     {
       description: "Spawn a new oracle session for architectural reasoning.",
-      inputSchema: {
-        name: z.string()
-      }
+      inputSchema: spawnOracleInputSchema
     },
-    async () => notImplementedResult()
+    createSpawnOracleHandler(db)
   );
 
   server.registerTool(
