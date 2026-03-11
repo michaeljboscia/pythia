@@ -27,10 +27,10 @@ Sprint 1 is complete and passing. Sprint 2 adds the Tree-sitter fast path, CDC, 
 - [ ] Git commit: "Sprint 2 Step 2.2: Add FTS5 inserts to atomic sync transaction"
 
 ### Step 2.3 — CDC + hasher
-- [ ] Create /Users/mikeboscia/pythia/src/indexer/hasher.ts
-- [ ] Create /Users/mikeboscia/pythia/src/indexer/cdc.ts
-- [ ] Create /Users/mikeboscia/pythia/src/__tests__/cdc.test.ts
-- [ ] Proof: npm test passes CDC tests
+- [x] Create /Users/mikeboscia/pythia/src/indexer/hasher.ts
+- [x] Create /Users/mikeboscia/pythia/src/indexer/cdc.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/cdc.test.ts
+- [x] Proof: npm test passes CDC tests
 - [ ] Git commit: "Sprint 2 Step 2.3: CDC scanner with mtime/BLAKE3 two-gate and binary detection"
 
 ### Step 2.4 — MCP server scaffold
