@@ -10,6 +10,7 @@ import { chunkFile } from "../indexer/chunker-treesitter.js";
 import { scanWorkspace, type FileChange } from "../indexer/cdc.js";
 import { embedChunks } from "../indexer/embedder.js";
 import { hashFile } from "../indexer/hasher.js";
+import type { IndexingSupervisor } from "../indexer/supervisor.js";
 import { indexFile } from "../indexer/sync.js";
 
 type ScanWorkspaceFn = typeof scanWorkspace;
@@ -31,6 +32,11 @@ type ForceIndexDependencies = {
 type ForceIndexSummary = {
   chunksIndexed: number;
   filesIndexed: number;
+};
+
+type ForceIndexBatch = {
+  files: string[];
+  reason: "force" | "warm";
 };
 
 function invalidPathError(inputPath: string): McpError {
@@ -105,6 +111,66 @@ async function indexSingleFile(
   return chunks.length;
 }
 
+function collectWorkspaceChanges(
+  workspaceChanges: FileChange[],
+  normalizedPrefix: string
+): FileChange[] {
+  const prefix = normalizedPrefix === "" ? "" : `${normalizedPrefix}/`;
+
+  return workspaceChanges.filter((change) => (
+    change.repoRelativePath === normalizedPrefix || change.repoRelativePath.startsWith(prefix)
+  ));
+}
+
+async function resolveBatchFiles(
+  workspaceRoot: string,
+  db: Database.Database,
+  targetPath: string | undefined,
+  scanWorkspaceImpl: ScanWorkspaceFn
+): Promise<ForceIndexBatch> {
+  if (targetPath === undefined) {
+    const changes = await scanWorkspaceImpl(workspaceRoot, db, false);
+    return {
+      files: changes.map((change) => change.filePath),
+      reason: "warm"
+    };
+  }
+
+  const resolvedPath = resolveTargetPath(workspaceRoot, targetPath);
+  const stats = statSync(resolvedPath);
+
+  if (stats.isDirectory()) {
+    const normalizedPrefix = path.relative(workspaceRoot, resolvedPath).split(path.sep).join("/");
+    const changes = await scanWorkspaceImpl(workspaceRoot, db, false);
+
+    return {
+      files: collectWorkspaceChanges(changes, normalizedPrefix).map((change) => change.filePath),
+      reason: "warm"
+    };
+  }
+
+  return {
+    files: [resolvedPath],
+    reason: "force"
+  };
+}
+
+function countIndexedChunks(db: Database.Database, files: string[]): number {
+  if (files.length === 0) {
+    return 0;
+  }
+
+  const placeholders = files.map(() => "?").join(", ");
+  const row = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM lcs_chunks
+    WHERE is_deleted = 0
+      AND file_path IN (${placeholders})
+  `).get(...files) as { count: number };
+
+  return row.count;
+}
+
 export async function forceIndexPath(
   db: Database.Database,
   config: Pick<PythiaConfig, "workspace_path">,
@@ -173,9 +239,39 @@ export async function forceIndexPath(
 export function createForceIndexHandler(
   db: Database.Database,
   config: PythiaConfig,
-  dependencies: ForceIndexDependencies = {}
+  dependencies: ForceIndexDependencies = {},
+  supervisor?: Pick<IndexingSupervisor, "sendBatch">
 ) {
+  const scanWorkspaceImpl = dependencies.scanWorkspaceImpl ?? scanWorkspace;
+
   return async ({ path: targetPath }: { path?: string }) => {
+    if (supervisor !== undefined) {
+      const batch = await resolveBatchFiles(
+        path.resolve(config.workspace_path),
+        db,
+        targetPath,
+        scanWorkspaceImpl
+      );
+
+      if (batch.files.length === 0) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: "[STATUS: INDEX_MERGED]\n\nAll files up to date. 0 files re-indexed."
+          }]
+        };
+      }
+
+      await supervisor.sendBatch(batch.files, batch.reason);
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: `[STATUS: INDEX_MERGED]\n\nIndexed ${batch.files.length} files (${countIndexedChunks(db, batch.files)} chunks).`
+        }]
+      };
+    }
+
     const summary = await forceIndexPath(db, config, targetPath, dependencies);
 
     if (summary.filesIndexed === 0) {

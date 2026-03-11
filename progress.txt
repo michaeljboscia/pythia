@@ -2,14 +2,14 @@ PYTHIA v1 — PROGRESS TRACKER
 ========================================
 Last Updated: 2026-03-11
 
-CURRENT PHASE: Sprint 2 (Tree-sitter Fast Path + MCP scaffold) — COMPLETE
+CURRENT PHASE: Sprint 3 (Graph Engine + Worker Thread) — COMPLETE
 IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md
 
 STATUS SUMMARY
 --------------
 Design:          COMPLETE — pythia-lcs-spec.md, 7 interrogation cycles, 17 bound decisions
 Documentation:   COMPLETE — 11 canonical docs generated (v2 suite + session files)
-Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [ ] Sprint 4 [ ] Sprint 5 [ ]
+Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [ ] Sprint 5 [ ]
 
 WHAT EXISTS
 -----------
@@ -82,10 +82,15 @@ SPRINT STATUS (from IMPLEMENTATION_PLAN-v2.md)
     [x] Step 2.6: pythia_force_index with path validation + force re-embed
     [x] Step 2.7: Sprint 2 proof script
 
-[ ] SPRINT 3: Graph Edges + tsserver
-    [ ] Step 3.1: Tree-sitter CONTAINS edge extraction
-    [ ] Step 3.2: BFS CTE structural traversal
-    [ ] Step 3.3: tsserver CALLS/IMPORTS slow path
+[x] SPRINT 3: Graph Engine + Worker Thread
+    [x] Step 3.1: Worker Thread bipartite protocol types
+    [x] Step 3.2: Worker Thread entry point
+    [x] Step 3.3: IndexingSupervisor circuit breaker
+    [x] Step 3.4: Transactional CONTAINS edges in the fast path
+    [x] Step 3.5: LanguageService slow-path edge extraction
+    [x] Step 3.6: BFS CTE structural traversal
+    [x] Step 3.7: Structural MCP routing
+    [x] Step 3.8: Sprint 3 proof script
 
 [ ] SPRINT 4: Oracle Tools
     [ ] Step 4.1: spawn_oracle + ask_oracle
@@ -113,7 +118,7 @@ None.
 
 NEXT STEP
 ---------
-Await user direction before beginning Sprint 3.
+Await user direction before beginning Sprint 4.
 
 SESSION HISTORY
 ---------------
@@ -123,3 +128,4 @@ SESSION HISTORY
 2026-03-11: /uncompromising-executor — generated complete 11-doc v2 canonical suite
 2026-03-11: Sprint 1 implementation completed with passing proof script
 2026-03-11: Sprint 2 implementation completed with passing proof script
+2026-03-11: Sprint 3 implementation completed with passing proof script

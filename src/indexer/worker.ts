@@ -58,12 +58,27 @@ async function createEmbeddings(texts: string[]): Promise<Float32Array[]> {
   return embedChunks(texts);
 }
 
+function isBinaryBuffer(buffer: Buffer): boolean {
+  for (const byte of buffer.subarray(0, 4096)) {
+    if (byte === 0x00) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 async function indexOneFile(filePath: string): Promise<void> {
   if (!existsSync(filePath)) {
     throw new Error(`ENOENT: ${filePath}`);
   }
 
   const fileBuffer = readFileSync(filePath);
+
+  if (isBinaryBuffer(fileBuffer)) {
+    return;
+  }
+
   const content = fileBuffer.toString("utf8");
   const chunks = chunkFile(filePath, content, data.workspaceRoot);
   const stats = statSync(filePath, { bigint: true });

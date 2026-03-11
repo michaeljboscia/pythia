@@ -61,6 +61,7 @@ test("server starts without error and does not call process.exit", async () => {
   } finally {
     await client.close();
     await runtime?.server.close();
+    await runtime?.supervisor.die();
     runtime?.db.close();
     cleanup();
   }
@@ -91,6 +92,7 @@ test("all 6 tool names are registered", async () => {
   } finally {
     await client.close();
     await runtime?.server.close();
+    await runtime?.supervisor.die();
     runtime?.db.close();
     cleanup();
   }

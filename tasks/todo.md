@@ -1,70 +1,77 @@
 # Session Work Plan — 2026-03-11
 
-**Phase:** Sprint 2
-**Plan Ref:** /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md Sprint 2
+**Phase:** Sprint 3
+**Plan Ref:** /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md Sprint 3
 
 ---
 
 ## Context
 
-Sprint 1 is complete and passing. Sprint 2 adds the Tree-sitter fast path, CDC, MCP server scaffold, vector-only retrieval, and the force-index tool. Sprint 3 concerns are explicitly out of scope.
+Sprint 2 was complete at session start. Sprint 3 added the worker-supervised indexing path, fast/slow graph edge extraction, BFS traversal, and structural MCP routing. Sprint 4 remains out of scope.
 
 ---
 
-## Sprint 2
+## Sprint 3
 
-### Step 2.1 — Tree-sitter chunker
-- [x] Add a resolvable `tree-sitter` runtime dependency if required by the current manifest
-- [x] Create /Users/mikeboscia/pythia/src/indexer/chunker-treesitter.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/chunker-treesitter.test.ts
-- [x] Proof: npm test passes Tree-sitter chunker tests
-- [x] Git commit: "Sprint 2 Step 2.1: Tree-sitter chunker with CNI format"
+### Step 3.1 — Worker protocol
+- [x] Create /Users/mikeboscia/pythia/src/indexer/worker-protocol.ts
+- [x] Verify the shared bipartite protocol types compile in both main and worker paths
+- [x] Git commit: "Sprint 3 Step 3.1: Worker Thread bipartite protocol types"
 
-### Step 2.2 — Dual FTS5 sync
-- [x] Modify /Users/mikeboscia/pythia/src/indexer/sync.ts to insert into both FTS tables with delete-then-insert
-- [x] Extend /Users/mikeboscia/pythia/src/__tests__/sync.test.ts for FTS coverage
-- [x] Proof: npm test passes sync tests
-- [x] Git commit: "Sprint 2 Step 2.2: Add FTS5 inserts to atomic sync transaction"
+### Step 3.2 — Worker Thread entry point
+- [x] Create /Users/mikeboscia/pythia/src/indexer/worker.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/worker.test.ts
+- [x] Verify worker PING, batch completion, per-file failure continuation, and DIE behavior
+- [x] Git commit: "Sprint 3 Step 3.2: Worker Thread entry point with full bipartite protocol"
 
-### Step 2.3 — CDC + hasher
-- [x] Create /Users/mikeboscia/pythia/src/indexer/hasher.ts
-- [x] Create /Users/mikeboscia/pythia/src/indexer/cdc.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/cdc.test.ts
-- [x] Proof: npm test passes CDC tests
-- [x] Git commit: "Sprint 2 Step 2.3: CDC scanner with mtime/BLAKE3 two-gate and binary detection"
+### Step 3.3 — Supervisor
+- [x] Create /Users/mikeboscia/pythia/src/indexer/supervisor.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/supervisor.test.ts
+- [x] Verify circuit-breaker behavior and graceful DIE handling
+- [x] Git commit: "Sprint 3 Step 3.3: IndexingSupervisor with circuit breaker"
 
-### Step 2.4 — MCP server scaffold
-- [x] Create /Users/mikeboscia/pythia/src/mcp/tools.ts
-- [x] Replace /Users/mikeboscia/pythia/src/index.ts stub with real stdio startup
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/mcp-server.test.ts
-- [x] Proof: npm test passes MCP server tests
-- [x] Git commit: "Sprint 2 Step 2.4: MCP server scaffold with all 6 tools registered"
+### Step 3.4 — Fast-path CONTAINS edges
+- [x] Update /Users/mikeboscia/pythia/src/indexer/chunker-treesitter.ts to always emit module chunks for supported source files
+- [x] Update /Users/mikeboscia/pythia/src/indexer/sync.ts to insert/delete CONTAINS edges in the same transaction
+- [x] Extend /Users/mikeboscia/pythia/src/__tests__/sync.test.ts and /Users/mikeboscia/pythia/src/__tests__/chunker-treesitter.test.ts
+- [x] Git commit: "Sprint 3 Step 3.4: CONTAINS edges inserted in fast path sync transaction"
 
-### Step 2.5 — lcs_investigate
-- [x] Create /Users/mikeboscia/pythia/src/retrieval/hybrid.ts
-- [x] Create /Users/mikeboscia/pythia/src/mcp/lcs-investigate.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/lcs-investigate.test.ts
-- [x] Proof: npm test passes lcs_investigate tests
-- [x] Git commit: "Sprint 2 Step 2.5: lcs_investigate with vector search and §14.13 output format"
+### Step 3.5 — Slow path LanguageService extraction
+- [x] Create /Users/mikeboscia/pythia/src/indexer/slow-path.ts
+- [x] Update /Users/mikeboscia/pythia/src/indexer/worker.ts to initialize the LanguageService once and persist CALLS / IMPORTS / RE_EXPORTS edges
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/slow-path.test.ts
+- [x] Git commit: "Sprint 3 Step 3.5: Slow path LanguageService edge extraction (CALLS/IMPORTS/RE_EXPORTS)"
 
-### Step 2.6 — pythia_force_index
-- [x] Create /Users/mikeboscia/pythia/src/mcp/force-index.ts
-- [x] Create /Users/mikeboscia/pythia/src/__tests__/force-index.test.ts
-- [x] Proof: npm test passes force-index tests
-- [x] Git commit: "Sprint 2 Step 2.6: pythia_force_index with path validation and force re-embed"
+### Step 3.6 — Graph traversal
+- [x] Create /Users/mikeboscia/pythia/src/retrieval/graph.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/graph.test.ts
+- [x] Verify depth cap, cycle handling, node cap, and no-edge metadata
+- [x] Git commit: "Sprint 3 Step 3.6: BFS CTE graph traversal with depth metadata output"
 
-### Step 2.7 — Sprint 2 proof
-- [x] Create /Users/mikeboscia/pythia/scripts/sprint2-proof.ts
-- [x] Run npx tsx scripts/sprint2-proof.ts
-- [x] Verify AST-bounded function chunk output, CNI format, and line numbers
-- [x] Update /Users/mikeboscia/pythia/progress.txt for Sprint 2 completion
-- [ ] Git commit: "Sprint 2 complete: Tree-sitter + MCP scaffold + proof script passes"
+### Step 3.7 — Structural MCP routing
+- [x] Update /Users/mikeboscia/pythia/src/mcp/lcs-investigate.ts
+- [x] Extend /Users/mikeboscia/pythia/src/__tests__/lcs-investigate.test.ts
+- [x] Verify structural intent returns graph output and semantic intent still uses search
+- [x] Git commit: "Sprint 3 Step 3.7: Wire structural intent to BFS graph traversal"
+
+### Step 3.8 — Sprint 3 proof and integration wrap-up
+- [x] Update /Users/mikeboscia/pythia/src/index.ts, /Users/mikeboscia/pythia/src/mcp/tools.ts, and /Users/mikeboscia/pythia/src/mcp/force-index.ts so force indexing routes through the worker supervisor
+- [x] Update /Users/mikeboscia/pythia/src/indexer/worker.ts to skip binary payloads safely
+- [x] Create /Users/mikeboscia/pythia/scripts/sprint3-proof.ts
+- [x] Run `npm test`
+- [x] Run `npm run build`
+- [x] Run `npx tsx scripts/sprint3-proof.ts`
+- [x] Update /Users/mikeboscia/pythia/progress.txt
+- [x] Update /Users/mikeboscia/pythia/tasks/todo.md
+- [x] Git commit: "Sprint 3 complete: Worker Thread + graph engine + proof script"
 
 ---
 
 ## Review
 
-- [x] npm test passes with zero failures across Sprint 1 + Sprint 2
-- [x] npm run build passes cleanly
-- [x] Sprint 2 proof script passes
-- [ ] Verify with user before beginning Sprint 3
+- [x] Worker Thread owns the write-side indexing loop and reports through the shared protocol
+- [x] Fast path writes module/class/function hierarchy and transactional CONTAINS edges
+- [x] Slow path produces real LanguageService-derived CALLS / IMPORTS / RE_EXPORTS edges
+- [x] Structural `lcs_investigate` routes to BFS traversal with depth metadata blocks
+- [x] Sprint 3 proof script passes and shows the live cross-file call chain
+- [x] Await user direction before beginning Sprint 4

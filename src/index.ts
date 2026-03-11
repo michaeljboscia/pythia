@@ -10,12 +10,14 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { loadConfig, type PythiaConfig } from "./config.js";
 import { openDb } from "./db/connection.js";
 import { runMigrations } from "./db/migrate.js";
+import { IndexingSupervisor } from "./indexer/supervisor.js";
 import { registerTools } from "./mcp/tools.js";
 
 export type PythiaRuntime = {
   config: PythiaConfig;
   db: Database.Database;
   server: McpServer;
+  supervisor: IndexingSupervisor;
 };
 
 export function initializeRuntime(configPath?: string): PythiaRuntime {
@@ -27,11 +29,12 @@ export function initializeRuntime(configPath?: string): PythiaRuntime {
 
   const db = openDb(dbPath);
   runMigrations(db);
+  const supervisor = new IndexingSupervisor(dbPath, config.workspace_path);
 
   const server = new McpServer({ name: "pythia", version: "1.0.0" });
-  registerTools(server, db, config);
+  registerTools(server, db, config, supervisor);
 
-  return { config, db, server };
+  return { config, db, server, supervisor };
 }
 
 export async function startServer(

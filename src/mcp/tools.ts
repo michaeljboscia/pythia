@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { PythiaConfig } from "../config.js";
+import type { IndexingSupervisor } from "../indexer/supervisor.js";
 import { createForceIndexHandler, forceIndexInputSchema } from "./force-index.js";
 import { createLcsInvestigateHandler, lcsInvestigateInputSchema } from "./lcs-investigate.js";
 
@@ -15,7 +16,8 @@ function notImplementedResult() {
 export function registerTools(
   server: McpServer,
   db: Database.Database,
-  config: PythiaConfig
+  config: PythiaConfig,
+  supervisor?: IndexingSupervisor
 ): void {
   server.registerTool(
     "lcs_investigate",
@@ -32,7 +34,7 @@ export function registerTools(
       description: "Force a file, directory, or full workspace scan into the local code search index.",
       inputSchema: forceIndexInputSchema
     },
-    createForceIndexHandler(db, config)
+    createForceIndexHandler(db, config, {}, supervisor)
   );
 
   server.registerTool(
