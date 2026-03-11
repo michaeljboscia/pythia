@@ -41,10 +41,10 @@ Sprint 1 is complete and passing. Sprint 2 adds the Tree-sitter fast path, CDC, 
 - [ ] Git commit: "Sprint 2 Step 2.4: MCP server scaffold with all 6 tools registered"
 
 ### Step 2.5 — lcs_investigate
-- [ ] Create /Users/mikeboscia/pythia/src/retrieval/hybrid.ts
-- [ ] Create /Users/mikeboscia/pythia/src/mcp/lcs-investigate.ts
-- [ ] Create /Users/mikeboscia/pythia/src/__tests__/lcs-investigate.test.ts
-- [ ] Proof: npm test passes lcs_investigate tests
+- [x] Create /Users/mikeboscia/pythia/src/retrieval/hybrid.ts
+- [x] Create /Users/mikeboscia/pythia/src/mcp/lcs-investigate.ts
+- [x] Create /Users/mikeboscia/pythia/src/__tests__/lcs-investigate.test.ts
+- [x] Proof: npm test passes lcs_investigate tests
 - [ ] Git commit: "Sprint 2 Step 2.5: lcs_investigate with vector search and §14.13 output format"
 
 ### Step 2.6 — pythia_force_index

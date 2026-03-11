@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { PythiaConfig } from "../config.js";
+import { createLcsInvestigateHandler, lcsInvestigateInputSchema } from "./lcs-investigate.js";
 
 function notImplementedResult() {
   return {
@@ -12,20 +13,16 @@ function notImplementedResult() {
 
 export function registerTools(
   server: McpServer,
-  _db: Database.Database,
-  _config: PythiaConfig
+  db: Database.Database,
+  config: PythiaConfig
 ): void {
   server.registerTool(
     "lcs_investigate",
     {
       description: "Investigate the local code search index for semantic or structural matches.",
-      inputSchema: {
-        query: z.string(),
-        intent: z.enum(["semantic", "structural"]).default("semantic"),
-        limit: z.number().int().min(1).max(20).optional().default(8)
-      }
+      inputSchema: lcsInvestigateInputSchema
     },
-    async () => notImplementedResult()
+    createLcsInvestigateHandler(db)
   );
 
   server.registerTool(
