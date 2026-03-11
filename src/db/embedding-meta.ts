@@ -33,7 +33,7 @@ function configToFingerprint(config: EmbeddingsBackendConfig): Omit<EmbeddingMet
 }
 
 export function readEmbeddingMeta(db: Database.Database): EmbeddingMetaRow | null {
-  return db.prepare("SELECT * FROM embedding_meta WHERE id = 1").get() as EmbeddingMetaRow | null;
+  return (db.prepare("SELECT * FROM embedding_meta WHERE id = 1").get() as EmbeddingMetaRow | undefined) ?? null;
 }
 
 export function writeEmbeddingMetaOnce(db: Database.Database, config: EmbeddingsBackendConfig): void {
