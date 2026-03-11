@@ -40,6 +40,8 @@ const GET_CHUNK_QUERY = `
   WHERE id = ? AND is_deleted = 0
 `;
 
+export type GraphTraversalRow = BfsRow;
+
 function detectLanguage(filePath: string): string {
   switch (path.extname(filePath).toLowerCase()) {
     case ".ts":
@@ -66,8 +68,24 @@ function detectLanguage(filePath: string): string {
   }
 }
 
-export function traverseGraph(startCni: string, db: Database.Database): string {
-  const rows = db.prepare(BFS_QUERY).all(startCni, startCni, startCni) as BfsRow[];
+export function getGraphTraversalRows(
+  startCni: string,
+  db: Database.Database,
+  maxDepth = 6,
+  maxNodes = 50
+): GraphTraversalRow[] {
+  void maxDepth;
+  void maxNodes;
+  return db.prepare(BFS_QUERY).all(startCni, startCni, startCni) as GraphTraversalRow[];
+}
+
+export function traverseGraph(
+  startCni: string,
+  db: Database.Database,
+  maxDepth = 6,
+  maxNodes = 50
+): string {
+  const rows = getGraphTraversalRows(startCni, db, maxDepth, maxNodes);
 
   if (rows.length === 0) {
     return `[METADATA: NO_GRAPH_EDGES]\n\nNo graph edges found for: ${startCni}`;

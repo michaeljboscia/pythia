@@ -3,6 +3,7 @@ import path from "node:path";
 import type Database from "better-sqlite3";
 
 import { embedQuery } from "../indexer/embedder.js";
+import { createVectorStore } from "../indexer/vector-store.js";
 import { rerank, type RerankerResult } from "./reranker.js";
 
 export interface SearchResult {
@@ -23,11 +24,6 @@ export interface SearchResponse {
 
 export type RetrievalIntent = "semantic" | "structural";
 export type FtsRoute = "kw" | "sub" | "none";
-
-type VectorRow = {
-  distance: number;
-  id: string;
-};
 
 type FtsRow = {
   id: string;
@@ -126,31 +122,27 @@ function getChunkRows(db: Database.Database, ids: string[]): SearchResult[] {
 function runVectorSearch(
   db: Database.Database,
   queryEmbedding: Float32Array
-): SearchResult[] {
-  const vectorRows = db.prepare(`
-    SELECT id, distance
-    FROM vec_lcs_chunks
-    WHERE embedding MATCH ?
-    ORDER BY distance
-    LIMIT 30
-  `).all(queryEmbedding) as VectorRow[];
+): Promise<SearchResult[]> {
+  const vectorStore = createVectorStore("sqlite", db);
 
-  const chunkMap = new Map(
-    getChunkRows(db, vectorRows.map((row) => row.id)).map((chunk) => [chunk.id, chunk])
-  );
+  return vectorStore.query(queryEmbedding, VEC_LIMIT).then((vectorRows) => {
+    const chunkMap = new Map(
+      getChunkRows(db, vectorRows.map((row) => row.id)).map((chunk) => [chunk.id, chunk])
+    );
 
-  return vectorRows.flatMap((row) => {
-    const chunk = chunkMap.get(row.id);
+    return vectorRows.flatMap((row) => {
+      const chunk = chunkMap.get(row.id);
 
-    if (chunk === undefined) {
-      return [];
-    }
+      if (chunk === undefined) {
+        return [];
+      }
 
-    return [{
-      ...chunk,
-      score: 1 / (1 + row.distance)
-    }];
-  }).slice(0, VEC_LIMIT);
+      return [{
+        ...chunk,
+        score: 1 / (1 + row.distance)
+      }];
+    }).slice(0, VEC_LIMIT);
+  });
 }
 
 function runKeywordFts(db: Database.Database, query: string): SearchResult[] {
@@ -245,7 +237,7 @@ export async function search(
   const rerankImpl = dependencies.rerankImpl ?? rerank;
 
   const queryEmbedding = await embedQueryImpl(query);
-  const vectorResults = runVectorSearch(db, queryEmbedding);
+  const vectorResults = await runVectorSearch(db, queryEmbedding);
   const keywordResults = runKeywordFts(db, query);
   const ftsRoute = chooseFtsRoute(query, keywordResults.length);
   const ftsResults = ftsRoute === "kw"
