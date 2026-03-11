@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { MetadataCodes } from "../errors.js";
 import { traverseGraph } from "../retrieval/graph.js";
-import { search, type SearchResult } from "../retrieval/hybrid.js";
+import { search, type SearchResponse, type SearchResult } from "../retrieval/hybrid.js";
 
 type SearchFn = typeof search;
 type TraverseGraphFn = typeof traverseGraph;
@@ -69,7 +69,8 @@ export function createLcsInvestigateHandler(
       };
     }
 
-    const results = await searchImpl(query, intent, db, limit);
+    const searchResult = await searchImpl(query, intent, db, limit) as SearchResponse;
+    const results = searchResult.results;
 
     if (results.length === 0) {
       return {
@@ -83,7 +84,9 @@ export function createLcsInvestigateHandler(
     return {
       content: [{
         type: "text" as const,
-        text: formatSearchResults(results)
+        text: searchResult.rerankerUsed
+          ? formatSearchResults(results)
+          : `${formatSearchResults(results)}\n[METADATA: RERANKER_UNAVAILABLE]`
       }]
     };
   };

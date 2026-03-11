@@ -9,6 +9,7 @@ import { indexFile } from "./sync.js";
 import type { MainToWorker, WorkerToMain } from "./worker-protocol.js";
 import { openDb } from "../db/connection.js";
 import { runMigrations } from "../db/migrate.js";
+import { initReranker } from "../retrieval/reranker.js";
 
 type WorkerInitData = {
   dbPath: string;
@@ -24,6 +25,9 @@ const data = workerData as WorkerInitData;
 const db = openDb(data.dbPath);
 runMigrations(db);
 initLanguageService(data.workspaceRoot);
+await initReranker().catch((error) => {
+  console.error("[worker] Reranker init failed:", error);
+});
 
 let paused = false;
 let dying = false;

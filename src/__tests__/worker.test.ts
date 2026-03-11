@@ -25,6 +25,7 @@ function createHarness(): WorkerHarness {
     cleanup: () => rmSync(workspaceRoot, { recursive: true, force: true }),
     spawn: () => {
       process.env.PYTHIA_TEST_EMBED_STUB = "1";
+      process.env.PYTHIA_TEST_RERANKER_STUB = "1";
 
       return new Worker(workerPath, {
         workerData: { dbPath, workspaceRoot }
@@ -83,6 +84,7 @@ test("PING receives ACK: PING response", async () => {
     await terminateWorker(worker);
     harness.cleanup();
     delete process.env.PYTHIA_TEST_EMBED_STUB;
+    delete process.env.PYTHIA_TEST_RERANKER_STUB;
   }
 });
 
@@ -122,6 +124,7 @@ test("INDEX_BATCH with 2 files emits BATCH_STARTED then BATCH_COMPLETE", async (
     await terminateWorker(worker);
     harness.cleanup();
     delete process.env.PYTHIA_TEST_EMBED_STUB;
+    delete process.env.PYTHIA_TEST_RERANKER_STUB;
   }
 });
 
@@ -163,6 +166,7 @@ test("INDEX_BATCH with one failing file emits FILE_FAILED and still completes th
     await terminateWorker(worker);
     harness.cleanup();
     delete process.env.PYTHIA_TEST_EMBED_STUB;
+    delete process.env.PYTHIA_TEST_RERANKER_STUB;
   }
 });
 
@@ -200,5 +204,6 @@ test("DIE during a batch receives ACK: DIE and worker exits cleanly", async () =
   } finally {
     harness.cleanup();
     delete process.env.PYTHIA_TEST_EMBED_STUB;
+    delete process.env.PYTHIA_TEST_RERANKER_STUB;
   }
 });

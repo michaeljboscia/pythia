@@ -25,16 +25,19 @@ function createDb() {
 test("returns §14.13 formatted blocks", async () => {
   const { db, cleanup } = createDb();
   const handler = createLcsInvestigateHandler(db, {
-    searchImpl: async () => [{
-      id: "src/auth.ts::function::login",
-      file_path: "src/auth.ts",
-      chunk_type: "function",
-      content: "export function login() {\n  return true;\n}",
-      start_line: 10,
-      end_line: 12,
-      language: "typescript",
-      score: 0.84321
-    }]
+    searchImpl: async () => ({
+      results: [{
+        id: "src/auth.ts::function::login",
+        file_path: "src/auth.ts",
+        chunk_type: "function",
+        content: "export function login() {\n  return true;\n}",
+        start_line: 10,
+        end_line: 12,
+        language: "typescript",
+        score: 0.84321
+      }],
+      rerankerUsed: true
+    })
   });
 
   try {
@@ -64,7 +67,10 @@ test("returns §14.13 formatted blocks", async () => {
 test("returns [METADATA: INDEX_EMPTY] when corpus is empty", async () => {
   const { db, cleanup } = createDb();
   const handler = createLcsInvestigateHandler(db, {
-    searchImpl: async () => []
+    searchImpl: async () => ({
+      results: [],
+      rerankerUsed: false
+    })
   });
 
   try {
@@ -86,7 +92,10 @@ test("returns [METADATA: INDEX_EMPTY] when corpus is empty", async () => {
 test("returns [METADATA: NO_MATCH] when query matches nothing in populated corpus", async () => {
   const { db, cleanup } = createDb();
   const handler = createLcsInvestigateHandler(db, {
-    searchImpl: async () => []
+    searchImpl: async () => ({
+      results: [],
+      rerankerUsed: false
+    })
   });
 
   try {
@@ -113,16 +122,19 @@ test("returns [METADATA: NO_MATCH] when query matches nothing in populated corpu
 test("score values are between 0.0 and 1.0", async () => {
   const { db, cleanup } = createDb();
   const handler = createLcsInvestigateHandler(db, {
-    searchImpl: async () => [{
-      id: "src/auth.ts::function::login",
-      file_path: "src/auth.ts",
-      chunk_type: "function",
-      content: "export function login() {}",
-      start_line: 0,
-      end_line: 0,
-      language: "typescript",
-      score: 0.5
-    }]
+    searchImpl: async () => ({
+      results: [{
+        id: "src/auth.ts::function::login",
+        file_path: "src/auth.ts",
+        chunk_type: "function",
+        content: "export function login() {}",
+        start_line: 0,
+        end_line: 0,
+        language: "typescript",
+        score: 0.5
+      }],
+      rerankerUsed: true
+    })
   });
 
   try {
@@ -148,16 +160,19 @@ test("score values are between 0.0 and 1.0", async () => {
 test("blocks include PATH, CNI, TYPE, LINES and fenced content", async () => {
   const { db, cleanup } = createDb();
   const handler = createLcsInvestigateHandler(db, {
-    searchImpl: async () => [{
-      id: "src/auth.ts::function::login",
-      file_path: "src/auth.ts",
-      chunk_type: "function",
-      content: "export function login() {}",
-      start_line: 1,
-      end_line: 1,
-      language: "typescript",
-      score: 0.9
-    }]
+    searchImpl: async () => ({
+      results: [{
+        id: "src/auth.ts::function::login",
+        file_path: "src/auth.ts",
+        chunk_type: "function",
+        content: "export function login() {}",
+        start_line: 1,
+        end_line: 1,
+        language: "typescript",
+        score: 0.9
+      }],
+      rerankerUsed: true
+    })
   });
 
   try {
@@ -242,16 +257,19 @@ test("intent='semantic' still uses search path", async () => {
   const handler = createLcsInvestigateHandler(db, {
     searchImpl: async () => {
       searchCalls += 1;
-      return [{
-        id: "src/auth.ts::function::login",
-        file_path: "src/auth.ts",
-        chunk_type: "function",
-        content: "export function login() {}",
-        start_line: 0,
-        end_line: 0,
-        language: "typescript",
-        score: 0.9
-      }];
+      return {
+        results: [{
+          id: "src/auth.ts::function::login",
+          file_path: "src/auth.ts",
+          chunk_type: "function",
+          content: "export function login() {}",
+          start_line: 0,
+          end_line: 0,
+          language: "typescript",
+          score: 0.9
+        }],
+        rerankerUsed: true
+      };
     }
   });
 
@@ -268,6 +286,42 @@ test("intent='semantic' still uses search path", async () => {
     });
 
     assert.equal(searchCalls, 1);
+  } finally {
+    cleanup();
+  }
+});
+
+test("reranker fallback metadata is appended when candidates exist but reranker is unavailable", async () => {
+  const { db, cleanup } = createDb();
+  const handler = createLcsInvestigateHandler(db, {
+    searchImpl: async () => ({
+      results: [{
+        id: "src/auth.ts::function::login",
+        file_path: "src/auth.ts",
+        chunk_type: "function",
+        content: "export function login() {}",
+        start_line: 0,
+        end_line: 0,
+        language: "typescript",
+        score: 0.9
+      }],
+      rerankerUsed: false
+    })
+  });
+
+  try {
+    db.prepare(`
+      INSERT INTO lcs_chunks(id, file_path, chunk_type, content, start_line, end_line, is_deleted, deleted_at, content_hash)
+      VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?)
+    `).run("seed", "src/auth.ts", "function", "seed", 0, 0, "blake3:seed");
+
+    const result = await handler({
+      query: "login",
+      intent: "semantic",
+      limit: 8
+    });
+
+    assert.match(result.content[0].text, /\n\[METADATA: RERANKER_UNAVAILABLE\]$/);
   } finally {
     cleanup();
   }
