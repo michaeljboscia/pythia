@@ -22,9 +22,7 @@ export function buildDefaultConfig(workspacePath: string): PythiaConfig {
     workspace_path: path.resolve(workspacePath),
     reasoning: { mode: "cli" },
     embeddings: {
-      mode: "local",
-      model: "nomic-ai/nomic-embed-text-v1.5",
-      revision: "main"
+      mode: "local"
     },
     vector_store: {
       mode: "sqlite"

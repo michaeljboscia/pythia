@@ -31,15 +31,23 @@ const vectorStoreSchema = z.discriminatedUnion("mode", [
   })
 ]);
 
+const embeddingsSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("local")
+  }),
+  z.object({
+    mode: z.literal("openai_compatible"),
+    base_url: z.string().url(),
+    api_key: z.string().min(1),
+    model: z.string().min(1)
+  })
+]);
+
 export const configSchema = z.object({
   workspace_path: absolutePath("workspace_path"),
   obsidian_vault_path: absolutePath("obsidian_vault_path").optional(),
   reasoning: reasoningSchema,
-  embeddings: z.object({
-    mode: z.enum(["local", "voyage"]),
-    model: z.string().min(1),
-    revision: z.string().min(1)
-  }),
+  embeddings: embeddingsSchema,
   vector_store: vectorStoreSchema,
   graph_store: z.object({
     mode: z.enum(["sqlite", "falkor"])

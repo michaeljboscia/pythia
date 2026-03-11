@@ -25,9 +25,7 @@ function createValidConfig(): Record<string, unknown> {
       mode: "cli"
     },
     embeddings: {
-      mode: "local",
-      model: "nomic-embed-text-v1.5",
-      revision: "main"
+      mode: "local"
     },
     vector_store: {
       mode: "sqlite"
@@ -68,6 +66,77 @@ test("missing required field throws with CONFIG_INVALID", () => {
   delete invalidConfig.workspace_path;
 
   const { cleanup, configPath } = writeConfigFile(invalidConfig);
+
+  try {
+    assert.throws(
+      () => loadConfig(configPath),
+      (error: unknown) => {
+        assert.ok(error instanceof PythiaError);
+        assert.equal(error.code, "CONFIG_INVALID");
+        return true;
+      }
+    );
+  } finally {
+    cleanup();
+  }
+});
+
+test("openai_compatible embeddings mode parses with required subfields", () => {
+  const config = createValidConfig();
+  config.embeddings = {
+    mode: "openai_compatible",
+    base_url: "http://192.168.2.110:11434/v1",
+    api_key: "ollama",
+    model: "nomic-embed-text"
+  };
+
+  const { cleanup, configPath } = writeConfigFile(config);
+
+  try {
+    const result = loadConfig(configPath);
+    assert.equal(result.embeddings.mode, "openai_compatible");
+    if (result.embeddings.mode === "openai_compatible") {
+      assert.equal(result.embeddings.base_url, "http://192.168.2.110:11434/v1");
+      assert.equal(result.embeddings.model, "nomic-embed-text");
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test("openai_compatible embeddings missing base_url throws CONFIG_INVALID", () => {
+  const config = createValidConfig();
+  config.embeddings = {
+    mode: "openai_compatible",
+    api_key: "ollama",
+    model: "nomic-embed-text"
+    // base_url intentionally omitted
+  };
+
+  const { cleanup, configPath } = writeConfigFile(config);
+
+  try {
+    assert.throws(
+      () => loadConfig(configPath),
+      (error: unknown) => {
+        assert.ok(error instanceof PythiaError);
+        assert.equal(error.code, "CONFIG_INVALID");
+        return true;
+      }
+    );
+  } finally {
+    cleanup();
+  }
+});
+
+test("voyage embeddings mode is rejected as CONFIG_INVALID", () => {
+  const config = createValidConfig();
+  config.embeddings = {
+    mode: "voyage",
+    model: "voyage-code-2"
+  };
+
+  const { cleanup, configPath } = writeConfigFile(config);
 
   try {
     assert.throws(
