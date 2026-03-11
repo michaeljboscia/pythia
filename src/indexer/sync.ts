@@ -117,7 +117,9 @@ export async function indexFile(db: Database.Database, filePath: string, content
         contentHash
       );
       insertVecChunk.run(chunkId, embedding);
+      deleteKeywordChunk.run(chunkId);
       insertKeywordChunk.run(chunkId, chunk.content);
+      deleteSubstringChunk.run(chunkId);
       insertSubstringChunk.run(chunkId, chunk.content);
     }
 

@@ -39,6 +39,42 @@ test("indexing a file creates rows in lcs_chunks and vec_lcs_chunks", async () =
   }
 });
 
+test("indexing a file populates both FTS5 tables", async () => {
+  const { cleanup, dbPath, filePath } = createWorkspace();
+  const db = openDb(dbPath);
+  const content = "export const semanticNeedle = 'alpha beta gamma';\n";
+  writeFileSync(filePath, content, "utf8");
+
+  try {
+    runMigrations(db);
+    await indexFile(db, filePath, content);
+
+    const chunk = db.prepare(`
+      SELECT id
+      FROM lcs_chunks
+      WHERE file_path = ?
+        AND is_deleted = 0
+      LIMIT 1
+    `).get(filePath) as { id: string };
+    const keywordRow = db.prepare(`
+      SELECT id
+      FROM fts_lcs_chunks_kw
+      WHERE id = ?
+    `).get(chunk.id) as { id: string } | undefined;
+    const substringRow = db.prepare(`
+      SELECT id
+      FROM fts_lcs_chunks_sub
+      WHERE id = ?
+    `).get(chunk.id) as { id: string } | undefined;
+
+    assert.equal(keywordRow?.id, chunk.id);
+    assert.equal(substringRow?.id, chunk.id);
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
 test("re-indexing the same file marks old chunks is_deleted=1", async () => {
   const { cleanup, dbPath, filePath } = createWorkspace();
   const db = openDb(dbPath);
@@ -74,6 +110,40 @@ test("re-indexing the same file marks old chunks is_deleted=1", async () => {
   }
 });
 
+test("re-indexing deletes stale rows from both FTS tables", async () => {
+  const { cleanup, dbPath, filePath } = createWorkspace();
+  const db = openDb(dbPath);
+  const firstContent = Array.from({ length: 60 }, (_, index) => `alpha ${index + 1}`).join("\n");
+  const secondContent = Array.from({ length: 60 }, (_, index) => `beta ${index + 1}`).join("\n");
+  writeFileSync(filePath, firstContent, "utf8");
+
+  try {
+    runMigrations(db);
+    await indexFile(db, filePath, firstContent);
+
+    const staleIds = db.prepare(`
+      SELECT id
+      FROM lcs_chunks
+      WHERE file_path = ?
+        AND is_deleted = 0
+    `).all(filePath) as Array<{ id: string }>;
+
+    writeFileSync(filePath, secondContent, "utf8");
+    await indexFile(db, filePath, secondContent);
+
+    for (const staleChunk of staleIds) {
+      const keywordRow = db.prepare("SELECT id FROM fts_lcs_chunks_kw WHERE id = ?").get(staleChunk.id);
+      const substringRow = db.prepare("SELECT id FROM fts_lcs_chunks_sub WHERE id = ?").get(staleChunk.id);
+
+      assert.equal(keywordRow, undefined);
+      assert.equal(substringRow, undefined);
+    }
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
 test("file_scan_cache updated with correct content_hash", async () => {
   const { cleanup, dbPath, filePath } = createWorkspace();
   const db = openDb(dbPath);
@@ -91,6 +161,44 @@ test("file_scan_cache updated with correct content_hash", async () => {
     `).get(filePath) as { content_hash: string };
 
     assert.match(row.content_hash, /^blake3:[a-f0-9]+$/);
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
+test("FTS5 search on indexed content returns the correct chunk id", async () => {
+  const { cleanup, dbPath, filePath } = createWorkspace();
+  const db = openDb(dbPath);
+  const content = "export const semanticNeedle = 'alpha beta gamma';\n";
+  writeFileSync(filePath, content, "utf8");
+
+  try {
+    runMigrations(db);
+    await indexFile(db, filePath, content);
+
+    const expectedChunk = db.prepare(`
+      SELECT id
+      FROM lcs_chunks
+      WHERE file_path = ?
+        AND is_deleted = 0
+      LIMIT 1
+    `).get(filePath) as { id: string };
+    const keywordMatch = db.prepare(`
+      SELECT id
+      FROM fts_lcs_chunks_kw
+      WHERE fts_lcs_chunks_kw MATCH ?
+      LIMIT 1
+    `).get("semanticNeedle") as { id: string };
+    const substringMatch = db.prepare(`
+      SELECT id
+      FROM fts_lcs_chunks_sub
+      WHERE fts_lcs_chunks_sub MATCH ?
+      LIMIT 1
+    `).get("Needle") as { id: string };
+
+    assert.equal(keywordMatch.id, expectedChunk.id);
+    assert.equal(substringMatch.id, expectedChunk.id);
   } finally {
     db.close();
     cleanup();

@@ -21,9 +21,9 @@ Sprint 1 is complete and passing. Sprint 2 adds the Tree-sitter fast path, CDC, 
 - [ ] Git commit: "Sprint 2 Step 2.1: Tree-sitter chunker with CNI format"
 
 ### Step 2.2 — Dual FTS5 sync
-- [ ] Modify /Users/mikeboscia/pythia/src/indexer/sync.ts to insert into both FTS tables with delete-then-insert
-- [ ] Extend /Users/mikeboscia/pythia/src/__tests__/sync.test.ts for FTS coverage
-- [ ] Proof: npm test passes sync tests
+- [x] Modify /Users/mikeboscia/pythia/src/indexer/sync.ts to insert into both FTS tables with delete-then-insert
+- [x] Extend /Users/mikeboscia/pythia/src/__tests__/sync.test.ts for FTS coverage
+- [x] Proof: npm test passes sync tests
 - [ ] Git commit: "Sprint 2 Step 2.2: Add FTS5 inserts to atomic sync transaction"
 
 ### Step 2.3 — CDC + hasher
