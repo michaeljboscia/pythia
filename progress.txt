@@ -66,7 +66,7 @@ SPRINT STATUS (from IMPLEMENTATION_PLAN-v2.md)
 -----------------------------------------------
 [ ] SPRINT 1: SQLite + ONNX Foundation
     [x] Step 1.1: Project scaffold + package.json
-    [ ] Step 1.2: Zod config schema + config loader
+    [x] Step 1.2: Zod config schema + config loader
     [ ] Step 1.3: SQLite schema + migration runner
     [ ] Step 1.4: ONNX embedding pipeline
     [ ] Step 1.5: Vector search integration test

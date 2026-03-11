@@ -36,6 +36,12 @@ and a passing vector search integration test. No MCP server yet.
 - [ ] Write unit test: valid config parses, invalid config throws
 - [ ] Proof: npm test passes config tests
 
+### Step 1.2 — SQLite connection + pragma set
+- [x] Create /Users/mikeboscia/pythia/src/db/connection.ts — SQLite opener with pragma sequence
+- [x] Load sqlite-vec on every new connection via sqliteVec.load(db)
+- [x] Write /Users/mikeboscia/pythia/src/__tests__/connection.test.ts
+- [x] Proof: npm test passes connection tests
+
 ### Step 1.3 — SQLite Schema + Migrations
 - [ ] Create /Users/mikeboscia/pythia/src/migrations/0001_initial_schema.sql
       (All 9 tables from BACKEND_STRUCTURE-v2.md, both FTS5 tables, graph_edges trigger)
