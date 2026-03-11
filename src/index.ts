@@ -8,6 +8,7 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 
 import { loadConfig, type PythiaConfig } from "./config.js";
 import { openDb } from "./db/connection.js";
+import { assertEmbeddingMetaCompatible } from "./db/embedding-meta.js";
 import { runGc } from "./db/gc.js";
 import { runMigrations } from "./db/migrate.js";
 import { scanWorkspace } from "./indexer/cdc.js";
@@ -58,6 +59,7 @@ export async function initializeRuntimeWithConfig(
 
   const db = openDb(dbPath);
   runMigrations(db);
+  assertEmbeddingMetaCompatible(db, config.embeddings);
   runGc(db, config.gc.deleted_chunk_retention_days);
   const supervisor = new IndexingSupervisor(dbPath, config.workspace_path, {
     embeddingsConfig: config.embeddings,

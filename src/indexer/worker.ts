@@ -8,6 +8,7 @@ import { extractEdges, initLanguageService } from "./slow-path.js";
 import { indexFile } from "./sync.js";
 import type { MainToWorker, WorkerToMain } from "./worker-protocol.js";
 import { openDb } from "../db/connection.js";
+import { writeEmbeddingMetaOnce } from "../db/embedding-meta.js";
 import { runGc, shouldRunGc } from "../db/gc.js";
 import { runMigrations } from "../db/migrate.js";
 import { initReranker } from "../retrieval/reranker.js";
@@ -188,6 +189,10 @@ async function handleBatch(
     if (dying) {
       break;
     }
+  }
+
+  if (succeeded > 0) {
+    writeEmbeddingMetaOnce(db, data.embeddingsConfig ?? { mode: "local" });
   }
 
   if (shouldRunGc(db)) {
