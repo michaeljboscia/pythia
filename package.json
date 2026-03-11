@@ -1,14 +1,30 @@
 {
   "name": "@pythia/lcs",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
   "type": "module",
+  "bin": {
+    "pythia": "./dist/cli/main.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "src/migrations/"
+  ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "npm run build --silent && node --experimental-strip-types --test dist/src/__tests__/*.test.js"
+    "build": "tsup",
+    "build:test": "tsc -p tsconfig.json --outDir dist-test",
+    "test": "npm run build:test --silent && node --experimental-strip-types --test dist-test/src/__tests__/*.test.js",
+    "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
     "@google/genai": "latest",
@@ -35,6 +51,7 @@
     "esbuild": "^0.25.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
+    "tsup": "^8.5.0",
     "vitest": "^3.0.0"
   }
 }

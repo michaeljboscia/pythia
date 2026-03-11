@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 
@@ -10,6 +11,26 @@ type MigrationRecord = {
 };
 
 function getMigrationsDirectory(migrationsDirectory = path.join(process.cwd(), "src", "migrations")): string {
+  if (migrationsDirectory !== path.join(process.cwd(), "src", "migrations")) {
+    return migrationsDirectory;
+  }
+
+  const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    path.resolve(moduleDirectory, "..", "migrations"),
+    path.resolve(moduleDirectory, "..", "..", "src", "migrations"),
+    path.resolve(process.cwd(), "src", "migrations")
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      readdirSync(candidate);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
   return migrationsDirectory;
 }
 
