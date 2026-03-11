@@ -127,6 +127,23 @@ NEXT STEP
 ---------
 Await user direction before beginning Sprint 6.
 
+LIVE SMOKE TEST RESULTS (2026-03-11)
+-------------------------------------
+Workspace: homebox (192.168.2.110, 30GB RAM)
+Files indexed: 38 (src/ TypeScript only, .pythiaignore excludes research/docs/design)
+Chunks: 300 (149 function, 70 type, 38 module, 28 method, 8 class, 7 interface)
+Graph edges: 263
+Query: "how does the chunking and embedding pipeline work"
+Result: 8 chunks retrieved, correct semantic ranking, PASS ✓
+Protocol: MCP stdio via StdioClientTransport, scripts/smoke-test.mjs
+Note: fp32 model cold-load ~90s (q8 dtype requested but library falls back to fp32 — nomic model lacks quantized ONNX variant)
+
+COMPUTE BOUNDARIES (documented — required in README)
+------------------------------------------------------
+Local (<200 files):  MacBook or equivalent — default, no config needed
+Remote CPU (<2k files):  openai_compatible embeddings mode
+GPU/API (>2k files):  openai_compatible with GPU-backed endpoint
+
 SESSION HISTORY
 ---------------
 2026-03-05 to 2026-03-09: Built oracle engine (separate system — 13 tools, 77 tests, all phases done)
@@ -138,3 +155,4 @@ SESSION HISTORY
 2026-03-11: Sprint 3 implementation completed with passing proof script
 2026-03-11: Sprint 4 implementation completed with passing proof script
 2026-03-11: Sprint 5 implementation completed with passing proof script
+2026-03-11: Live smoke test PASS — 38 files, 300 chunks, lcs_investigate E2E working on homebox
