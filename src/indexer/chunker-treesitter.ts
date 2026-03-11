@@ -251,6 +251,23 @@ function addDisambiguators(chunks: Chunk[]): Chunk[] {
   });
 }
 
+function createModuleChunk(
+  filePath: string,
+  content: string,
+  rootNode: SyntaxNode,
+  language: string
+): Chunk {
+  return {
+    id: `${filePath}::module::default`,
+    file_path: filePath,
+    chunk_type: "module",
+    content,
+    start_line: rootNode.startPosition.row,
+    end_line: rootNode.endPosition.row,
+    language
+  };
+}
+
 function chunkMarkdown(filePath: string, content: string, workspaceRoot: string): Chunk[] {
   const normalizedPath = normalizeRelativePath(filePath, workspaceRoot);
   const lines = content.split("\n");
@@ -318,7 +335,7 @@ export function chunkFile(filePath: string, content: string, workspaceRoot: stri
 
   const tree = parser.parse(content);
   const rootNode = tree.rootNode;
-  const chunks: Chunk[] = [];
+  const chunks: Chunk[] = [createModuleChunk(normalizedPath, content, rootNode, config.language)];
 
   for (const node of rootNode.namedChildren) {
     const chunk = extractTopLevelChunk(node, normalizedPath, config.language);
@@ -328,18 +345,6 @@ export function chunkFile(filePath: string, content: string, workspaceRoot: stri
   }
 
   chunks.push(...extractMethodChunks(rootNode, normalizedPath, config.language));
-
-  if (chunks.length === 0) {
-    return [{
-      id: `${normalizedPath}::module::default`,
-      file_path: normalizedPath,
-      chunk_type: "module",
-      content,
-      start_line: rootNode.startPosition.row,
-      end_line: rootNode.endPosition.row,
-      language: config.language
-    }];
-  }
 
   return addDisambiguators(chunks).sort((left, right) => {
     if (left.start_line !== right.start_line) {

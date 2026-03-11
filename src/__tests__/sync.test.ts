@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { openDb } from "../db/connection.js";
 import { runMigrations } from "../db/migrate.js";
+import { chunkFile } from "../indexer/chunker-treesitter.js";
 import { indexFile, setEmbedChunksForTesting } from "../indexer/sync.js";
 
 function createWorkspace(): { cleanup: () => void; dbPath: string; filePath: string } {
@@ -251,6 +252,100 @@ test("transaction rollback on embed failure leaves DB unchanged", async () => {
     assert.equal(cacheRow.count, 0);
   } finally {
     setEmbedChunksForTesting(null);
+    db.close();
+    cleanup();
+  }
+});
+
+test("indexing inserts CONTAINS edges from module to top-level function chunks", async () => {
+  const { cleanup, dbPath, filePath } = createWorkspace();
+  const db = openDb(dbPath);
+  const content = "export function login() {\n  return true;\n}\n";
+  writeFileSync(filePath, content, "utf8");
+
+  try {
+    runMigrations(db);
+    const chunks = chunkFile(filePath, content, path.dirname(filePath));
+    const embeddings = chunks.map(() => new Float32Array(256));
+
+    await indexFile(db, filePath, content, { chunks, embeddings });
+
+    const row = db.prepare(`
+      SELECT edge_type
+      FROM graph_edges
+      WHERE source_id = ?
+        AND target_id = ?
+    `).get(`${chunks[0].file_path}::module::default`, `${chunks[0].file_path}::function::login`) as
+      | { edge_type: string }
+      | undefined;
+
+    assert.equal(row?.edge_type, "CONTAINS");
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
+test("indexing inserts CONTAINS edges from class to method chunks", async () => {
+  const { cleanup, dbPath, filePath } = createWorkspace();
+  const db = openDb(dbPath);
+  const content = "class AuthManager {\n  login() {\n    return true;\n  }\n}\n";
+  writeFileSync(filePath, content, "utf8");
+
+  try {
+    runMigrations(db);
+    const chunks = chunkFile(filePath, content, path.dirname(filePath));
+    const embeddings = chunks.map(() => new Float32Array(256));
+
+    await indexFile(db, filePath, content, { chunks, embeddings });
+
+    const row = db.prepare(`
+      SELECT edge_type
+      FROM graph_edges
+      WHERE source_id = ?
+        AND target_id = ?
+    `).get("example.ts::class::AuthManager", "example.ts::class::AuthManager::method::login") as
+      | { edge_type: string }
+      | undefined;
+
+    assert.equal(row?.edge_type, "CONTAINS");
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
+test("re-indexing removes CONTAINS edges for stale chunks", async () => {
+  const { cleanup, dbPath, filePath } = createWorkspace();
+  const db = openDb(dbPath);
+  const firstContent = "export function login() {\n  return true;\n}\n";
+  const secondContent = "export function logout() {\n  return false;\n}\n";
+  writeFileSync(filePath, firstContent, "utf8");
+
+  try {
+    runMigrations(db);
+    const firstChunks = chunkFile(filePath, firstContent, path.dirname(filePath));
+    await indexFile(db, filePath, firstContent, {
+      chunks: firstChunks,
+      embeddings: firstChunks.map(() => new Float32Array(256))
+    });
+
+    writeFileSync(filePath, secondContent, "utf8");
+    const secondChunks = chunkFile(filePath, secondContent, path.dirname(filePath));
+    await indexFile(db, filePath, secondContent, {
+      chunks: secondChunks,
+      embeddings: secondChunks.map(() => new Float32Array(256))
+    });
+
+    const staleEdge = db.prepare(`
+      SELECT edge_type
+      FROM graph_edges
+      WHERE source_id = ?
+        AND target_id = ?
+    `).get("example.ts::module::default", "example.ts::function::login");
+
+    assert.equal(staleEdge, undefined);
+  } finally {
     db.close();
     cleanup();
   }

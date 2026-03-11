@@ -34,6 +34,23 @@ export function setEmbedChunksForTesting(override: EmbedChunksFn | null): void {
   embedChunksImpl = override ?? embedChunks;
 }
 
+export function getParentCni(chunk: SyncChunk): string | null {
+  if (chunk.chunk_type === "method") {
+    const methodMarker = "::method::";
+    const markerIndex = chunk.id.lastIndexOf(methodMarker);
+
+    if (markerIndex >= 0) {
+      return chunk.id.slice(0, markerIndex);
+    }
+  }
+
+  if (chunk.chunk_type === "class" || chunk.chunk_type === "function") {
+    return `${chunk.file_path}::module::default`;
+  }
+
+  return null;
+}
+
 function buildBasicChunks(filePath: string, rawHash: string, content: string): SyncChunk[] {
   return chunkFile(content).map((chunk) => ({
     id: buildChunkId(filePath, rawHash, chunk),
@@ -78,6 +95,7 @@ export async function indexFile(
   const deleteVecChunk = db.prepare("DELETE FROM vec_lcs_chunks WHERE id = ?");
   const deleteKeywordChunk = db.prepare("DELETE FROM fts_lcs_chunks_kw WHERE id = ?");
   const deleteSubstringChunk = db.prepare("DELETE FROM fts_lcs_chunks_sub WHERE id = ?");
+  const deleteGraphEdgesForChunk = db.prepare("DELETE FROM graph_edges WHERE source_id = ? OR target_id = ?");
   const insertChunk = db.prepare(`
     INSERT INTO lcs_chunks(
       id,
@@ -116,6 +134,10 @@ export async function indexFile(
     INSERT INTO fts_lcs_chunks_sub(id, content)
     VALUES (?, ?)
   `);
+  const insertContainsEdge = db.prepare(`
+    INSERT OR IGNORE INTO graph_edges(source_id, target_id, edge_type)
+    VALUES (?, ?, 'CONTAINS')
+  `);
   const upsertFileScanCache = db.prepare(`
     INSERT INTO file_scan_cache(
       file_path,
@@ -144,6 +166,7 @@ export async function indexFile(
         deleteVecChunk.run(existingChunk.id);
         deleteKeywordChunk.run(existingChunk.id);
         deleteSubstringChunk.run(existingChunk.id);
+        deleteGraphEdgesForChunk.run(existingChunk.id, existingChunk.id);
       }
     }
 
@@ -182,6 +205,14 @@ export async function indexFile(
       insertKeywordChunk.run(chunk.id, chunk.content);
       deleteSubstringChunk.run(chunk.id);
       insertSubstringChunk.run(chunk.id, chunk.content);
+    }
+
+    for (const chunk of chunks) {
+      const parentId = getParentCni(chunk);
+
+      if (parentId !== null) {
+        insertContainsEdge.run(parentId, chunk.id);
+      }
     }
 
     upsertFileScanCache.run(

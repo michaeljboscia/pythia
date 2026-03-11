@@ -13,8 +13,9 @@ test("export function login emits function chunk with correct CNI", () => {
     workspaceRoot
   );
 
-  assert.equal(chunks[0].chunk_type, "function");
-  assert.equal(chunks[0].id, "src/auth.ts::function::login");
+  const functionChunk = chunks.find((chunk) => chunk.chunk_type === "function");
+  assert.ok(functionChunk);
+  assert.equal(functionChunk.id, "src/auth.ts::function::login");
 });
 
 test("class AuthManager emits class chunk with correct CNI", () => {
@@ -48,8 +49,9 @@ test("interface emits interface chunk", () => {
     workspaceRoot
   );
 
-  assert.equal(chunks[0].chunk_type, "interface");
-  assert.equal(chunks[0].id, "src/auth.ts::interface::User");
+  const interfaceChunk = chunks.find((chunk) => chunk.chunk_type === "interface");
+  assert.ok(interfaceChunk);
+  assert.equal(interfaceChunk.id, "src/auth.ts::interface::User");
 });
 
 test("type alias emits type chunk", () => {
@@ -59,8 +61,9 @@ test("type alias emits type chunk", () => {
     workspaceRoot
   );
 
-  assert.equal(chunks[0].chunk_type, "type");
-  assert.equal(chunks[0].id, "src/auth.ts::type::UserId");
+  const typeChunk = chunks.find((chunk) => chunk.chunk_type === "type");
+  assert.ok(typeChunk);
+  assert.equal(typeChunk.id, "src/auth.ts::type::UserId");
 });
 
 test("enum emits enum chunk", () => {
@@ -70,8 +73,9 @@ test("enum emits enum chunk", () => {
     workspaceRoot
   );
 
-  assert.equal(chunks[0].chunk_type, "enum");
-  assert.equal(chunks[0].id, "src/auth.ts::enum::Role");
+  const enumChunk = chunks.find((chunk) => chunk.chunk_type === "enum");
+  assert.ok(enumChunk);
+  assert.equal(enumChunk.id, "src/auth.ts::enum::Role");
 });
 
 test("namespace emits namespace chunk", () => {
@@ -81,8 +85,9 @@ test("namespace emits namespace chunk", () => {
     workspaceRoot
   );
 
-  assert.equal(chunks[0].chunk_type, "namespace");
-  assert.equal(chunks[0].id, "src/auth.ts::namespace::Auth");
+  const namespaceChunk = chunks.find((chunk) => chunk.chunk_type === "namespace");
+  assert.ok(namespaceChunk);
+  assert.equal(namespaceChunk.id, "src/auth.ts::namespace::Auth");
 });
 
 test("README with headings emits doc chunks with slug CNIs", () => {
@@ -120,9 +125,11 @@ test("duplicate function names add #L disambiguator", () => {
 test("start_line and end_line match AST positions", () => {
   const content = "export function login() {\n  return true;\n}\n";
   const chunks = chunkFile("/repo/src/auth.ts", content, workspaceRoot);
+  const functionChunk = chunks.find((chunk) => chunk.chunk_type === "function");
 
-  assert.equal(chunks[0].start_line, 0);
-  assert.equal(chunks[0].end_line, 2);
+  assert.ok(functionChunk);
+  assert.equal(functionChunk.start_line, 0);
+  assert.equal(functionChunk.end_line, 2);
 });
 
 test("supported file with no named symbols falls back to module chunk", () => {
@@ -139,4 +146,12 @@ test("repo-relative paths always use forward slashes", () => {
   const chunks = chunkFile(windowsPath, "export function login() {}\n", workspace);
 
   assert.equal(chunks[0].file_path, "src/auth.ts");
+});
+
+test("supported file with named symbols still includes a module chunk", () => {
+  const chunks = chunkFile("/repo/src/auth.ts", "export function login() {}\n", workspaceRoot);
+  const moduleChunk = chunks.find((chunk) => chunk.chunk_type === "module");
+
+  assert.ok(moduleChunk);
+  assert.equal(moduleChunk.id, "src/auth.ts::module::default");
 });
