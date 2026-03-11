@@ -3,9 +3,11 @@ import type Database from "better-sqlite3";
 import { z } from "zod";
 
 import { MetadataCodes } from "../errors.js";
+import { traverseGraph } from "../retrieval/graph.js";
 import { search, type SearchResult } from "../retrieval/hybrid.js";
 
 type SearchFn = typeof search;
+type TraverseGraphFn = typeof traverseGraph;
 
 export const lcsInvestigateInputSchema = {
   query: z.string().describe("Natural language query or CNI for structural lookup"),
@@ -28,9 +30,10 @@ export function formatSearchResults(results: SearchResult[]): string {
 
 export function createLcsInvestigateHandler(
   db: Database.Database,
-  dependencies: { searchImpl?: SearchFn } = {}
+  dependencies: { searchImpl?: SearchFn; traverseGraphImpl?: TraverseGraphFn } = {}
 ) {
   const searchImpl = dependencies.searchImpl ?? search;
+  const traverseGraphImpl = dependencies.traverseGraphImpl ?? traverseGraph;
   const countLiveChunks = db.prepare(`
     SELECT COUNT(*) AS count
     FROM lcs_chunks
@@ -46,6 +49,15 @@ export function createLcsInvestigateHandler(
     intent: "semantic" | "structural";
     limit: number;
   }) => {
+    if (intent === "structural") {
+      return {
+        content: [{
+          type: "text" as const,
+          text: traverseGraphImpl(query, db)
+        }]
+      };
+    }
+
     const corpus = countLiveChunks.get() as { count: number };
 
     if (corpus.count === 0) {
