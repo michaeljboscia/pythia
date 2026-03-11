@@ -1,0 +1,10 @@
+research/
+docs/
+design/
+session-logs/
+oracle/
+scripts/
+tasks/
+skills/
+src/__tests__/
+*.md

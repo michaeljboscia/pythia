@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import { Command } from "commander";
@@ -77,10 +78,28 @@ export async function runInit(
       };
     }
 
+    const filePaths = fileChanges.map((change) => change.filePath);
+    const BATCH_SIZE = 50;
+
+    // Warn on large workspaces with local CPU embedder
+    if (filePaths.length > 100) {
+      const cpuCount = os.cpus().length;
+      process.stderr.write(
+        `\nWarning: ${filePaths.length} files to index using local CPU embedder (${cpuCount} cores).\n` +
+        `This may take several minutes. To speed this up:\n` +
+        `  • Add a .pythiaignore to exclude large directories (docs/, research/)\n` +
+        `  • Set embeddings.mode = "openai_compatible" in ~/.pythia/config.json\n\n`
+      );
+    }
+
     const supervisor = supervisorFactory(dbPath, workspaceRoot);
 
     try {
-      await supervisor.sendBatch(fileChanges.map((change) => change.filePath), "boot");
+      for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+        const chunk = filePaths.slice(i, i + BATCH_SIZE);
+        process.stderr.write(`Indexing files ${i + 1}–${Math.min(i + BATCH_SIZE, filePaths.length)} of ${filePaths.length}...\n`);
+        await supervisor.sendBatch(chunk, "boot");
+      }
     } finally {
       await supervisor.die();
     }

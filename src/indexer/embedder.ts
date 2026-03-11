@@ -23,7 +23,7 @@ let pipelinePromise: Promise<unknown> | null = null;
 async function getEmbedder(): Promise<FeatureExtractionPipeline> {
   if (pipelinePromise === null) {
     pipelinePromise = pipeline("feature-extraction", "nomic-ai/nomic-embed-text-v1.5", {
-      dtype: "fp32"
+      dtype: "q8"
     });
   }
 

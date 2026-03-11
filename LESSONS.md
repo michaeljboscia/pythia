@@ -18,6 +18,12 @@ Scope: project
 
 ## Design Phase Lessons
 
+## 2026-03-11 — Local Embedder OOM-Kills Itself on Real Repos — Compute Boundaries Are Documentation
+💥 What happened: `pythia init` on the pythia repo itself (445 files including research/ and docs/) killed itself via OOM on both a MacBook Pro and a 30GB homebox server. The fp32 ONNX model (~500MB) plus the full file corpus being processed in one giant batch overwhelmed both machines. Even with q8 quantization and batching fixed, the fundamental issue is that real users drop Pythia into repos with hundreds of docs, design files, and research artifacts — not curated 38-file source trees.
+✅ Lesson: The compute boundary is a first-class product constraint, not an implementation detail. It belongs in the README before the quickstart. The three tiers — local (< ~200 files), remote CPU (< ~2k files), GPU/API (anything larger) — must be explicit so users configure the right backend BEFORE running `pythia init`. A tool that OOM-kills itself on first run gets uninstalled, not debugged.
+✅ Documentation requirement: README must have a "Compute Requirements" section before the quickstart that shows the tier table and links to backend configuration. `pythia init` must detect > 200 files and print actionable guidance (not just a warning) before starting to embed.
+Scope: project
+
 ## 2026-03-10 — Missing "FEAT-000": No Creation Tool for Lifecycle Objects
 🤔 What happened: Built 13 operational MCP tools for managing Pythia oracles (spawn, checkpoint, sync, decommission) but never built the tool that creates one from scratch. The gap was invisible because the builder hand-crafted bootstrap artifacts (manifest.json, registry entry, directories, TOTP key) during development. The design spec, PRD, 3 interrogation rounds, twin reviews, 77 unit tests, and 13 integration tests all assumed the oracle already existed.
 ✅ Lesson: When designing a system that manages lifecycle objects (create → use → destroy), start the PRD with the creation story. If FEAT-001 assumes the object exists, you've skipped the most important feature. Ask: "How does the very first user get from zero to one?" This applies to any object lifecycle: databases, services, environments, oracles.
