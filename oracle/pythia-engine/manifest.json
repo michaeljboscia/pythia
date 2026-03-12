@@ -261,6 +261,14 @@
       "sha256": "e239faa52ff0c656ee9dde180ff4c0820ab092a13642290d8c93ec6d3c90ad36",
       "added_at": "2026-03-12T02:02:28.483Z",
       "priority": 43
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/db/migrate.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "238eb9d0772102a40cd9922b0cf248c4ff141f04dbb813258a937894a84265fe",
+      "added_at": "2026-03-12T02:02:49.426Z",
+      "priority": 44
     }
   ],
   "live_sources": [
