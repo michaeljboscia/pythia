@@ -469,6 +469,14 @@
       "sha256": "6ca49009758ffb30444ad7342f14d1f2a0f3db07e3ad540ecfe164d3a2551386",
       "added_at": "2026-03-12T02:04:51.161Z",
       "priority": 75
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/obsidian/retry.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "6ea7baceb8eeefba103663009b7036ac81af59ed7fad2a29d86a64240582fe41",
+      "added_at": "2026-03-12T02:04:54.723Z",
+      "priority": 76
     }
   ],
   "live_sources": [
