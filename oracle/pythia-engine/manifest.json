@@ -141,6 +141,14 @@
       "sha256": "4b024403fb38e97d5beaed259f97aa698bf267bfcd419572f8066a0fa87fd2ed",
       "added_at": "2026-03-12T01:59:26.884Z",
       "priority": 10
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/reference/better-sqlite3-worker-threads-reference.md",
+      "role": "core_research",
+      "required": false,
+      "sha256": "6e9c730a32674bb6aaf0174a61b605a07cd86ed5980f588aaa02de9deb7c5121",
+      "added_at": "2026-03-12T01:59:30.603Z",
+      "priority": 20
     }
   ],
   "live_sources": [
