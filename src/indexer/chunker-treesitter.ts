@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { XMLParser } from "fast-xml-parser";
 import Parser from "tree-sitter";
 import CSS from "tree-sitter-css";
 import Go from "tree-sitter-go";
@@ -10,7 +11,6 @@ import Python from "tree-sitter-python";
 import Rust from "tree-sitter-rust";
 import SQL from "tree-sitter-sql";
 import TypeScript from "tree-sitter-typescript";
-import XML from "tree-sitter-xml";
 
 import {
   DEFAULT_CSS_RULE_CHUNK_MIN_CHARS,
@@ -25,7 +25,6 @@ type ChunkStrategy =
   | "php"
   | "phtml"
   | "sql"
-  | "xml"
   | "css"
   | "scss"
   | "module";
@@ -81,7 +80,6 @@ const languageConfigEntries: Array<[string, LanguageConfig]> = [
   [".java", { language: "java", parserLanguage: Java, strategy: "symbols" }],
   [".php", { language: "php", parserLanguage: PHP.php as Parser.Language, strategy: "php" }],
   [".phtml", { language: "php", parserLanguage: PHP.php as Parser.Language, strategy: "phtml" }],
-  [".xml", { language: "xml", parserLanguage: XML.xml as Parser.Language, strategy: "xml" }],
   [".sql", { language: "sql", parserLanguage: SQL as Parser.Language, strategy: "sql" }],
   [".css", { language: "css", parserLanguage: CSS as Parser.Language, strategy: "css" }],
   [".scss", { language: "scss", parserLanguage: CSS as Parser.Language, strategy: "scss" }]
@@ -327,46 +325,26 @@ function extractMethodChunks(rootNode: SyntaxNode, filePath: string, language: s
   return chunks;
 }
 
-function stripXmlAttributeValue(rawValue: string): string {
-  return rawValue.replace(/^['"]/u, "").replace(/['"]$/u, "");
-}
+type XmlOpenElement = {
+  attributes: Map<string, string>;
+  name: string;
+  startIndex: number;
+  startLine: number;
+};
 
-function getXmlTagNode(node: SyntaxNode): SyntaxNode | null {
-  return node.namedChildren.find((child) => child.type === "STag" || child.type === "EmptyElemTag") ?? null;
-}
-
-function getXmlTagName(tagNode: SyntaxNode | null): string | null {
-  return tagNode?.namedChildren.find((child) => child.type === "Name")?.text ?? null;
-}
-
-function getXmlAttributes(tagNode: SyntaxNode | null): Map<string, string> {
+function parseXmlAttributes(rawAttributes: string): Map<string, string> {
   const attributes = new Map<string, string>();
+  const attributeRegex = /([^\s=/>]+)\s*=\s*("([^"]*)"|'([^']*)')/gu;
 
-  if (tagNode === null) {
-    return attributes;
-  }
-
-  for (const child of tagNode.namedChildren) {
-    if (child.type !== "Attribute") {
-      continue;
-    }
-
-    const nameNode = child.namedChildren.find((namedChild) => namedChild.type === "Name");
-    const valueNode = child.namedChildren.find((namedChild) => namedChild.type === "AttValue");
-
-    if (nameNode !== undefined && valueNode !== undefined) {
-      attributes.set(nameNode.text, stripXmlAttributeValue(valueNode.text));
-    }
+  for (const match of rawAttributes.matchAll(attributeRegex)) {
+    const value = match[3] ?? match[4] ?? "";
+    attributes.set(match[1], value);
   }
 
   return attributes;
 }
 
-function extractXmlChunks(rootNode: SyntaxNode, filePath: string): Chunk[] {
-  if (rootNode.hasError) {
-    return [];
-  }
-
+function extractXmlChunks(source: string, filePath: string): Chunk[] {
   const baseName = path.basename(filePath);
   const isDiXml = baseName === "di.xml";
   const isLayoutXml = LAYOUT_XML_PATH.test(filePath);
@@ -388,41 +366,110 @@ function extractXmlChunks(rootNode: SyntaxNode, filePath: string): Chunk[] {
       ["referenceContainer", "name"]
     ]);
 
-  const chunks: Chunk[] = [];
-
-  function walk(node: SyntaxNode): void {
-    if (node.type === "element") {
-      const tagNode = getXmlTagNode(node);
-      const tagName = getXmlTagName(tagNode);
-
-      if (tagName !== null) {
-        const identifierAttribute = elementConfig.get(tagName);
-
-        if (identifierAttribute !== undefined) {
-          const attributes = getXmlAttributes(tagNode);
-          const identifier = attributes.get(identifierAttribute);
-
-          if (identifier !== undefined) {
-            chunks.push({
-              id: `${filePath}::element::${tagName}[${identifier}]`,
-              file_path: filePath,
-              chunk_type: "element",
-              content: node.text,
-              start_line: node.startPosition.row,
-              end_line: node.endPosition.row,
-              language: "xml"
-            });
-          }
-        }
-      }
-    }
-
-    for (const child of node.namedChildren) {
-      walk(child);
-    }
+  try {
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: "@_",
+      isArray: () => true
+    });
+    parser.parse(source);
+  } catch {
+    return [];
   }
 
-  walk(rootNode);
+  const chunks: Chunk[] = [];
+  const stack: XmlOpenElement[] = [];
+  const tagRegex = /<[^>]+>/gu;
+
+  for (const match of source.matchAll(tagRegex)) {
+    const token = match[0];
+    const startIndex = match.index ?? 0;
+
+    if (token.startsWith("<?") || token.startsWith("<!")) {
+      continue;
+    }
+
+    const closingMatch = token.match(/^<\/\s*([^\s>]+)\s*>$/u);
+
+    if (closingMatch !== null) {
+      const closingName = closingMatch[1];
+      const openElement = stack.pop();
+
+      if (openElement === undefined || openElement.name !== closingName) {
+        return [];
+      }
+
+      const identifierAttribute = elementConfig.get(closingName);
+
+      if (identifierAttribute === undefined) {
+        continue;
+      }
+
+      const identifier = openElement.attributes.get(identifierAttribute);
+
+      if (identifier === undefined || identifier.length === 0) {
+        continue;
+      }
+
+      const endIndex = startIndex + token.length;
+      chunks.push({
+        id: `${filePath}::element::${closingName}[${identifier}]`,
+        file_path: filePath,
+        chunk_type: "element",
+        content: source.slice(openElement.startIndex, endIndex),
+        start_line: openElement.startLine,
+        end_line: countNewlinesBefore(source, endIndex),
+        language: "xml"
+      });
+      continue;
+    }
+
+    const openingMatch = token.match(/^<\s*([^\s/>]+)([\s\S]*?)\s*(\/?)>$/u);
+
+    if (openingMatch === null) {
+      continue;
+    }
+
+    const [, openingName, rawAttributes, explicitSelfClosing] = openingMatch;
+    const attributes = parseXmlAttributes(rawAttributes);
+    const isSelfClosing = explicitSelfClosing === "/" || /\/\s*>$/u.test(token);
+    const identifierAttribute = elementConfig.get(openingName);
+
+    if (isSelfClosing) {
+      if (identifierAttribute === undefined) {
+        continue;
+      }
+
+      const identifier = attributes.get(identifierAttribute);
+
+      if (identifier === undefined || identifier.length === 0) {
+        continue;
+      }
+
+      const endIndex = startIndex + token.length;
+      chunks.push({
+        id: `${filePath}::element::${openingName}[${identifier}]`,
+        file_path: filePath,
+        chunk_type: "element",
+        content: token,
+        start_line: countNewlinesBefore(source, startIndex),
+        end_line: countNewlinesBefore(source, endIndex),
+        language: "xml"
+      });
+      continue;
+    }
+
+    stack.push({
+      name: openingName,
+      attributes,
+      startIndex,
+      startLine: countNewlinesBefore(source, startIndex)
+    });
+  }
+
+  if (stack.length > 0) {
+    return [];
+  }
 
   return chunks;
 }
@@ -783,6 +830,13 @@ export function chunkFile(
     return finalizeChunks(chunkMarkdown(filePath, content, workspaceRoot), options);
   }
 
+  if (extension === ".xml") {
+    const normalizedXmlPath = normalizeRelativePath(filePath, workspaceRoot);
+    const base = [createModuleChunk(normalizedXmlPath, content, "xml")];
+    const elementChunks = extractXmlChunks(content, normalizedXmlPath);
+    return finalizeChunks([...base, ...elementChunks], options);
+  }
+
   const normalizedPath = normalizeRelativePath(filePath, workspaceRoot);
   const config = languageConfigByExtension.get(extension);
 
@@ -826,11 +880,6 @@ export function chunkFile(
     }
 
     baseChunks.push(...extractMethodChunks(rootNode, normalizedPath, "php"));
-    return finalizeChunks(baseChunks, options);
-  }
-
-  if (config.strategy === "xml") {
-    baseChunks.push(...extractXmlChunks(rootNode, normalizedPath));
     return finalizeChunks(baseChunks, options);
   }
 
