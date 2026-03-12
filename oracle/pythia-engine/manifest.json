@@ -77,6 +77,14 @@
       "sha256": "7034eabd94b106ed86bb6573bbca9a173461981e5b5e47bcd9efabbba4ca0599",
       "added_at": "2026-03-12T01:58:44.961Z",
       "priority": 2
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/BACKEND_STRUCTURE-v2.md",
+      "role": "core_research",
+      "required": true,
+      "sha256": "4cf80fdbab41a794e7082bc73ad084c165ddb377baea6c3bd8a8fce0061fa7e8",
+      "added_at": "2026-03-12T01:58:55.079Z",
+      "priority": 3
     }
   ],
   "live_sources": [
