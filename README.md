@@ -93,12 +93,7 @@ Global config at `~/.pythia/config.json`:
 ```json
 {
   "embeddings": {
-    "mode": "local",
-    "openai_compatible": {
-      "base_url": "http://your-gpu-server:11434/v1",
-      "api_key": "ollama",
-      "model": "nomic-embed-text"
-    }
+    "mode": "local"
   },
   "gc": {
     "deleted_chunk_retention_days": 7
@@ -109,45 +104,87 @@ Global config at `~/.pythia/config.json`:
 }
 ```
 
-For large repos: set `embeddings.mode = "openai_compatible"` and point
-`base_url` at a remote Ollama instance, any OpenAI-compatible embeddings
-endpoint, or a GCP/AWS GPU server running the model.
+For large repos, switch `embeddings.mode` to `"openai_compatible"` or `"vertex_ai"`.
+See **Off-Box Embeddings** below.
 
 ---
 
 ## Off-Box Embeddings (Large Repos)
 
-If your repo exceeds ~200 files, run embeddings on a remote machine:
+If your repo exceeds ~200 files, run embeddings on a remote machine.
 
-**Option 1 — Remote Ollama (recommended):**
+**Option 1 — Remote Ollama (LAN server / homebox):**
 ```bash
 # On your GPU server or homebox:
 ollama serve
 ollama pull nomic-embed-text
-
-# In ~/.pythia/config.json:
-{
-  "embeddings": {
-    "mode": "openai_compatible",
-    "openai_compatible": {
-      "base_url": "http://192.168.2.110:11434/v1",
-      "api_key": "ollama",
-      "model": "nomic-embed-text"
-    }
-  }
-}
 ```
-
-**Option 2 — Cloud API (Voyage, OpenAI, etc.):**
 ```json
 {
   "embeddings": {
     "mode": "openai_compatible",
-    "openai_compatible": {
-      "base_url": "https://api.voyageai.com/v1",
-      "api_key": "pa-...",
-      "model": "voyage-code-2"
-    }
+    "base_url": "http://192.168.2.110:11434/v1",
+    "api_key": "ollama",
+    "model": "nomic-embed-text"
+  }
+}
+```
+
+**Option 2 — GCP GPU VM + Ollama:**
+
+Spin up a GCP VM with an L4 or T4 GPU, install Ollama, and point Pythia at it.
+No per-token cost — you only pay for the VM while it runs.
+
+```bash
+# On the GCP VM (Debian 12):
+apt-get install -y nvidia-driver libcuda1
+curl -fsSL https://ollama.com/install.sh | sh
+ollama serve &
+ollama pull nomic-embed-text
+```
+```json
+{
+  "embeddings": {
+    "mode": "openai_compatible",
+    "base_url": "http://<GCP-VM-INTERNAL-IP>:11434/v1",
+    "api_key": "ollama",
+    "model": "nomic-embed-text"
+  }
+}
+```
+
+> **GCP tip:** Lock the Ollama port (11434) to your own IP in the firewall rules.
+> Never expose it to `0.0.0.0/0`.
+
+**Option 3 — Vertex AI managed embeddings:**
+
+Use Google's `text-embedding-005` model (or later) directly. No VM to manage.
+Requires a GCP project with the Vertex AI API enabled and ADC credentials
+(`gcloud auth application-default login`).
+
+```json
+{
+  "embeddings": {
+    "mode": "vertex_ai",
+    "project": "my-gcp-project",
+    "location": "us-central1",
+    "model": "text-embedding-005"
+  }
+}
+```
+
+Vertex AI embeddings are billed per character. For a one-time index of a large
+repo, this is typically a few dollars. Incremental re-indexing (CDC) only
+re-embeds changed files, keeping ongoing costs near zero.
+
+**Option 4 — Cloud API (Voyage, OpenAI, etc.):**
+```json
+{
+  "embeddings": {
+    "mode": "openai_compatible",
+    "base_url": "https://api.voyageai.com/v1",
+    "api_key": "pa-...",
+    "model": "voyage-code-2"
   }
 }
 ```
