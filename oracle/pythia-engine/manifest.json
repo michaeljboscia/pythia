@@ -333,6 +333,14 @@
       "sha256": "4044414183dfb404c708886833c06d96af18ef69a3ec5dee4738d459f42b8ea6",
       "added_at": "2026-03-12T02:03:40.968Z",
       "priority": 55
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/indexer/hasher.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "7f1e6fb219310fc886a7c3ea81467dcdd91ba353bdc6f12f18158d116ab20637",
+      "added_at": "2026-03-12T02:03:44.969Z",
+      "priority": 56
     }
   ],
   "live_sources": [
