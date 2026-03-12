@@ -397,6 +397,14 @@
       "sha256": "05078513156f7191a70831932b723294c5d4aca78729fc44a505d3ac0691c53c",
       "added_at": "2026-03-12T02:04:13.200Z",
       "priority": 63
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/mcp/spawn-oracle.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "0b19d79d824d89b9496a84d8cdcd4a318c00b8257d4d82355ab57af6b0bb0df8",
+      "added_at": "2026-03-12T02:04:16.880Z",
+      "priority": 64
     }
   ],
   "live_sources": [
