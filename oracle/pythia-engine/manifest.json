@@ -213,6 +213,14 @@
       "sha256": "79fbe8858ec3e0714741da44e7fc792dc6d4bb29516ad1f161f855989a84f669",
       "added_at": "2026-03-12T02:00:32.906Z",
       "priority": 30
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/CLAUDE.md",
+      "role": "core_research",
+      "required": false,
+      "sha256": "ec9f682f316caedc5a23c342b12be9b5da94c462c42256e3bcc874d4c9f345bf",
+      "added_at": "2026-03-12T02:00:59.128Z",
+      "priority": 31
     }
   ],
   "live_sources": [
