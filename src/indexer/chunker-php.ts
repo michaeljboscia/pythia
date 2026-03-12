@@ -23,7 +23,7 @@ function createChunk(
   };
 }
 
-function findEnclosingContainer(node: SyntaxNode): { type: "class" | "trait"; node: SyntaxNode } | null {
+function findEnclosingContainer(node: SyntaxNode): { type: "class" | "trait" | "enum"; node: SyntaxNode } | null {
   let current: SyntaxNode | null = node.parent;
 
   while (current !== null) {
@@ -33,6 +33,10 @@ function findEnclosingContainer(node: SyntaxNode): { type: "class" | "trait"; no
 
     if (current.type === "trait_declaration") {
       return { type: "trait", node: current };
+    }
+
+    if (current.type === "enum_declaration") {
+      return { type: "enum", node: current };
     }
 
     current = current.parent;
@@ -77,6 +81,8 @@ function extractPhpTopLevelChunk(node: SyntaxNode, filePath: string): Chunk | nu
       return createChunk(filePath, "trait", node.childForFieldName("name")?.text ?? `anonymous_L${node.startPosition.row}`, node, "php");
     case "interface_declaration":
       return createChunk(filePath, "interface", node.childForFieldName("name")?.text ?? `anonymous_L${node.startPosition.row}`, node, "php");
+    case "enum_declaration":
+      return createChunk(filePath, "enum", node.childForFieldName("name")?.text ?? `anonymous_L${node.startPosition.row}`, node, "php");
     case "function_definition":
       return createChunk(filePath, "function", node.childForFieldName("name")?.text ?? `anonymous_L${node.startPosition.row}`, node, "php");
     default:
@@ -103,6 +109,20 @@ export function extractPhpChunks(rootNode: SyntaxNode, filePath: string): Chunk[
     const chunk = extractPhpTopLevelChunk(node, filePath);
     if (chunk !== null) {
       chunks.push(chunk);
+    }
+
+    if (node.type === "namespace_definition") {
+      const body = node.childForFieldName("body");
+
+      if (body !== null) {
+        for (const innerNode of body.namedChildren) {
+          const innerChunk = extractPhpTopLevelChunk(innerNode, filePath);
+
+          if (innerChunk !== null) {
+            chunks.push(innerChunk);
+          }
+        }
+      }
     }
   }
 
