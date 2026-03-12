@@ -69,6 +69,14 @@
       "sha256": "6fe8031d79a26f1ccc7443508d45cc52cf2483e14ba89a488e63384b1498dc6c",
       "added_at": "2026-03-12T01:58:17.958Z",
       "priority": 1
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/PRD-v2.md",
+      "role": "core_research",
+      "required": true,
+      "sha256": "7034eabd94b106ed86bb6573bbca9a173461981e5b5e47bcd9efabbba4ca0599",
+      "added_at": "2026-03-12T01:58:44.961Z",
+      "priority": 2
     }
   ],
   "live_sources": [
