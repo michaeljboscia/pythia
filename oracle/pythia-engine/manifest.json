@@ -541,6 +541,14 @@
       "sha256": "70a7aaf65ed8f3cf28fe65301e0c6fe1e2ad9a5b1331e2146dc03c4cf86e753b",
       "added_at": "2026-03-12T02:05:29.087Z",
       "priority": 91
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/migrations/003-oracle-session-columns.sql",
+      "role": "other",
+      "required": false,
+      "sha256": "d77a36ae239ae98deedf1937ac26009f8d924da316c71c4751432f67af28bc46",
+      "added_at": "2026-03-12T02:05:33.203Z",
+      "priority": 92
     }
   ],
   "live_sources": [
