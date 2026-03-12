@@ -125,6 +125,14 @@
       "sha256": "51e3018c071e2966b00a3d2ff924036ad61fd1c2918147256822d4f864d95919",
       "added_at": "2026-03-12T01:59:18.415Z",
       "priority": 8
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/CODING_STANDARDS.md",
+      "role": "core_research",
+      "required": false,
+      "sha256": "5528c98c2b7947cc37fea0742f43b5782b8c933ea056334825b50bbb7dd1052e",
+      "added_at": "2026-03-12T01:59:22.575Z",
+      "priority": 9
     }
   ],
   "live_sources": [
