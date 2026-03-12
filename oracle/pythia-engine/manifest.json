@@ -525,6 +525,14 @@
       "sha256": "7bded8016a93b83e262081ff455004334a44860f0a30513c11b51eccf2219842",
       "added_at": "2026-03-12T02:05:19.180Z",
       "priority": 85
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/migrations/001-initial-schema.sql",
+      "role": "other",
+      "required": false,
+      "sha256": "93264fa23ee9c0406c12e076883d0da9952b455d8d91c39fc477fd819f956487",
+      "added_at": "2026-03-12T02:05:23.548Z",
+      "priority": 90
     }
   ],
   "live_sources": [
