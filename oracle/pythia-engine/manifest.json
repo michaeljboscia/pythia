@@ -61,6 +61,14 @@
       "sha256": "7bd2360dc923a800746454aa99a463822b91c91f32e58b433cb21162d0087d21",
       "added_at": "2026-03-10T03:03:05.041Z",
       "priority": 0
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/design/pythia-lcs-spec.md",
+      "role": "core_research",
+      "required": true,
+      "sha256": "6fe8031d79a26f1ccc7443508d45cc52cf2483e14ba89a488e63384b1498dc6c",
+      "added_at": "2026-03-12T01:58:17.958Z",
+      "priority": 1
     }
   ],
   "live_sources": [
