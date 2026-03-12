@@ -325,6 +325,14 @@
       "sha256": "582112b1c8e43bf9ad6fd0970dbeca31efcd35f3e218f7493782610ddf5e1570",
       "added_at": "2026-03-12T02:03:36.416Z",
       "priority": 54
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/indexer/chunker-basic.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "4044414183dfb404c708886833c06d96af18ef69a3ec5dee4738d459f42b8ea6",
+      "added_at": "2026-03-12T02:03:40.968Z",
+      "priority": 55
     }
   ],
   "live_sources": [
