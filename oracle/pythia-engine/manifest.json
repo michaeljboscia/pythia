@@ -365,6 +365,14 @@
       "sha256": "3208cabc4e467e7f0ece8dc240e14aeda5167a8e93f310f6501719db797d9a5b",
       "added_at": "2026-03-12T02:03:56.999Z",
       "priority": 59
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/indexer/worker-protocol.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "07b94355f43b5d4504041a1c35d1d19f424fb0c19890722f9d4eea5e86ccd901",
+      "added_at": "2026-03-12T02:04:01.538Z",
+      "priority": 60
     }
   ],
   "live_sources": [
