@@ -197,6 +197,14 @@
       "sha256": "881fc8758358c0bc3cb606374f07275b33d2176742b67e874fcfeb4afeb5abac",
       "added_at": "2026-03-12T02:00:04.696Z",
       "priority": 26
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/reference/TypeScript LanguageService API- cross-file definition resolution reference.md",
+      "role": "core_research",
+      "required": false,
+      "sha256": "ef50fb4b71e962b2ab146e1e896bfefe4920cf1a29f93e178761475d67dc08bc",
+      "added_at": "2026-03-12T02:00:22.850Z",
+      "priority": 27
     }
   ],
   "live_sources": [
