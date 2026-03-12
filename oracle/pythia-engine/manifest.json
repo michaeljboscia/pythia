@@ -677,6 +677,14 @@
       "sha256": "83c5f635df0461ef2e6626b27ca532c77926953123fd936a5b29503bc9829ee4",
       "added_at": "2026-03-12T02:06:48.648Z",
       "priority": 114
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/mcp-server.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "a98a05d925f731f7d8c7538a0a13226a07894df95561dda35fd8b28b1d2da123",
+      "added_at": "2026-03-12T02:06:52.097Z",
+      "priority": 115
     }
   ],
   "live_sources": [
