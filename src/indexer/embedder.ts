@@ -160,7 +160,7 @@ async function getVertexToken(): Promise<string> {
   const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
   const token = await auth.getAccessToken();
 
-  if (token === null) {
+  if (token == null) {
     throw new Error(
       "Failed to obtain Google auth token. Run `gcloud auth application-default login` " +
       "or set GOOGLE_APPLICATION_CREDENTIALS to a service account key file."
