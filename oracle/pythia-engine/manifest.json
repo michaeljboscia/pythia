@@ -605,6 +605,14 @@
       "sha256": "43c8801838d38209cb0fceacd6df356d8c45342cad1befac1303fbbc58e21975",
       "added_at": "2026-03-12T02:06:07.140Z",
       "priority": 105
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/config.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "c274d8b7b937fdd1dc342d3725496bb4cad3eea108a9c0a0b412898903f293ac",
+      "added_at": "2026-03-12T02:06:11.150Z",
+      "priority": 106
     }
   ],
   "live_sources": [
