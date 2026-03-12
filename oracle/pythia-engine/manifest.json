@@ -853,6 +853,14 @@
       "sha256": "1190e338044a40abe452eef70cef2e6eb1cf5f07aa2b67dcc29f52c6e2fd0416",
       "added_at": "2026-03-12T02:08:24.076Z",
       "priority": 141
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/scripts/sprint3-proof.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "30363070dbd1557724fd181025b9fefe877ee5e8207a91e2636e067c4f1f06c1",
+      "added_at": "2026-03-12T02:08:28.084Z",
+      "priority": 142
     }
   ],
   "live_sources": [
