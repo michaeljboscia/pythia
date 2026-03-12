@@ -773,6 +773,14 @@
       "sha256": "d0752d5e71da36d3479533749773fb1afe4149ff4e54b49f3e91caac225129f2",
       "added_at": "2026-03-12T02:07:37.671Z",
       "priority": 126
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/sdk-provider.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "43e1d684b56ced93c3cfef3539af2375deedc6c829240b11e6870e48c8eaec91",
+      "added_at": "2026-03-12T02:07:43.132Z",
+      "priority": 127
     }
   ],
   "live_sources": [
