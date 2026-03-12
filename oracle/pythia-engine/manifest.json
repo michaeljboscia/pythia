@@ -493,6 +493,14 @@
       "sha256": "39cbb77e48cb9d1c81e56b7139049e9fdf4cde269577e1ac82e2e7a9bee9ac36",
       "added_at": "2026-03-12T02:05:02.958Z",
       "priority": 81
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/cli/config.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "7ec51d58bfe5a93169db3a75bfe4c7304e7d13f3df150755be5d9566fc51b02e",
+      "added_at": "2026-03-12T02:05:06.529Z",
+      "priority": 82
     }
   ],
   "live_sources": [
