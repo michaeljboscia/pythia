@@ -8,6 +8,7 @@ import { extractEdges, initLanguageService } from "./slow-path.js";
 import { indexFile } from "./sync.js";
 import type { MainToWorker, WorkerToMain } from "./worker-protocol.js";
 import { openDb } from "../db/connection.js";
+import type { PythiaIndexingConfig } from "../config.js";
 import { writeEmbeddingMetaOnce } from "../db/embedding-meta.js";
 import { runGc, shouldRunGc } from "../db/gc.js";
 import { runMigrations } from "../db/migrate.js";
@@ -16,6 +17,7 @@ import { initReranker } from "../retrieval/reranker.js";
 type WorkerInitData = {
   dbPath: string;
   embeddingsConfig?: EmbeddingsBackendConfig;
+  indexingConfig?: PythiaIndexingConfig;
   retentionDays?: number;
   workspaceRoot: string;
 };
@@ -33,7 +35,9 @@ await initReranker().catch((error) => {
   console.error("[worker] Reranker init failed:", error);
 });
 
-const workerEmbedder = createEmbedder(data.embeddingsConfig ?? { mode: "local" });
+const workerEmbedder = createEmbedder(data.embeddingsConfig ?? { mode: "local" }, {
+  indexingConfig: data.indexingConfig
+});
 
 let paused = false;
 let dying = false;
@@ -62,7 +66,7 @@ function sleep(delayMs: number): Promise<void> {
 
 async function createEmbeddings(texts: string[]): Promise<Float32Array[]> {
   if (process.env.PYTHIA_TEST_EMBED_STUB === "1") {
-    return texts.map(() => new Float32Array(256));
+    return texts.map(() => new Float32Array((data.embeddingsConfig?.dimensions ?? 256)));
   }
 
   return workerEmbedder.embedChunks(texts);
@@ -90,7 +94,7 @@ async function indexOneFile(filePath: string): Promise<void> {
   }
 
   const content = fileBuffer.toString("utf8");
-  const chunks = chunkFile(filePath, content, data.workspaceRoot);
+  const chunks = chunkFile(filePath, content, data.workspaceRoot, data.indexingConfig);
   const stats = statSync(filePath, { bigint: true });
 
   if (chunks.length === 0) {

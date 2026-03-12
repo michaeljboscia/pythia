@@ -1,0 +1,10 @@
+<page>
+  <body>
+    <referenceContainer name="content">
+      <block name="hero.banner" template="Vendor_Module::hero.phtml" />
+      <referenceBlock name="breadcrumbs">
+        <block name="breadcrumbs.inner" />
+      </referenceBlock>
+    </referenceContainer>
+  </body>
+</page>

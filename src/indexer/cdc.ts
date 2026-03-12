@@ -27,10 +27,16 @@ const indexedExtensions = new Set([
   ".jsx",
   ".mjs",
   ".cjs",
+  ".php",
+  ".phtml",
   ".py",
   ".go",
   ".rs",
   ".java",
+  ".xml",
+  ".sql",
+  ".css",
+  ".scss",
   ".md",
   ".mdx"
 ]);

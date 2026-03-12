@@ -1,0 +1,11 @@
+[
+  {
+    "id": "tests/fixtures/xml/generic.xml::module::default",
+    "file_path": "tests/fixtures/xml/generic.xml",
+    "chunk_type": "module",
+    "content": "<note>\n  <to>Team</to>\n  <from>Pythia</from>\n  <body>Generic XML should stay module-only.</body>\n</note>\n",
+    "start_line": 0,
+    "end_line": 5,
+    "language": "xml"
+  }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "id": "tests/fixtures/xml/di.xml::module::default",
+    "file_path": "tests/fixtures/xml/di.xml",
+    "chunk_type": "module",
+    "content": "<config>\n  <preference for=\"Vendor\\Module\\Api\\ThingInterface\" type=\"Vendor\\Module\\Model\\Thing\" />\n  <type name=\"Vendor\\Module\\Model\\Thing\">\n    <plugin name=\"thingPlugin\" type=\"Vendor\\Module\\Plugin\\ThingPlugin\" sortOrder=\"10\" />\n  </type>\n  <virtualType name=\"VirtualThing\" type=\"Vendor\\Module\\Model\\Thing\" />\n</config>\n",
+    "start_line": 0,
+    "end_line": 7,
+    "language": "xml"
+  },
+  {
+    "id": "tests/fixtures/xml/di.xml::element::preference[Vendor\\Module\\Api\\ThingInterface]",
+    "file_path": "tests/fixtures/xml/di.xml",
+    "chunk_type": "element",
+    "content": "<preference for=\"Vendor\\Module\\Api\\ThingInterface\" type=\"Vendor\\Module\\Model\\Thing\" />",
+    "start_line": 1,
+    "end_line": 1,
+    "language": "xml"
+  },
+  {
+    "id": "tests/fixtures/xml/di.xml::element::type[Vendor\\Module\\Model\\Thing]",
+    "file_path": "tests/fixtures/xml/di.xml",
+    "chunk_type": "element",
+    "content": "<type name=\"Vendor\\Module\\Model\\Thing\">\n    <plugin name=\"thingPlugin\" type=\"Vendor\\Module\\Plugin\\ThingPlugin\" sortOrder=\"10\" />\n  </type>",
+    "start_line": 2,
+    "end_line": 4,
+    "language": "xml"
+  },
+  {
+    "id": "tests/fixtures/xml/di.xml::element::plugin[thingPlugin]",
+    "file_path": "tests/fixtures/xml/di.xml",
+    "chunk_type": "element",
+    "content": "<plugin name=\"thingPlugin\" type=\"Vendor\\Module\\Plugin\\ThingPlugin\" sortOrder=\"10\" />",
+    "start_line": 3,
+    "end_line": 3,
+    "language": "xml"
+  },
+  {
+    "id": "tests/fixtures/xml/di.xml::element::virtualType[VirtualThing]",
+    "file_path": "tests/fixtures/xml/di.xml",
+    "chunk_type": "element",
+    "content": "<virtualType name=\"VirtualThing\" type=\"Vendor\\Module\\Model\\Thing\" />",
+    "start_line": 5,
+    "end_line": 5,
+    "language": "xml"
+  }
+]

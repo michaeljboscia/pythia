@@ -1,0 +1,38 @@
+[
+  {
+    "id": "tests/fixtures/php/input-trait.php::module::default",
+    "file_path": "tests/fixtures/php/input-trait.php",
+    "chunk_type": "module",
+    "content": "<?php\n\ntrait LogsMessages\n{\n    public function logInfo(string $message): void\n    {\n        echo $message;\n    }\n\n    protected function decorate(string $message): string\n    {\n        return \"[info] \" . $message;\n    }\n}\n",
+    "start_line": 0,
+    "end_line": 14,
+    "language": "php"
+  },
+  {
+    "id": "tests/fixtures/php/input-trait.php::trait::LogsMessages",
+    "file_path": "tests/fixtures/php/input-trait.php",
+    "chunk_type": "trait",
+    "content": "trait LogsMessages\n{\n    public function logInfo(string $message): void\n    {\n        echo $message;\n    }\n\n    protected function decorate(string $message): string\n    {\n        return \"[info] \" . $message;\n    }\n}",
+    "start_line": 2,
+    "end_line": 13,
+    "language": "php"
+  },
+  {
+    "id": "tests/fixtures/php/input-trait.php::trait::LogsMessages::method::logInfo",
+    "file_path": "tests/fixtures/php/input-trait.php",
+    "chunk_type": "method",
+    "content": "public function logInfo(string $message): void\n    {\n        echo $message;\n    }",
+    "start_line": 4,
+    "end_line": 7,
+    "language": "php"
+  },
+  {
+    "id": "tests/fixtures/php/input-trait.php::trait::LogsMessages::method::decorate",
+    "file_path": "tests/fixtures/php/input-trait.php",
+    "chunk_type": "method",
+    "content": "protected function decorate(string $message): string\n    {\n        return \"[info] \" . $message;\n    }",
+    "start_line": 9,
+    "end_line": 12,
+    "language": "php"
+  }
+]

@@ -79,6 +79,7 @@ function resolveTargetPath(workspaceRoot: string, targetPath: string): string {
 async function indexSingleFile(
   db: Database.Database,
   workspaceRoot: string,
+  config: Partial<Pick<PythiaConfig, "indexing">>,
   filePath: string,
   embedChunksImpl: EmbedChunksFn,
   indexFileImpl: IndexFileFn,
@@ -91,7 +92,7 @@ async function indexSingleFile(
   }
 
   const content = fileBuffer.toString("utf8");
-  const chunks = chunkFile(filePath, content, workspaceRoot);
+  const chunks = chunkFile(filePath, content, workspaceRoot, config.indexing);
 
   if (chunks.length === 0) {
     return 0;
@@ -173,7 +174,7 @@ function countIndexedChunks(db: Database.Database, files: string[]): number {
 
 export async function forceIndexPath(
   db: Database.Database,
-  config: Pick<PythiaConfig, "workspace_path">,
+  config: Pick<PythiaConfig, "workspace_path"> & Partial<Pick<PythiaConfig, "indexing">>,
   targetPath?: string,
   dependencies: ForceIndexDependencies = {}
 ): Promise<ForceIndexSummary> {
@@ -200,6 +201,7 @@ export async function forceIndexPath(
       const chunksIndexed = await indexSingleFile(
         db,
         workspaceRoot,
+        config,
         resolvedPath,
         embedChunksImpl,
         indexFileImpl
@@ -219,6 +221,7 @@ export async function forceIndexPath(
     const indexedChunks = await indexSingleFile(
       db,
       workspaceRoot,
+      config,
       change.filePath,
       embedChunksImpl,
       indexFileImpl,

@@ -12,6 +12,7 @@ import { createDecommissionHandler, decommissionInputSchema } from "./decommissi
 import { createForceIndexHandler, forceIndexInputSchema } from "./force-index.js";
 import { createLcsInvestigateHandler, lcsInvestigateInputSchema } from "./lcs-investigate.js";
 import { createSpawnOracleHandler, spawnOracleInputSchema } from "./spawn-oracle.js";
+import { search } from "../retrieval/hybrid.js";
 
 function notImplementedResult() {
   return {
@@ -27,6 +28,7 @@ export function registerTools(
 ): void {
   const reasoningProvider = createReasoningProvider(config);
   const sessionReaper = new SessionReaper(db, config.limits.session_idle_ttl_minutes);
+  const embedder = createEmbedder(config.embeddings, { indexingConfig: config.indexing });
 
   server.registerTool(
     "lcs_investigate",
@@ -34,7 +36,11 @@ export function registerTools(
       description: "Investigate the local code search index for semantic or structural matches.",
       inputSchema: lcsInvestigateInputSchema
     },
-    createLcsInvestigateHandler(db)
+    createLcsInvestigateHandler(db, {
+      searchImpl: (query, intent, searchDb, limit) => search(query, intent, searchDb, limit, {
+        embedQueryImpl: embedder.embedQuery
+      })
+    })
   );
 
   server.registerTool(
@@ -44,7 +50,7 @@ export function registerTools(
       inputSchema: forceIndexInputSchema
     },
     createForceIndexHandler(db, config, {
-      embedChunksImpl: createEmbedder(config.embeddings).embedChunks
+      embedChunksImpl: embedder.embedChunks
     }, supervisor)
   );
 

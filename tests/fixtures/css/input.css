@@ -1,0 +1,21 @@
+.mt-4 { margin-top: 1rem; }
+.p-2 { padding: 0.5rem; }
+.text-sm { font-size: 0.875rem; }
+
+.header-navigation {
+  display: flex;
+  align-items: center;
+  padding: 1rem 2rem;
+}
+
+.footer-links a {
+  color: #123456;
+  text-decoration: underline;
+  padding: 0.75rem 1rem;
+}
+
+@media (min-width: 768px) {
+  .header-navigation {
+    padding: 2rem 3rem;
+  }
+}

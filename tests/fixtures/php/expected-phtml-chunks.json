@@ -1,0 +1,11 @@
+[
+  {
+    "id": "tests/fixtures/php/input.phtml::module::default",
+    "file_path": "tests/fixtures/php/input.phtml",
+    "chunk_type": "module",
+    "content": "<section class=\"hero\">\n  <h1><?= $block->escapeHtml($title) ?></h1>\n  <p><?= $block->escapeHtml($subtitle) ?></p>\n</section>\n",
+    "start_line": 0,
+    "end_line": 4,
+    "language": "php"
+  }
+]

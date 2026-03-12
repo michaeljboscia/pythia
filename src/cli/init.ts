@@ -22,6 +22,7 @@ type InitDependencies = {
 
 type InitOptions = {
   config?: string;
+  force?: boolean;
   workspace?: string;
 };
 
@@ -30,6 +31,34 @@ export type InitResult = {
   filesIndexed: number;
   initialized: boolean;
 };
+
+function recreateVectorTable(db: Database.Database, dimensions: number, resetDerivedData: boolean): void {
+  db.exec("BEGIN IMMEDIATE");
+
+  try {
+    db.exec("DROP TABLE IF EXISTS vec_lcs_chunks");
+
+    if (resetDerivedData) {
+      db.exec("DELETE FROM embedding_meta WHERE id = 1");
+      db.exec("DELETE FROM file_scan_cache");
+      db.exec("DELETE FROM lcs_chunks");
+      db.exec("DELETE FROM fts_lcs_chunks_kw");
+      db.exec("DELETE FROM fts_lcs_chunks_sub");
+      db.exec("DELETE FROM graph_edges WHERE edge_type IN ('CALLS','IMPORTS','CONTAINS','DEFINES')");
+    }
+
+    db.exec(`
+      CREATE VIRTUAL TABLE vec_lcs_chunks USING vec0(
+        id TEXT PRIMARY KEY,
+        embedding float[${dimensions}]
+      )
+    `);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
 
 export async function runInit(
   options: InitOptions = {},
@@ -46,10 +75,12 @@ export async function runInit(
   const supervisorFactory = dependencies.supervisorFactory ?? ((resolvedDbPath, resolvedWorkspaceRoot) => (
     new IndexingSupervisor(resolvedDbPath, resolvedWorkspaceRoot, {
       embeddingsConfig: config.embeddings,
+      indexingConfig: config.indexing,
       retentionDays: config.gc.deleted_chunk_retention_days
     })
   ));
   const alreadyInitialized = existsSync(dbPath);
+  const targetDimensions = config.embeddings.dimensions ?? 256;
 
   mkdirSync(dataDirectory, { recursive: true });
 
@@ -59,7 +90,13 @@ export async function runInit(
     runMigrationsImpl(db);
     runGcImpl(db, config.gc.deleted_chunk_retention_days);
 
-    if (alreadyInitialized) {
+    if (options.force) {
+      recreateVectorTable(db, targetDimensions, true);
+    } else if (!alreadyInitialized && targetDimensions !== 256) {
+      recreateVectorTable(db, targetDimensions, false);
+    }
+
+    if (alreadyInitialized && !options.force) {
       return {
         dbPath,
         filesIndexed: 0,
@@ -67,7 +104,7 @@ export async function runInit(
       };
     }
 
-    const fileChanges = await scanWorkspaceImpl(workspaceRoot, db, true);
+    const fileChanges = await scanWorkspaceImpl(workspaceRoot, db, options.force === true);
 
     db.close();
 
@@ -121,6 +158,7 @@ export const initCommand = new Command("init")
   .description("Bootstrap a workspace: create .pythia/, run migrations, and cold-start index")
   .option("--workspace <path>", "Workspace root to initialize")
   .option("--config <path>", "Path to a Pythia config file")
+  .option("--force", "Drop and rebuild derived embedding/index tables before reindexing")
   .action(async (options: InitOptions) => {
     const result = await runInit(options);
 

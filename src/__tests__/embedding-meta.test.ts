@@ -202,3 +202,57 @@ test("assertEmbeddingMetaCompatible throws FULL_REINDEX_REQUIRED on model name m
     cleanup();
   }
 });
+
+test("writeEmbeddingMetaOnce persists configured dimensions", () => {
+  const { db, cleanup } = createTestDb();
+
+  try {
+    writeEmbeddingMetaOnce(db, {
+      mode: "openai_compatible",
+      dimensions: 512,
+      base_url: "http://192.168.2.110:11434/v1",
+      api_key: "ollama",
+      model: "nomic-embed-text"
+    });
+    const meta = readEmbeddingMeta(db);
+
+    assert.ok(meta !== null);
+    assert.equal(meta.dimensions, 512);
+  } finally {
+    cleanup();
+  }
+});
+
+test("assertEmbeddingMetaCompatible throws FULL_REINDEX_REQUIRED on dimension mismatch", () => {
+  const { db, cleanup } = createTestDb();
+
+  try {
+    writeEmbeddingMetaOnce(db, {
+      mode: "openai_compatible",
+      dimensions: 256,
+      base_url: "http://192.168.2.110:11434/v1",
+      api_key: "ollama",
+      model: "nomic-embed-text"
+    });
+
+    assert.throws(
+      () =>
+        assertEmbeddingMetaCompatible(db, {
+          mode: "openai_compatible",
+          dimensions: 512,
+          base_url: "http://192.168.2.110:11434/v1",
+          api_key: "ollama",
+          model: "nomic-embed-text"
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof PythiaError);
+        assert.equal(error.code, "FULL_REINDEX_REQUIRED");
+        assert.ok(error.message.includes("dimensions=256"));
+        assert.ok(error.message.includes("dimensions=512"));
+        return true;
+      }
+    );
+  } finally {
+    cleanup();
+  }
+});

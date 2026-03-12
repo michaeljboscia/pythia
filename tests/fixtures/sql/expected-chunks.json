@@ -1,0 +1,11 @@
+[
+  {
+    "id": "tests/fixtures/sql/input.sql::module::default",
+    "file_path": "tests/fixtures/sql/input.sql",
+    "chunk_type": "module",
+    "content": "CREATE TABLE users (\n  id INTEGER PRIMARY KEY,\n  email TEXT NOT NULL\n);\n\nINSERT INTO users (id, email)\nVALUES (1, 'user@example.com');\n",
+    "start_line": 0,
+    "end_line": 7,
+    "language": "sql"
+  }
+]

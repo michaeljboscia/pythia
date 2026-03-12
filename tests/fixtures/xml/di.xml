@@ -1,0 +1,7 @@
+<config>
+  <preference for="Vendor\Module\Api\ThingInterface" type="Vendor\Module\Model\Thing" />
+  <type name="Vendor\Module\Model\Thing">
+    <plugin name="thingPlugin" type="Vendor\Module\Plugin\ThingPlugin" sortOrder="10" />
+  </type>
+  <virtualType name="VirtualThing" type="Vendor\Module\Model\Thing" />
+</config>

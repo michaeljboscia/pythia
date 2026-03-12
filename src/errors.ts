@@ -1,6 +1,7 @@
 export const ErrorCodes = {
   AUTH_INVALID: { code: -32010, message: "Authentication failed" },
   CONFIG_INVALID: { code: -32011, message: "Configuration invalid" },
+  DIMENSION_MISMATCH: { code: -32012, message: "Embedding dimension mismatch" },
   SESSION_ALREADY_ACTIVE: { code: -32020, message: "A session is already active" },
   SESSION_BUSY: { code: -32021, message: "Session queue full" },
   SESSION_NOT_FOUND: { code: -32022, message: "Session not found" },

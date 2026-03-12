@@ -1,0 +1,56 @@
+[
+  {
+    "id": "tests/fixtures/scss/input.scss::module::default",
+    "file_path": "tests/fixtures/scss/input.scss",
+    "chunk_type": "module",
+    "content": "@mixin card($pad) {\n  padding: $pad;\n  border-radius: 0.5rem;\n}\n\n@function spacing($base) {\n  @return $base * 2;\n}\n\n.parent {\n  display: flex;\n  align-items: center;\n  padding: spacing(1rem);\n\n  .child {\n    color: red;\n    padding: 1rem 1.5rem;\n    border-bottom: 1px solid black;\n  }\n}\n\n@media (min-width: 768px) {\n  .parent {\n    color: green;\n    padding: spacing(2rem);\n  }\n}\n",
+    "start_line": 0,
+    "end_line": 27,
+    "language": "scss"
+  },
+  {
+    "id": "tests/fixtures/scss/input.scss::mixin::card",
+    "file_path": "tests/fixtures/scss/input.scss",
+    "chunk_type": "mixin",
+    "content": "@mixin card($pad) {\n  padding: $pad;\n  border-radius: 0.5rem;\n}",
+    "start_line": 0,
+    "end_line": 3,
+    "language": "scss"
+  },
+  {
+    "id": "tests/fixtures/scss/input.scss::function::spacing",
+    "file_path": "tests/fixtures/scss/input.scss",
+    "chunk_type": "function",
+    "content": "@function spacing($base) {\n  @return $base * 2;\n}",
+    "start_line": 5,
+    "end_line": 7,
+    "language": "scss"
+  },
+  {
+    "id": "tests/fixtures/scss/input.scss::rule::.parent",
+    "file_path": "tests/fixtures/scss/input.scss",
+    "chunk_type": "rule",
+    "content": ".parent {\n  display: flex;\n  align-items: center;\n  padding: spacing(1rem);\n\n  .child {\n    color: red;\n    padding: 1rem 1.5rem;\n    border-bottom: 1px solid black;\n  }\n}",
+    "start_line": 9,
+    "end_line": 19,
+    "language": "scss"
+  },
+  {
+    "id": "tests/fixtures/scss/input.scss::rule::.parent .child",
+    "file_path": "tests/fixtures/scss/input.scss",
+    "chunk_type": "rule",
+    "content": ".child {\n    color: red;\n    padding: 1rem 1.5rem;\n    border-bottom: 1px solid black;\n  }",
+    "start_line": 14,
+    "end_line": 18,
+    "language": "scss"
+  },
+  {
+    "id": "tests/fixtures/scss/input.scss::at_rule::@media (min-width: 768px)",
+    "file_path": "tests/fixtures/scss/input.scss",
+    "chunk_type": "at_rule",
+    "content": "@media (min-width: 768px) {\n  .parent {\n    color: green;\n    padding: spacing(2rem);\n  }\n}",
+    "start_line": 21,
+    "end_line": 26,
+    "language": "scss"
+  }
+]

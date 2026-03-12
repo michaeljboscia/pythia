@@ -1,0 +1,27 @@
+@mixin card($pad) {
+  padding: $pad;
+  border-radius: 0.5rem;
+}
+
+@function spacing($base) {
+  @return $base * 2;
+}
+
+.parent {
+  display: flex;
+  align-items: center;
+  padding: spacing(1rem);
+
+  .child {
+    color: red;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid black;
+  }
+}
+
+@media (min-width: 768px) {
+  .parent {
+    color: green;
+    padding: spacing(2rem);
+  }
+}

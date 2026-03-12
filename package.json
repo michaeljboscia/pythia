@@ -1,6 +1,6 @@
 {
   "name": "pythia-lcs",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "type": "module",
   "bin": {
     "pythia": "./dist/cli/main.js"
@@ -37,14 +37,20 @@
     "google-auth-library": "^10.6.1",
     "hash-wasm": "^4.0.0",
     "ignore": "^5.0.0",
+    "p-limit": "^7.3.0",
     "sqlite-vec": "latest",
     "tree-sitter": "^0.25.0",
+    "tree-sitter-css": "^0.25.0",
     "tree-sitter-go": "latest",
     "tree-sitter-java": "latest",
     "tree-sitter-javascript": "latest",
+    "tree-sitter-php": "^0.24.2",
     "tree-sitter-python": "latest",
     "tree-sitter-rust": "latest",
+    "tree-sitter-sql": "npm:@derekstride/tree-sitter-sql@^0.3.11",
     "tree-sitter-typescript": "latest",
+    "tree-sitter-xml": "npm:@tree-sitter-grammars/tree-sitter-xml@^0.7.0",
+    "yaml": "^2.8.2",
     "zod": "^3.0.0"
   },
   "devDependencies": {

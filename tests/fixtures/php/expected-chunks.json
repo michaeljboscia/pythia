@@ -1,0 +1,47 @@
+[
+  {
+    "id": "tests/fixtures/php/input.php::module::default",
+    "file_path": "tests/fixtures/php/input.php",
+    "chunk_type": "module",
+    "content": "<?php\n\nnamespace Vendor\\Module;\n\nclass Greeter\n{\n    public function __construct(private string $name)\n    {\n    }\n\n    public function render(): string\n    {\n        return \"Hello \" . $this->name;\n    }\n}\n\nfunction helper(string $value): string\n{\n    return trim($value);\n}\n",
+    "start_line": 0,
+    "end_line": 20,
+    "language": "php"
+  },
+  {
+    "id": "tests/fixtures/php/input.php::class::Greeter",
+    "file_path": "tests/fixtures/php/input.php",
+    "chunk_type": "class",
+    "content": "class Greeter\n{\n    public function __construct(private string $name)\n    {\n    }\n\n    public function render(): string\n    {\n        return \"Hello \" . $this->name;\n    }\n}",
+    "start_line": 4,
+    "end_line": 14,
+    "language": "php"
+  },
+  {
+    "id": "tests/fixtures/php/input.php::class::Greeter::method::__construct",
+    "file_path": "tests/fixtures/php/input.php",
+    "chunk_type": "method",
+    "content": "public function __construct(private string $name)\n    {\n    }",
+    "start_line": 6,
+    "end_line": 8,
+    "language": "php"
+  },
+  {
+    "id": "tests/fixtures/php/input.php::class::Greeter::method::render",
+    "file_path": "tests/fixtures/php/input.php",
+    "chunk_type": "method",
+    "content": "public function render(): string\n    {\n        return \"Hello \" . $this->name;\n    }",
+    "start_line": 10,
+    "end_line": 13,
+    "language": "php"
+  },
+  {
+    "id": "tests/fixtures/php/input.php::function::helper",
+    "file_path": "tests/fixtures/php/input.php",
+    "chunk_type": "function",
+    "content": "function helper(string $value): string\n{\n    return trim($value);\n}",
+    "start_line": 16,
+    "end_line": 19,
+    "language": "php"
+  }
+]

@@ -13,12 +13,14 @@ type EmbeddingMetaRow = {
 };
 
 function configToFingerprint(config: EmbeddingsBackendConfig): Omit<EmbeddingMetaRow, "indexed_at"> {
+  const dimensions = config.dimensions ?? 256;
+
   if (config.mode === "local") {
     return {
       provider: "local",
       model_name: "nomic-ai/nomic-embed-text-v1.5",
       model_revision: "fp32",
-      dimensions: 256,
+      dimensions,
       normalization: "l2"
     };
   }
@@ -28,7 +30,7 @@ function configToFingerprint(config: EmbeddingsBackendConfig): Omit<EmbeddingMet
       provider: "openai_compatible",
       model_name: config.model,
       model_revision: config.base_url,
-      dimensions: 256,
+      dimensions,
       normalization: "l2"
     };
   }
@@ -38,7 +40,7 @@ function configToFingerprint(config: EmbeddingsBackendConfig): Omit<EmbeddingMet
     provider: "vertex_ai",
     model_name: `${config.project}/${config.location}/${config.model}`,
     model_revision: "",
-    dimensions: 256,
+    dimensions,
     normalization: "l2"
   };
 }
@@ -65,12 +67,19 @@ export function assertEmbeddingMetaCompatible(db: Database.Database, config: Emb
 
   const fp = configToFingerprint(config);
 
-  if (meta.provider !== fp.provider || meta.model_name !== fp.model_name) {
+  if (
+    meta.provider !== fp.provider
+    || meta.model_name !== fp.model_name
+    || meta.model_revision !== fp.model_revision
+    || meta.dimensions !== fp.dimensions
+  ) {
     throw new PythiaError(
       "FULL_REINDEX_REQUIRED",
       `Stored embeddings used provider="${meta.provider}" model="${meta.model_name}" ` +
-      `but current config specifies provider="${fp.provider}" model="${fp.model_name}". ` +
-      `Delete <workspace>/.pythia/lcs.db and run 'pythia init' to re-index with the new backend.`
+      `revision="${meta.model_revision}" dimensions=${meta.dimensions}, but current config specifies ` +
+      `provider="${fp.provider}" model="${fp.model_name}" revision="${fp.model_revision}" ` +
+      `dimensions=${fp.dimensions}. Delete <workspace>/.pythia/lcs.db and run 'pythia init' ` +
+      "to re-index with the new embedding configuration."
     );
   }
 }

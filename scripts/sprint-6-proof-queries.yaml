@@ -1,0 +1,12 @@
+- id: proof-001
+  query: "where is renderWidget defined"
+  type: definitional
+  difficulty: easy
+  relevant_chunks:
+    - "src/proof.ts::function::renderWidget"
+- id: proof-002
+  query: "which helper handles widget rendering"
+  type: semantic
+  difficulty: medium
+  relevant_chunks:
+    - "src/proof.ts::function::renderWidget"

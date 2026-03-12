@@ -1,0 +1,38 @@
+[
+  {
+    "id": "tests/fixtures/css/input.css::module::default",
+    "file_path": "tests/fixtures/css/input.css",
+    "chunk_type": "module",
+    "content": ".mt-4 { margin-top: 1rem; }\n.p-2 { padding: 0.5rem; }\n.text-sm { font-size: 0.875rem; }\n\n.header-navigation {\n  display: flex;\n  align-items: center;\n  padding: 1rem 2rem;\n}\n\n.footer-links a {\n  color: #123456;\n  text-decoration: underline;\n  padding: 0.75rem 1rem;\n}\n\n@media (min-width: 768px) {\n  .header-navigation {\n    padding: 2rem 3rem;\n  }\n}\n",
+    "start_line": 0,
+    "end_line": 21,
+    "language": "css"
+  },
+  {
+    "id": "tests/fixtures/css/input.css::rule::.header-navigation",
+    "file_path": "tests/fixtures/css/input.css",
+    "chunk_type": "rule",
+    "content": ".header-navigation {\n  display: flex;\n  align-items: center;\n  padding: 1rem 2rem;\n}",
+    "start_line": 4,
+    "end_line": 8,
+    "language": "css"
+  },
+  {
+    "id": "tests/fixtures/css/input.css::rule::.footer-links a",
+    "file_path": "tests/fixtures/css/input.css",
+    "chunk_type": "rule",
+    "content": ".footer-links a {\n  color: #123456;\n  text-decoration: underline;\n  padding: 0.75rem 1rem;\n}",
+    "start_line": 10,
+    "end_line": 14,
+    "language": "css"
+  },
+  {
+    "id": "tests/fixtures/css/input.css::at_rule::@media (min-width: 768px)",
+    "file_path": "tests/fixtures/css/input.css",
+    "chunk_type": "at_rule",
+    "content": "@media (min-width: 768px) {\n  .header-navigation {\n    padding: 2rem 3rem;\n  }\n}",
+    "start_line": 16,
+    "end_line": 20,
+    "language": "css"
+  }
+]

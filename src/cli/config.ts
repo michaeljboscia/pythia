@@ -22,7 +22,8 @@ export function buildDefaultConfig(workspacePath: string): PythiaConfig {
     workspace_path: path.resolve(workspacePath),
     reasoning: { mode: "cli" },
     embeddings: {
-      mode: "local"
+      mode: "local",
+      dimensions: 256
     },
     vector_store: {
       mode: "sqlite"
@@ -37,7 +38,26 @@ export function buildDefaultConfig(workspacePath: string): PythiaConfig {
     },
     indexing: {
       scan_on_start: true,
-      max_worker_restarts: 3
+      max_worker_restarts: 3,
+      css_rule_chunk_min_chars: 80,
+      max_chunk_chars: {
+        module: 12000,
+        class: 8000,
+        function: 6000,
+        method: 4000,
+        trait: 6000,
+        interface: 6000,
+        rule: 2000,
+        at_rule: 4000,
+        element: 4000,
+        doc: 12000
+      },
+      oversize_strategy: "split",
+      embedding_concurrency: 1,
+      embedding_batch_size: 32,
+      retry_max_attempts: 3,
+      initial_backoff_ms: 500,
+      honor_retry_after: true
     },
     gc: {
       deleted_chunk_retention_days: 30
@@ -85,7 +105,11 @@ export function resolveCliConfig(workspacePath: string, configPath = getDefaultC
       },
       indexing: {
         ...defaults.indexing,
-        ...(rawConfig.indexing ?? {})
+        ...(rawConfig.indexing ?? {}),
+        max_chunk_chars: {
+          ...defaults.indexing.max_chunk_chars,
+          ...(rawConfig.indexing?.max_chunk_chars ?? {})
+        }
       },
       gc: {
         ...defaults.gc,

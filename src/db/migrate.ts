@@ -19,6 +19,7 @@ function getMigrationsDirectory(migrationsDirectory = path.join(process.cwd(), "
   const candidates = [
     path.resolve(moduleDirectory, "..", "migrations"),
     path.resolve(moduleDirectory, "..", "..", "src", "migrations"),
+    path.resolve(moduleDirectory, "..", "..", "..", "src", "migrations"),
     path.resolve(process.cwd(), "src", "migrations")
   ];
 

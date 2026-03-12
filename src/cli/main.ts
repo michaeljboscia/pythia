@@ -5,6 +5,7 @@ import { initCommand } from "./init.js";
 import { startCommand } from "./start.js";
 import { mcpInstallCommand } from "./mcp-install.js";
 import { migrateCommand } from "./migrate.js";
+import { benchmarkCommand } from "./benchmark.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -13,9 +14,10 @@ export function createProgram(): Command {
   program
     .name("pythia")
     .description("Local code intelligence MCP server")
-    .version("1.0.0");
+    .version("1.2.0");
 
   program.addCommand(initCommand);
+  program.addCommand(benchmarkCommand);
   program.addCommand(startCommand);
 
   mcp.description("MCP integration commands");

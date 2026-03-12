@@ -172,3 +172,29 @@ test("unknown fields strip without error", () => {
     cleanup();
   }
 });
+
+test("embedding dimensions outside the allowed set throw CONFIG_INVALID", () => {
+  const config = createValidConfig();
+  config.embeddings = {
+    mode: "openai_compatible",
+    dimensions: 900,
+    base_url: "http://192.168.2.110:11434/v1",
+    api_key: "ollama",
+    model: "nomic-embed-text"
+  };
+
+  const { cleanup, configPath } = writeConfigFile(config);
+
+  try {
+    assert.throws(
+      () => loadConfig(configPath),
+      (error: unknown) => {
+        assert.ok(error instanceof PythiaError);
+        assert.equal(error.code, "CONFIG_INVALID");
+        return true;
+      }
+    );
+  } finally {
+    cleanup();
+  }
+});

@@ -2,6 +2,16 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 import { env, pipeline } from "@huggingface/transformers";
+import pLimit from "p-limit";
+
+import {
+  DEFAULT_EMBEDDING_BATCH_SIZE,
+  DEFAULT_EMBEDDING_CONCURRENCY,
+  DEFAULT_INITIAL_BACKOFF_MS,
+  DEFAULT_RETRY_MAX_ATTEMPTS,
+  type PythiaIndexingConfig
+} from "../config.js";
+import { PythiaError } from "../errors.js";
 
 env.cacheDir = path.join(homedir(), ".pythia", "models");
 
@@ -18,7 +28,25 @@ type FeatureExtractionPipeline = (
   }
 ) => Promise<EmbeddingTensor>;
 
+type RetrySettings = Pick<
+  PythiaIndexingConfig,
+  "embedding_batch_size" | "embedding_concurrency" | "retry_max_attempts" | "initial_backoff_ms" | "honor_retry_after"
+>;
+
+type HttpConfig = {
+  base_url: string;
+  api_key: string;
+  model: string;
+};
+
+type VertexConfig = {
+  project: string;
+  location: string;
+  model: string;
+};
+
 let pipelinePromise: Promise<unknown> | null = null;
+let localConcurrencyWarningEmitted = false;
 
 async function getEmbedder(): Promise<FeatureExtractionPipeline> {
   if (pipelinePromise === null) {
@@ -52,106 +80,194 @@ function normalizeVector(vector: Float32Array): Float32Array {
   return normalized;
 }
 
-function truncateAndNormalize(flatEmbeddings: Float32Array, dimensionsPerEmbedding: number): Float32Array[] {
-  const truncatedDimensions = 256;
+function dimensionMismatchError(actualDimensions: number, targetDimensions: number): PythiaError {
+  return new PythiaError(
+    "DIMENSION_MISMATCH",
+    `Model returned ${actualDimensions}d but dimensions: ${targetDimensions}d is configured. ` +
+    "Lower dimensions or use a higher-dimensional model."
+  );
+}
+
+function resolveDimensions(config: EmbeddingsBackendConfig): number {
+  return config.dimensions ?? 256;
+}
+
+function validateLocalDimensions(config: EmbeddingsBackendConfig): void {
+  if (config.mode !== "local") {
+    return;
+  }
+
+  if (resolveDimensions(config) > 768) {
+    throw new Error(
+      "nomic-embed-text-v1.5 max output is 768d. Set dimensions <= 768 or switch " +
+      "to openai_compatible/vertex_ai mode."
+    );
+  }
+}
+
+function truncateAndNormalize(
+  flatEmbeddings: Float32Array,
+  dimensionsPerEmbedding: number,
+  targetDimensions: number
+): Float32Array[] {
+  if (dimensionsPerEmbedding < targetDimensions) {
+    throw dimensionMismatchError(dimensionsPerEmbedding, targetDimensions);
+  }
+
   const embeddingCount = flatEmbeddings.length / dimensionsPerEmbedding;
   const embeddings: Float32Array[] = [];
 
   for (let index = 0; index < embeddingCount; index += 1) {
     const start = index * dimensionsPerEmbedding;
-    const truncated = flatEmbeddings.slice(start, start + truncatedDimensions);
+    const truncated = flatEmbeddings.slice(start, start + targetDimensions);
     embeddings.push(normalizeVector(truncated));
   }
 
   return embeddings;
 }
 
-async function embedTexts(texts: string[]): Promise<Float32Array[]> {
+async function localEmbedTexts(texts: string[], targetDimensions: number): Promise<Float32Array[]> {
   const embedder = await getEmbedder();
   const output = await embedder(texts, {
     normalize: true,
     pooling: "mean"
   });
 
-  const dimensionsPerEmbedding = output.dims[1];
-
-  if (dimensionsPerEmbedding < 256) {
-    throw new Error(`Embedding dimension ${dimensionsPerEmbedding} is smaller than 256`);
-  }
-
-  return truncateAndNormalize(output.data, dimensionsPerEmbedding);
+  return truncateAndNormalize(output.data, output.dims[1], targetDimensions);
 }
 
-export async function warmEmbedder(): Promise<void> {
-  await getEmbedder();
+function resolveRetrySettings(indexingConfig?: Partial<RetrySettings>): RetrySettings {
+  return {
+    embedding_batch_size: indexingConfig?.embedding_batch_size ?? DEFAULT_EMBEDDING_BATCH_SIZE,
+    embedding_concurrency: indexingConfig?.embedding_concurrency ?? DEFAULT_EMBEDDING_CONCURRENCY,
+    retry_max_attempts: indexingConfig?.retry_max_attempts ?? DEFAULT_RETRY_MAX_ATTEMPTS,
+    initial_backoff_ms: indexingConfig?.initial_backoff_ms ?? DEFAULT_INITIAL_BACKOFF_MS,
+    honor_retry_after: indexingConfig?.honor_retry_after ?? true
+  };
 }
 
-export async function embedChunks(texts: string[]): Promise<Float32Array[]> {
-  return embedTexts(texts.map((text) => `search_document: ${text}`));
-}
-
-export async function embedQuery(text: string): Promise<Float32Array> {
-  const [embedding] = await embedTexts([`search_query: ${text}`]);
-  return embedding;
-}
-
-// ─── Factory API ──────────────────────────────────────────────────────────────
-
-export type EmbeddingsBackendConfig =
-  | { mode: "local" }
-  | { mode: "openai_compatible"; base_url: string; api_key: string; model: string }
-  | { mode: "vertex_ai"; project: string; location: string; model: string };
-
-export type Embedder = {
-  embedChunks: (texts: string[]) => Promise<Float32Array[]>;
-  embedQuery: (text: string) => Promise<Float32Array>;
-  warm: () => Promise<void>;
-};
-
-type OpenAiEmbeddingsResponse = {
-  data: { index: number; embedding: number[] }[];
-};
-
-type VertexAiEmbeddingsResponse = {
-  predictions: { embeddings: { values: number[] } }[];
-};
-
-async function httpEmbedTexts(
-  config: { base_url: string; api_key: string; model: string },
-  texts: string[]
-): Promise<Float32Array[]> {
-  const response = await fetch(`${config.base_url}/embeddings`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${config.api_key}`
-    },
-    body: JSON.stringify({ model: config.model, input: texts })
+function sleep(delayMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, delayMs);
   });
+}
 
-  if (!response.ok) {
-    throw new Error(`HTTP embeddings request failed: ${response.status} ${response.statusText}`);
+function splitIntoBatches<T>(values: T[], batchSize: number): T[][] {
+  const batches: T[][] = [];
+
+  for (let index = 0; index < values.length; index += batchSize) {
+    batches.push(values.slice(index, index + batchSize));
   }
+
+  return batches;
+}
+
+function retryDelayMs(
+  attempt: number,
+  settings: RetrySettings,
+  retryAfterHeader?: string | null
+): number {
+  if (settings.honor_retry_after) {
+    const retryAfter = parseRetryAfter(retryAfterHeader ?? null);
+
+    if (retryAfter !== null) {
+      return retryAfter;
+    }
+  }
+
+  return Math.min(settings.initial_backoff_ms * (2 ** attempt), 30_000);
+}
+
+export function parseRetryAfter(raw: string | null): number | null {
+  if (raw === null) {
+    return null;
+  }
+
+  const trimmed = raw.trim();
+
+  if (/^\d+$/u.test(trimmed)) {
+    return Number.parseInt(trimmed, 10) * 1000;
+  }
+
+  const parsedDate = Date.parse(trimmed);
+
+  if (Number.isNaN(parsedDate)) {
+    return null;
+  }
+
+  return Math.max(parsedDate - Date.now(), 0);
+}
+
+async function requestWithRetries(
+  requestFactory: () => Promise<Response>,
+  settings: RetrySettings
+): Promise<Response> {
+  for (let attempt = 0; attempt < settings.retry_max_attempts; attempt += 1) {
+    try {
+      const response = await requestFactory();
+
+      if (response.status === 429) {
+        if (attempt === settings.retry_max_attempts - 1) {
+          throw new Error(`HTTP embeddings request failed: ${response.status} ${response.statusText}`);
+        }
+
+        await sleep(retryDelayMs(attempt, settings, response.headers.get("Retry-After")));
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP embeddings request failed: ${response.status} ${response.statusText}`);
+      }
+
+      return response;
+    } catch (error) {
+      if (attempt === settings.retry_max_attempts - 1) {
+        throw error;
+      }
+
+      await sleep(retryDelayMs(attempt, settings));
+    }
+  }
+
+  throw new Error("Embeddings request exhausted retries");
+}
+
+function normalizeHttpVector(values: number[], targetDimensions: number): Float32Array {
+  const full = new Float32Array(values);
+
+  if (full.length < targetDimensions) {
+    throw dimensionMismatchError(full.length, targetDimensions);
+  }
+
+  return normalizeVector(full.slice(0, targetDimensions));
+}
+
+async function httpEmbedBatch(
+  config: HttpConfig,
+  texts: string[],
+  targetDimensions: number,
+  settings: RetrySettings,
+  fetchImpl: typeof fetch
+): Promise<Float32Array[]> {
+  const response = await requestWithRetries(
+    () => fetchImpl(`${config.base_url}/embeddings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${config.api_key}`
+      },
+      body: JSON.stringify({ model: config.model, input: texts })
+    }),
+    settings
+  );
 
   const json = await response.json() as OpenAiEmbeddingsResponse;
-
-  // Sort by index — the API does not guarantee response order matches input order
   const sorted = [...json.data].sort((a, b) => a.index - b.index);
 
-  return sorted.map(({ embedding }) => {
-    const full = new Float32Array(embedding);
-
-    if (full.length < 256) {
-      throw new Error(`HTTP embedding dimension ${full.length} is smaller than 256`);
-    }
-
-    // Apply same 256d Matryoshka truncation + L2 normalize as local backend
-    return normalizeVector(full.slice(0, 256));
-  });
+  return sorted.map(({ embedding }) => normalizeHttpVector(embedding, targetDimensions));
 }
 
 async function getVertexToken(): Promise<string> {
-  // Test escape hatch — set this env var in tests to bypass real ADC
   if (process.env.PYTHIA_TEST_VERTEX_TOKEN !== undefined) {
     return process.env.PYTHIA_TEST_VERTEX_TOKEN;
   }
@@ -170,60 +286,131 @@ async function getVertexToken(): Promise<string> {
   return token;
 }
 
-async function vertexEmbedTexts(
-  config: { project: string; location: string; model: string },
+async function vertexEmbedBatch(
+  config: VertexConfig,
   texts: string[],
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY",
+  targetDimensions: number,
+  settings: RetrySettings,
+  fetchImpl: typeof fetch,
   endpointOverride?: string
 ): Promise<Float32Array[]> {
   const token = await getVertexToken();
-
   const endpoint = endpointOverride ??
     `https://${config.location}-aiplatform.googleapis.com/v1` +
     `/projects/${config.project}/locations/${config.location}` +
     `/publishers/google/models/${config.model}:predict`;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      instances: texts.map((text) => ({ content: text, task_type: taskType })),
-      parameters: { outputDimensionality: 256 }
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Vertex AI embeddings request failed: ${response.status} ${response.statusText}`);
-  }
+  const response = await requestWithRetries(
+    () => fetchImpl(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        instances: texts.map((text) => ({ content: text, task_type: taskType })),
+        parameters: { outputDimensionality: targetDimensions }
+      })
+    }),
+    settings
+  );
 
   const json = await response.json() as VertexAiEmbeddingsResponse;
 
-  // Vertex AI returns embeddings in the same order as instances — no sorting needed
-  return json.predictions.map(({ embeddings }) => {
-    const vec = new Float32Array(embeddings.values);
-
-    if (vec.length < 256) {
-      throw new Error(`Vertex AI embedding dimension ${vec.length} is smaller than 256`);
-    }
-
-    // Normalize even though Vertex AI claims to return unit vectors — floating point safety
-    return normalizeVector(vec.length === 256 ? vec : vec.slice(0, 256));
-  });
+  return json.predictions.map(({ embeddings }) => normalizeHttpVector(embeddings.values, targetDimensions));
 }
 
+async function embedInParallel(
+  texts: string[],
+  settings: RetrySettings,
+  batcher: (batch: string[]) => Promise<Float32Array[]>
+): Promise<Float32Array[]> {
+  if (texts.length === 0) {
+    return [];
+  }
+
+  const batches = splitIntoBatches(texts, settings.embedding_batch_size);
+  const limiter = pLimit(settings.embedding_concurrency);
+  const cache = new Map<number, Float32Array[]>();
+
+  await Promise.all(batches.map((batch, index) => limiter(async () => {
+    if (!cache.has(index)) {
+      cache.set(index, await batcher(batch));
+    }
+  })));
+
+  return batches.flatMap((_, index) => cache.get(index) ?? []);
+}
+
+async function warmLocalEmbedder(targetDimensions: number): Promise<void> {
+  await localEmbedTexts(["warm"], targetDimensions);
+}
+
+export async function warmEmbedder(): Promise<void> {
+  await warmLocalEmbedder(256);
+}
+
+export async function embedChunks(texts: string[]): Promise<Float32Array[]> {
+  return localEmbedTexts(texts.map((text) => `search_document: ${text}`), 256);
+}
+
+export async function embedQuery(text: string): Promise<Float32Array> {
+  const [embedding] = await localEmbedTexts([`search_query: ${text}`], 256);
+  return embedding;
+}
+
+export type EmbeddingsBackendConfig =
+  | { mode: "local"; dimensions?: 128 | 256 | 512 | 768 | 1024 | 1536 }
+  | { mode: "openai_compatible"; dimensions?: 128 | 256 | 512 | 768 | 1024 | 1536; base_url: string; api_key: string; model: string }
+  | { mode: "vertex_ai"; dimensions?: 128 | 256 | 512 | 768 | 1024 | 1536; project: string; location: string; model: string };
+
+export type Embedder = {
+  embedChunks: (texts: string[]) => Promise<Float32Array[]>;
+  embedQuery: (text: string) => Promise<Float32Array>;
+  warm: () => Promise<void>;
+};
+
+type OpenAiEmbeddingsResponse = {
+  data: { index: number; embedding: number[] }[];
+};
+
+type VertexAiEmbeddingsResponse = {
+  predictions: { embeddings: { values: number[] } }[];
+};
+
 type CreateEmbedderOptions = {
+  fetchImpl?: typeof fetch;
+  indexingConfig?: Partial<RetrySettings>;
   vertexEndpointOverride?: string;
+  warnImpl?: (message: string) => void;
 };
 
 export function createEmbedder(config: EmbeddingsBackendConfig, options: CreateEmbedderOptions = {}): Embedder {
+  validateLocalDimensions(config);
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const settings = resolveRetrySettings(options.indexingConfig);
+  const targetDimensions = resolveDimensions(config);
+  const warnImpl = options.warnImpl ?? ((message: string) => {
+    console.warn(message);
+  });
+
   if (config.mode === "local") {
+    if (settings.embedding_concurrency > 1 && !localConcurrencyWarningEmitted) {
+      localConcurrencyWarningEmitted = true;
+      warnImpl("Local embeddings backend ignores embedding_concurrency > 1; clamping to 1.");
+    }
+
     return {
-      embedChunks,
-      embedQuery,
-      warm: warmEmbedder
+      embedChunks: (texts) => localEmbedTexts(texts.map((text) => `search_document: ${text}`), targetDimensions),
+      embedQuery: async (text) => {
+        const [embedding] = await localEmbedTexts([`search_query: ${text}`], targetDimensions);
+        return embedding;
+      },
+      warm: async () => {
+        await warmLocalEmbedder(targetDimensions);
+      }
     };
   }
 
@@ -231,35 +418,66 @@ export function createEmbedder(config: EmbeddingsBackendConfig, options: CreateE
     const httpConfig = config;
 
     return {
-      embedChunks: (texts) =>
-        httpEmbedTexts(httpConfig, texts.map((t) => `search_document: ${t}`)),
-
+      embedChunks: (texts) => embedInParallel(
+        texts.map((text) => `search_document: ${text}`),
+        settings,
+        (batch) => httpEmbedBatch(httpConfig, batch, targetDimensions, settings, fetchImpl)
+      ),
       embedQuery: async (text) => {
-        const [embedding] = await httpEmbedTexts(httpConfig, [`search_query: ${text}`]);
+        const [embedding] = await httpEmbedBatch(
+          httpConfig,
+          [`search_query: ${text}`],
+          targetDimensions,
+          settings,
+          fetchImpl
+        );
         return embedding;
       },
-
       warm: async () => {
-        await httpEmbedTexts(httpConfig, ["warm"]);
+        await httpEmbedBatch(httpConfig, ["warm"], targetDimensions, settings, fetchImpl);
       }
     };
   }
 
-  // vertex_ai
   const vertexConfig = config;
   const { vertexEndpointOverride } = options;
 
   return {
-    embedChunks: (texts) =>
-      vertexEmbedTexts(vertexConfig, texts, "RETRIEVAL_DOCUMENT", vertexEndpointOverride),
-
+    embedChunks: (texts) => embedInParallel(
+      texts,
+      settings,
+      (batch) => vertexEmbedBatch(
+        vertexConfig,
+        batch,
+        "RETRIEVAL_DOCUMENT",
+        targetDimensions,
+        settings,
+        fetchImpl,
+        vertexEndpointOverride
+      )
+    ),
     embedQuery: async (text) => {
-      const [embedding] = await vertexEmbedTexts(vertexConfig, [text], "RETRIEVAL_QUERY", vertexEndpointOverride);
+      const [embedding] = await vertexEmbedBatch(
+        vertexConfig,
+        [text],
+        "RETRIEVAL_QUERY",
+        targetDimensions,
+        settings,
+        fetchImpl,
+        vertexEndpointOverride
+      );
       return embedding;
     },
-
     warm: async () => {
-      await vertexEmbedTexts(vertexConfig, ["warm"], "RETRIEVAL_DOCUMENT", vertexEndpointOverride);
+      await vertexEmbedBatch(
+        vertexConfig,
+        ["warm"],
+        "RETRIEVAL_DOCUMENT",
+        targetDimensions,
+        settings,
+        fetchImpl,
+        vertexEndpointOverride
+      );
     }
   };
 }

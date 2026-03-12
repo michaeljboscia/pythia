@@ -12,6 +12,7 @@ import { runInit } from "../cli/init.js";
 import { runMcpInstall } from "../cli/mcp-install.js";
 import { runMigrate } from "../cli/migrate.js";
 import { runStart } from "../cli/start.js";
+import { readEmbeddingMeta, writeEmbeddingMetaOnce } from "../db/embedding-meta.js";
 
 function createWorkspace(): { cleanup: () => void; workspaceRoot: string } {
   const workspaceRoot = mkdtempSync(path.join(tmpdir(), "pythia-cli-"));
@@ -87,6 +88,58 @@ test("pythia init twice is idempotent", async () => {
 
     assert.equal(second.initialized, false);
     assert.equal(existsSync(path.join(workspaceRoot, ".pythia", "lcs.db")), true);
+  } finally {
+    cleanup();
+  }
+});
+
+test("pythia init --force recreates vec_lcs_chunks at the configured width and clears embedding_meta", async () => {
+  const { cleanup, workspaceRoot } = createWorkspace();
+  const configPath = path.join(workspaceRoot, "force-config.json");
+
+  writeFileSync(configPath, JSON.stringify({
+    embeddings: {
+      mode: "vertex_ai",
+      dimensions: 512,
+      project: "test-project",
+      location: "us-central1",
+      model: "text-embedding-005"
+    }
+  }, null, 2), "utf8");
+
+  try {
+    await runInit({ workspace: workspaceRoot }, {
+      scanWorkspaceImpl: async () => []
+    });
+
+    const dbPath = path.join(workspaceRoot, ".pythia", "lcs.db");
+    const { openDb } = await import("../db/connection.js");
+    const db = openDb(dbPath);
+
+    try {
+      writeEmbeddingMetaOnce(db, { mode: "local", dimensions: 256 });
+      db.prepare("INSERT INTO file_scan_cache(file_path, mtime_ns, size_bytes, content_hash, last_scanned_at) VALUES (?, ?, ?, ?, ?)")
+        .run(path.join(workspaceRoot, "src", "auth.ts"), 1, 1, "blake3:test", new Date().toISOString());
+    } finally {
+      db.close();
+    }
+
+    const result = await runInit({ workspace: workspaceRoot, config: configPath, force: true }, {
+      scanWorkspaceImpl: async () => []
+    });
+    const reopened = openDb(dbPath);
+
+    try {
+      const row = reopened.prepare("SELECT sql FROM sqlite_master WHERE name = 'vec_lcs_chunks'").get() as { sql: string };
+      const cacheCount = reopened.prepare("SELECT COUNT(*) AS count FROM file_scan_cache").get() as { count: number };
+
+      assert.equal(result.initialized, true);
+      assert.match(row.sql, /float\[512\]/);
+      assert.equal(cacheCount.count, 0);
+      assert.equal(readEmbeddingMeta(reopened), null);
+    } finally {
+      reopened.close();
+    }
   } finally {
     cleanup();
   }
@@ -262,10 +315,10 @@ test("pythia --version prints the version string", async () => {
   try {
     await program.parseAsync(["node", "pythia", "--version"], { from: "user" });
   } catch (error) {
-    assert.match(String(error), /1\.0\.0/);
+    assert.match(String(error), /1\.2\.0/);
   }
 
-  assert.match(output, /0\.1\.0|1\.0\.0/);
+  assert.match(output, /1\.2\.0/);
 });
 
 test("pythia migrate sqlite is a no-op exit 0", async () => {
