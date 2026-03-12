@@ -245,6 +245,14 @@
       "sha256": "030f027e2207f99e57d1cccf90cbc02633d208eaed90cb4c3dd8259c67b2fcaa",
       "added_at": "2026-03-12T02:01:22.536Z",
       "priority": 41
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/errors.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "68fc2b9ea1d99cbe1d7144d54e2675c0dd288b69a57547fe04ac02c1c1df6794",
+      "added_at": "2026-03-12T02:02:02.952Z",
+      "priority": 42
     }
   ],
   "live_sources": [
