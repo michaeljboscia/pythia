@@ -613,6 +613,14 @@
       "sha256": "c274d8b7b937fdd1dc342d3725496bb4cad3eea108a9c0a0b412898903f293ac",
       "added_at": "2026-03-12T02:06:11.150Z",
       "priority": 106
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/hybrid.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "6449994eb576564584c48da9671b4e21c3b028317ac83508e6707a69083702c9",
+      "added_at": "2026-03-12T02:06:15.092Z",
+      "priority": 107
     }
   ],
   "live_sources": [
