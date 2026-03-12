@@ -781,6 +781,14 @@
       "sha256": "43e1d684b56ced93c3cfef3539af2375deedc6c829240b11e6870e48c8eaec91",
       "added_at": "2026-03-12T02:07:43.132Z",
       "priority": 127
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/integration/smoke.integration.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "f82900cb95ed4cd91509d48695cc103a832d7226d19796e3b688be9399c68c52",
+      "added_at": "2026-03-12T02:07:47.166Z",
+      "priority": 130
     }
   ],
   "live_sources": [
