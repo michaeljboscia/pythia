@@ -93,6 +93,14 @@
       "sha256": "0e208086675c9176b7839a63db68a75082de95f7aa7eb888fe7700086ee88d8a",
       "added_at": "2026-03-12T01:58:59.275Z",
       "priority": 4
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/TECH_STACK-v2.md",
+      "role": "core_research",
+      "required": true,
+      "sha256": "871af9d07f7cbb05915f5e73bd8299bbf764d796008b1f4e90b84053c842dd5d",
+      "added_at": "2026-03-12T01:59:03.023Z",
+      "priority": 5
     }
   ],
   "live_sources": [
