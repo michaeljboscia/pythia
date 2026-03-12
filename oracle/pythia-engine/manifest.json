@@ -109,6 +109,14 @@
       "sha256": "dae7863050c50227d5f1f3c67a373c7c52ef837c2b46e7632a03fafb16a7019c",
       "added_at": "2026-03-12T01:59:08.439Z",
       "priority": 6
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/DESIGN_SYSTEM.md",
+      "role": "core_research",
+      "required": false,
+      "sha256": "230649a3a147e50ad112c4087c98c56d97f80d4b2a5fd0834202def9d923ee52",
+      "added_at": "2026-03-12T01:59:13.507Z",
+      "priority": 7
     }
   ],
   "live_sources": [
