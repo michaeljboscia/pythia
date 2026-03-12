@@ -181,6 +181,14 @@
       "sha256": "4686e9910b8ab8b1f3a6f0afd9b7db9cdea669ff03b3166143b35975cbe525fd",
       "added_at": "2026-03-12T01:59:50.534Z",
       "priority": 24
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/reference/transformers-v3-onnx-reference.md",
+      "role": "core_research",
+      "required": false,
+      "sha256": "336ffb85e5c80266d22ed8c3ee966aee86b7ae3258ff8d43c5d546a6640f4974",
+      "added_at": "2026-03-12T01:59:55.055Z",
+      "priority": 25
     }
   ],
   "live_sources": [
