@@ -85,6 +85,14 @@
       "sha256": "4cf80fdbab41a794e7082bc73ad084c165ddb377baea6c3bd8a8fce0061fa7e8",
       "added_at": "2026-03-12T01:58:55.079Z",
       "priority": 3
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/APP_FLOW-v2.md",
+      "role": "core_research",
+      "required": true,
+      "sha256": "0e208086675c9176b7839a63db68a75082de95f7aa7eb888fe7700086ee88d8a",
+      "added_at": "2026-03-12T01:58:59.275Z",
+      "priority": 4
     }
   ],
   "live_sources": [
