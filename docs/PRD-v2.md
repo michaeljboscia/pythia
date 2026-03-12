@@ -377,13 +377,19 @@ LINES: {start_line}-{end_line}
 
 ---
 
-### FEAT-024 — New Language Support: SQL
-**Priority:** P1 — Sprint 6
-**Description:** Tree-sitter indexing for SQL (`.sql`). One `module` chunk per file. Structural extraction (procedures, functions) deferred to Sprint 7.
-**Chunk types:** `module`
+### FEAT-024 — New Language Support: SQL (Phase 1: Sprint 6 / Phase 2: Sprint 7)
+**Priority:** P1 — Sprint 6 (module chunk) + Sprint 7 (structural extraction)
+**Description:** Tree-sitter indexing for SQL (`.sql`). Phase 1 (Sprint 6): one `module` chunk per file. Phase 2 (Sprint 7): structural extraction of named routines.
+**Chunk types:** `module`, `function` (Sprint 7)
 **Acceptance criteria:**
 - [ ] `.sql` files indexed and not silently dropped
-- [ ] Each `.sql` file emits exactly 1 `module` chunk
+- [ ] Each `.sql` file always emits a `module` chunk containing full file text
+- [ ] `CREATE FUNCTION`, `CREATE OR REPLACE FUNCTION` → `chunk_type: "function"` with CNI `<path>::function::<name>`
+- [ ] `CREATE PROCEDURE`, `CREATE OR REPLACE PROCEDURE` → `chunk_type: "function"` with CNI `<path>::function::<name>`
+- [ ] `CREATE TRIGGER` → `chunk_type: "function"` with CNI `<path>::function::<name>`
+- [ ] Schema-qualified names used in CNI when present (e.g. `public.calculate_revenue`)
+- [ ] ERROR nodes at routine level → fall back to module-only without crashing
+- [ ] Anonymous blocks (`DO $$ BEGIN ... END $$`) → included in module chunk only, never extracted as function chunks
 
 ---
 
@@ -476,13 +482,109 @@ LINES: {start_line}-{end_line}
 
 ---
 
+## Sprint 7 Features (Oracle Hardening + Benchmark Wiring)
+
+---
+
+### FEAT-000 — `oracle_init` MCP Tool
+**Priority:** P0 — Sprint 7
+**Codebase:** `~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts`
+**Description:** The missing oracle bootstrapping tool. Creates oracle directory structure, `manifest.json` (schema_version 2), `state.json` (schema_version 2), and registry entry without any manual file creation. Fully autonomous — callable by Claude, sibling agents, or CLI without interactive prompting.
+**Input:** `{ name: string, description: string, files?: string[] }`
+**Output:** `{ name, oracle_dir, files_registered, corpus_truncated, skipped_files? }`
+**Acceptance criteria:**
+- [ ] Callable via MCP without interactive prompts
+- [ ] Auto-discovers files via glob patterns (`README.md`, `docs/**/*.md`, `design/**/*.md`, `architecture/**/*.md`, etc.) when `files` omitted
+- [ ] `README.md` sorted first; remaining sorted smallest-first
+- [ ] Corpus cap: 1,500,000 characters total; files beyond cap returned in `skipped_files`, `corpus_truncated: true`
+- [ ] `manifest.json` schema_version === 2, `static_entries` is array, `live_sources` is empty array
+- [ ] `state.json` schema_version === 2, all date fields `null`, `daemon_pool: []`
+- [ ] Oracle registered in `registry.json` with `description` field
+- [ ] `ORACLE_ALREADY_EXISTS` returned immediately if name exists — no files modified
+- [ ] `~/.pythia/logs/` created if not exists
+
+---
+
+### FEAT-032 — Fail-All Hash Validation
+**Priority:** P0 — Sprint 7
+**Codebase:** `~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts`
+**Description:** `spawn_oracle` currently stops at the first `HASH_MISMATCH`. Fix: scan ALL `static_entries` before failing. Return every stale file in a single `HASH_MISMATCH_BATCH` error. Adds `auto_refresh?: boolean` to `spawn_oracle` input for per-call opt-in manifest repair.
+**Acceptance criteria:**
+- [ ] All `static_entries` evaluated before any error returned
+- [ ] `HASH_MISMATCH_BATCH` (-32042) payload contains `stale_files` array with all mismatches
+- [ ] `auto_refresh: true` re-hashes stale files, updates manifest atomically, spawn continues
+- [ ] `auto_refresh: true` + deleted `required: false` file → removed from manifest, spawn continues
+- [ ] `auto_refresh: true` + deleted `required: true` file → `MISSING_REQUIRED_FILE` (-32043) hard failure
+- [ ] Manifest update from `auto_refresh` persists even if subsequent spawn fails (transport error, etc.)
+
+---
+
+### FEAT-033 — Spawn Audit Log
+**Priority:** P0 — Sprint 7
+**Codebase:** `~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts`
+**Description:** Every `spawn_oracle` call (success or failure) appends one JSONL entry to `~/.pythia/logs/oracle-spawn-audit.jsonl`. Log lives **outside** the oracle directory — survives oracle wipes and decommissions. Provides post-mortem observability.
+**Log schema:** `{ timestamp, oracle_name, outcome, error_code?, stale_file_count, files_loaded, duration_ms }`
+**Acceptance criteria:**
+- [ ] `~/.pythia/logs/` created if not exists before every write
+- [ ] Every `spawn_oracle` call appends exactly one JSONL entry
+- [ ] Log file persists after oracle directory deletion and decommission
+- [ ] Resume spawns (`reuse_existing: true`): `files_loaded = 0`
+- [ ] No rotation policy in v1 — strictly append-only
+
+---
+
+### FEAT-034 — `oracle_health` MCP Tool
+**Priority:** P1 — Sprint 7
+**Codebase:** `~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts`
+**Description:** Read-only corpus health check. Reports stale files, missing files, daemon status, and last spawn time without spawning a daemon or mutating any state.
+**Input:** `{ name: string }`
+**Output:** `{ total_files, stale_files: string[], missing_files: string[], last_spawn_timestamp: string|null, status: "active"|"idle"|"dead" }`
+**Acceptance criteria:**
+- [ ] Does not spawn a daemon or mutate any file
+- [ ] `stale_files` (hash mismatch, file on disk) and `missing_files` (file not on disk) are separate arrays
+- [ ] `last_spawn_timestamp: null` before first successful spawn
+- [ ] `status` derived from `daemon_pool`: empty → `"idle"`, any active → `"active"`, all dead → `"dead"`
+
+---
+
+### FEAT-035 — `oracle_refresh` MCP Tool
+**Priority:** P1 — Sprint 7
+**Codebase:** `~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts`
+**Description:** Batch re-hash all stale files in one call. Replaces repeated `oracle_update_entry` calls for corpus drift repair. Handles deleted non-required files cleanly.
+**Input:** `{ name: string, force?: boolean }`
+**Output:** `{ files_updated: number, files_removed: number }`
+**Acceptance criteria:**
+- [ ] `force: false` (default): re-hashes only mismatched entries
+- [ ] `force: true`: re-hashes all entries regardless of current hash state
+- [ ] Deleted `required: false` file → removed from manifest, counted in `files_removed`
+- [ ] Deleted `required: true` file → `MISSING_REQUIRED_FILE` hard failure, manifest unchanged
+- [ ] Manifest written atomically via `atomicWriteFile()`
+- [ ] All other manifest fields (version, pool_size, load_order, etc.) preserved unchanged
+
+---
+
+### FEAT-036 — CodeSearchNet Benchmark Wiring
+**Priority:** P1 — Sprint 7
+**Codebase:** `/Users/mikeboscia/pythia/src/` + `scripts/`
+**Description:** `scripts/csn-benchmark.mjs` is complete. This feature wires it into the project lifecycle with `npm run benchmark`, adds Zod defaults for embedding config, and implements `--baseline` flag with eligibility gate for regression contract tracking.
+**Acceptance criteria:**
+- [ ] `npm run benchmark` executes `scripts/csn-benchmark.mjs` successfully
+- [ ] `embedding_batch_size: 32` and `embedding_concurrency: 1` defaults in Zod config schema
+- [ ] `--baseline` saves `benchmarks/baselines/<lang>.json` only when `baselineEligible()` returns true
+- [ ] `--baseline` on degraded run (>20% zero-result queries or any missing-label queries): exits code 1, baseline unchanged
+- [ ] Subsequent runs diff against saved baseline: diff displayed in terminal box AND written to `summary.json` / `summary.md`
+- [ ] No baseline + no `--baseline` flag → console warning only, run completes
+- [ ] `benchmarks/baselines/` committed to git (via `.gitkeep`)
+
+---
+
 ## Error Code Registry
 
 | Code | Range | Error |
 |---|---|---|
 | Auth/Config | -32010 to -32019 | `AUTH_INVALID`, `CONFIG_INVALID` |
 | Session | -32020 to -32039 | `SESSION_ALREADY_ACTIVE`, `SESSION_BUSY`, `SESSION_NOT_FOUND` |
-| Provider/Context | -32040 to -32059 | `PROVIDER_UNAVAILABLE`, `CONTEXT_BUDGET_EXCEEDED` |
+| Provider/Context | -32040 to -32059 | `PROVIDER_UNAVAILABLE`, `CONTEXT_BUDGET_EXCEEDED`, `HASH_MISMATCH_BATCH` (-32042), `MISSING_REQUIRED_FILE` (-32043) |
 | Indexing/Storage | -32060 to -32089 | `INVALID_GRAPH_ENDPOINT`, `INDEX_BATCH_FAILED`, `FULL_REINDEX_REQUIRED`, `INVALID_PATH` |
 
 Non-fatal metadata returned in success body as `[METADATA: CODE]` prefix lines: `OBSIDIAN_DISABLED`, `OBSIDIAN_UNAVAILABLE`, `INDEX_ALREADY_RUNNING`, `CROSS_ENCODER_UNAVAILABLE`, `VECTOR_INDEX_STALE`, `RERANKER_UNAVAILABLE`, `SLOW_PATH_DEGRADED`, `INDEX_EMPTY`, `NO_MATCH`

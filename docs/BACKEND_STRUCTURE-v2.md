@@ -433,6 +433,8 @@ export const ErrorCodes = {
   // Provider/Context: -32040 to -32059
   PROVIDER_UNAVAILABLE:    { code: -32040, message: 'Reasoning provider unavailable' },
   CONTEXT_BUDGET_EXCEEDED: { code: -32041, message: 'Context budget exceeded' },
+  HASH_MISMATCH_BATCH:     { code: -32042, message: 'Multiple files have stale hashes' },
+  MISSING_REQUIRED_FILE:   { code: -32043, message: 'A required corpus file was deleted from disk' },
 
   // Indexing/Storage: -32060 to -32089
   INVALID_GRAPH_ENDPOINT: { code: -32060, message: 'Invalid graph endpoint' },

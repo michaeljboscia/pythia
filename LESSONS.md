@@ -5,6 +5,31 @@
 
 ---
 
+## 2026-03-12 — Oracle corpus_dir Contains Data You Cannot Afford to Lose
+💥 What happened: Wiped the pythia-engine oracle directory to escape a cascade of HASH_MISMATCH errors. The wipe deleted sprint logs, checkpoints, spawn history, and all post-mortem evidence in a single `rm -rf`. There was no external audit trail.
+✅ Lesson: Never co-locate diagnostic or operational data (audit logs, spawn history, checkpoints) inside the oracle directory. Any observability data that matters for post-mortems must live at `~/.pythia/logs/` — outside the oracle dir, outside decommission scope. This is why FEAT-033 (spawn audit log) exists at `~/.pythia/logs/oracle-spawn-audit.jsonl`.
+Scope: project
+
+## 2026-03-12 — Large Oracle Corpus (100+ Files) Creates Unmanageable Hash Drift
+💥 What happened: pythia-engine oracle had 111 static_entries. During Sprint 6 development, many files changed. spawn_oracle hit the first HASH_MISMATCH and stopped. Manually fixing one file at a time via oracle_update_entry took 45+ minutes and still didn't resolve everything because the fail-fast design meant we never saw the full list of stale files.
+✅ Lesson: Oracle corpus should be kept lean (10-20 core files) rather than exhaustive. Large corpora create cascading drift during active development. When drift hits, you need the complete list of all stale files in one error — not a sequential fix-and-retry loop. This is why FEAT-032 (fail-all hash validation returning HASH_MISMATCH_BATCH) exists.
+Scope: project
+
+## 2026-03-12 — manifest.json Field Types Must Be Validated Against oracle-tools.ts Source Before Bootstrap
+💥 What happened: Hand-crafted manifest.json used `{}` object for `static_entries` and `live_sources`. oracle-tools.ts iterates both with `for...of` loops — objects are not iterable. spawn_oracle threw "manifest.static_entries is not iterable." Also used entry IDs in `load_order` instead of role name strings — the code does `manifest.load_order.forEach((role, idx)` meaning it expects strings like "core_research", not UUIDs.
+✅ Lesson: Before hand-crafting any manifest.json, read oracle-tools.ts to verify field types. static_entries and live_sources must be arrays `[]`. load_order must contain role name strings (not IDs). This is precisely why oracle_init (FEAT-000) exists — to eliminate hand-crafting entirely.
+Scope: project
+
+## 2026-03-12 — Codex Daemon Times Out on Large File + Question Payloads
+💥 What happened: Sent Codex daemon 6 files + 32 questions in one ask_daemon() call. Daemon timed out after 300 seconds and died. Lost all context, had to respawn.
+✅ Lesson: Codex daemon has a 300-second timeout. Keep asks to 2-3 files maximum + 5-7 focused questions. If more coverage is needed, split into sequential asks on the same daemon rather than one massive ask. For broad architectural analysis, use Gemini daemon (2M context, better at synthesis).
+Scope: project
+
+## 2026-03-12 — Never Use Wildcards That Match Global State When Scoping a Wipe
+💥 What happened: Bash command contained `*oracle*` wildcard that would have matched and deleted ALL oracle sessions across ALL projects system-wide, not just pythia. User caught it before execution.
+✅ Lesson: When scoping any delete/wipe operation, always verify the exact expansion of wildcards before running. For oracle wipes, use fully-qualified paths (e.g. `~/.pythia/oracles/pythia-engine`) — never wildcard patterns that could match cross-project.
+Scope: global
+
 ## 2026-03-12 — Native npm Packages Must Be Build-Tested Before Entering a Spec
 💥 What happened: Sprint 6 spec locked in `tree-sitter-xml`, `tree-sitter-php`, `tree-sitter-sql`, `tree-sitter-css` as dependencies. Codex hit a native binding compilation failure on Node 22 (`gyp ERR! not ok`) on the very first `npm install`. The existing grammars worked because they were vetted at project setup — the new ones were assumed to work without verification.
 ✅ Lesson: Before any native npm package (tree-sitter grammar, WASM addon, native binding) enters a spec or implementation plan, run `mkdir /tmp/dep-test && cd /tmp/dep-test && npm init -y && npm install <package>` on the target Node version. If it fails to build, find the alternative BEFORE writing the plan. Implementation plans that add native deps must include a "dependency validation" pre-step as Step 0.

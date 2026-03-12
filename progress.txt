@@ -1,9 +1,14 @@
 PYTHIA v1 — PROGRESS TRACKER
 ========================================
-Last Updated: 2026-03-11
+Last Updated: 2026-03-12
 
-CURRENT PHASE: Sprint 6 (Language Breadth + Embedding Flexibility + Benchmarking) — NOT STARTED
-IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-sprint6.md
+CURRENT PHASE: Sprint 7 (Oracle Hardening + SQL Structural + CSN Benchmark) — NOT STARTED
+IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-sprint7.md
+
+NOTE: Sprint 6 (Language Breadth) is on hold. Sprint 7 is a hardening sprint that incorporates
+Sprint 6's SQL structural extraction (FEAT-024 Phase 2) and benchmark wiring (FEAT-036).
+Original Sprint 6 features (PHP, XML, CSS, max chunk size, parallel embedding, POC matrix)
+are deferred to Sprint 8. LocalReasoningProvider and YAML (original Sprint 7) also Sprint 8.
 
 STATUS SUMMARY
 --------------
@@ -121,15 +126,20 @@ Docs:                 /Users/mikeboscia/pythia/docs/
 
 SPRINT 6 STATUS
 ---------------
-[ ] Step 6.1: New language packages + chunker wiring (PHP, XML, SQL, CSS/SCSS)
-[ ] Step 6.2: Golden fixtures + language integration tests
-[ ] Step 6.3: Max chunk size enforcement (chunk-splitter.ts)
-[ ] Step 6.4: Configurable embedding dimensions + --force DDL
-[ ] Step 6.5: Parallel embedding workers (p-limit + Retry-After)
-[ ] Step 6.6: Benchmark CLI (pythia benchmark subcommand)
-[ ] Step 6.7: POC matrix script (poc-matrix.mjs)
-[ ] Step 6.8: oracle_add_to_corpus batch mode (inter-agent MCP server)
-[ ] Sprint 6 proof script
+ON HOLD — Superseded by Sprint 7 (hardening). Sprint 6 features deferred to Sprint 8.
+FEAT-024 Phase 2 (SQL structural) and FEAT-036 (benchmark wiring) pulled forward into Sprint 7.
+
+SPRINT 7 STATUS
+---------------
+[ ] Step 7.1: SQL Structural Extraction (FEAT-024 Phase 2)
+    Files: src/indexer/chunker-treesitter.ts, src/__tests__/chunker-sql.test.ts
+[ ] Step 7.2: CodeSearchNet Benchmark Wiring (FEAT-036)
+    Files: package.json, src/config.ts, scripts/csn-benchmark.mjs, benchmarks/baselines/.gitkeep
+[ ] Step 7.3: Spawn Audit Log & Fail-All Validation (FEAT-032 + FEAT-033)
+    Files: ~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts
+[ ] Step 7.4: Oracle Core Tools (FEAT-000 + FEAT-034 + FEAT-035)
+    Files: ~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts, server.ts
+    Test files: test-oracle-init.mjs, test-oracle-health.mjs, test-oracle-refresh.mjs
 
 BLOCKERS
 --------
@@ -137,7 +147,7 @@ None.
 
 NEXT STEP
 ---------
-Step 6.1 — Install tree-sitter-php/xml/sql/css packages, extend chunker-treesitter.ts language registry and extractors.
+Step 7.1 — Add extractSqlChunks() to src/indexer/chunker-treesitter.ts for named SQL routine extraction.
 
 LIVE SMOKE TEST RESULTS (2026-03-11)
 -------------------------------------
@@ -168,3 +178,6 @@ SESSION HISTORY
 2026-03-11: Sprint 4 implementation completed with passing proof script
 2026-03-11: Sprint 5 implementation completed with passing proof script
 2026-03-11: Live smoke test PASS — 38 files, 300 chunks, lcs_investigate E2E working on homebox
+2026-03-12: Sprint 7 design complete — 2 rounds ruthless interrogation + twin synthesis (Gemini + Codex)
+2026-03-12: Sprint 7 spec finalized at /Users/mikeboscia/pythia/design/sprint-7-spec.md (v1.3.0)
+2026-03-12: IMPLEMENTATION_PLAN-sprint7.md generated, PRD-v2.md updated (FEAT-000 + 032-036), BACKEND_STRUCTURE-v2.md updated (new error codes)
