@@ -341,6 +341,14 @@
       "sha256": "7f1e6fb219310fc886a7c3ea81467dcdd91ba353bdc6f12f18158d116ab20637",
       "added_at": "2026-03-12T02:03:44.969Z",
       "priority": 56
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/indexer/slow-path.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "4278b50df7f8432c8f4bf4e41d1699cf8701a2b292d107fff4a767f06094b496",
+      "added_at": "2026-03-12T02:03:49.214Z",
+      "priority": 57
     }
   ],
   "live_sources": [
