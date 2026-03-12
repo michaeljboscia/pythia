@@ -413,6 +413,14 @@
       "sha256": "642dd8082b319e67b2ec9f1594009890ec4395c8b929b1de460f2d8b64a648f9",
       "added_at": "2026-03-12T02:04:22.368Z",
       "priority": 65
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/mcp/commit-decision.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "9e3a2cbf34ec04a568db5b1e066ea3e87ca2d26353792db4574750b318cca522",
+      "added_at": "2026-03-12T02:04:25.869Z",
+      "priority": 66
     }
   ],
   "live_sources": [
