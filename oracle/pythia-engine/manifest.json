@@ -877,6 +877,14 @@
       "sha256": "7ec6d8faa1bb7c69c8439c88843c39111469032c3971a7d6d6498f79f79c7a3e",
       "added_at": "2026-03-12T02:08:42.048Z",
       "priority": 144
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/design/sprint-6-spec.md",
+      "role": "core_research",
+      "required": true,
+      "sha256": "47b1cdf323cb5fb56470f063bbee85aee43f1b8a38e2bcf7fcaef2d599086215",
+      "added_at": "2026-03-12T11:07:10.425Z",
+      "priority": 7
     }
   ],
   "live_sources": [

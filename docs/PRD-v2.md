@@ -347,6 +347,127 @@ LINES: {start_line}-{end_line}
 
 ---
 
+---
+
+## Sprint 6 Feature Registry (v1.2.0)
+
+### FEAT-022 — New Language Support: PHP
+**Priority:** P1 — Sprint 6
+**Description:** Tree-sitter fast-path indexing for PHP (`.php`, `.phtml`). Adds `trait` as a new CNI chunk type. `.phtml` files emit a single `module` chunk (template PHP too brittle for structural extraction).
+**Chunk types:** `function`, `class`, `trait` (new), `interface`, `method` (including magic methods), `module`
+**Acceptance criteria:**
+- [ ] `.php` files emit `module` + `class` + `trait` + `function` + `method` chunks
+- [ ] `__construct` gets its own `method` chunk
+- [ ] `trait` declarations emit `chunk_type: "trait"`, not `"class"`
+- [ ] `.phtml` emits exactly 1 `module` chunk
+- [ ] Golden fixtures pass on macOS arm64 AND linux/amd64
+
+---
+
+### FEAT-023 — New Language Support: XML
+**Priority:** P1 — Sprint 6
+**Description:** Tree-sitter indexing for XML with Magento-aware structural extraction. `di.xml` (by filename) and layout XML (by directory pattern) get named `element` chunks. All other XML falls back to single `module` chunk.
+**Chunk types:** `element`, `module`
+**Acceptance criteria:**
+- [ ] `di.xml` → `element` chunks for `preference`, `type`, `virtualType`, `plugin`
+- [ ] Layout XML → `element` chunks for `block`, `referenceBlock`, `referenceContainer`
+- [ ] Generic XML → 1 `module` chunk
+- [ ] Malformed XML (ERROR at root) → 1 `module` chunk (no partial semantic chunks)
+- [ ] Attributes extracted from AST nodes, not regex
+
+---
+
+### FEAT-024 — New Language Support: SQL
+**Priority:** P1 — Sprint 6
+**Description:** Tree-sitter indexing for SQL (`.sql`). One `module` chunk per file. Structural extraction (procedures, functions) deferred to Sprint 7.
+**Chunk types:** `module`
+**Acceptance criteria:**
+- [ ] `.sql` files indexed and not silently dropped
+- [ ] Each `.sql` file emits exactly 1 `module` chunk
+
+---
+
+### FEAT-025 — New Language Support: CSS + SCSS
+**Priority:** P1 — Sprint 6
+**Description:** Tree-sitter indexing for CSS/SCSS with threshold-gated structural extraction. A configurable minimum size (`css_rule_chunk_min_chars: 80`) prevents Tailwind JIT utility-class explosion.
+**Chunk types:** `module`, `rule`, `at_rule`, `mixin` (SCSS), `function` (SCSS)
+**Acceptance criteria:**
+- [ ] Short rules (< threshold) collapsed into `module`, not emitted as `rule` chunks
+- [ ] Real selectors (≥ threshold) emit `rule` chunks
+- [ ] `@media` → `at_rule` chunks; SCSS `@mixin` → `mixin`; SCSS `@function` → `function`
+- [ ] Golden fixtures on macOS arm64 AND linux/amd64
+
+---
+
+### FEAT-026 — Configurable Embedding Dimensions
+**Priority:** P1 — Sprint 6
+**Description:** `embeddings.dimensions` config field (enum: 128, 256, 512, 768, 1024, 1536, default 256). Each backend enforces its constraint: local ONNX max 768, Vertex AI uses server-side `outputDimensionality`, openai_compatible slices client-side. `pythia init --force` rebuilds the vector table to the new width.
+**Acceptance criteria:**
+- [ ] `dimensions: 512` with `vertex_ai` passes `outputDimensionality: 512` in API body
+- [ ] `dimensions: 900` → `ZodError` at config load (not in enum)
+- [ ] `dimensions > 768` with `local` mode → startup error
+- [ ] `pythia init --force` drops + rebuilds `vec_lcs_chunks` with correct width (7-step DDL)
+- [ ] `embedding_meta` row deleted before reindex so new fingerprint writes cleanly
+
+---
+
+### FEAT-027 — Parallel Embedding Workers
+**Priority:** P1 — Sprint 6
+**Description:** HTTP embedding backends support concurrent requests via `p-limit`. Config fields: `embedding_concurrency` (default 1), `embedding_batch_size` (default 32). Exponential backoff on 429 with `Retry-After` header support. File-level atomic failure semantics.
+**Acceptance criteria:**
+- [ ] `embedding_concurrency: 4` fires 4 concurrent HTTP calls
+- [ ] 429 → exponential backoff; `Retry-After` header respected when `honor_retry_after: true`
+- [ ] File with failed batch writes nothing to DB (atomic per file)
+- [ ] Local backend: concurrency clamped to 1, one-time warning emitted
+
+---
+
+### FEAT-028 — Benchmark CLI
+**Priority:** P1 — Sprint 6
+**Description:** `pythia benchmark` subcommand. Runs labeled query sets through the full hybrid search pipeline (not MCP transport). Computes P@1, P@3, P@5, MRR, NDCG@10. Outputs `summary.json` + `summary.md`. Baseline promotion requires explicit `--set-baseline` flag with health guard.
+**Acceptance criteria:**
+- [ ] Calls internal `search()` function directly
+- [ ] Zero-result queries flagged and excluded from MRR aggregate
+- [ ] `--set-baseline` refused when `zero_result_queries / total >= 0.2`
+- [ ] `summary.json` schema matches FEAT-028 spec exactly
+- [ ] Per-difficulty metric breakdown in `summary.json`
+
+---
+
+### FEAT-029 — Max Chunk Size Enforcement
+**Priority:** P1 — Sprint 6
+**Description:** Per-type `max_chunk_chars` config map prevents silent token truncation at embedding time. Oversized chunks split at newline boundaries (default) or hard-truncated. Split chunks get `#part1`, `#part2` ID suffixes.
+**Acceptance criteria:**
+- [ ] 2,500-char input with `max_chunk_chars.function: 1000` → 3 split chunks
+- [ ] `oversize_strategy: "truncate"` → hard-truncates, no split chunks
+- [ ] Chunks below their type limit unaffected
+- [ ] ID ordering: symbol-duplicate suffix first, then part suffix
+
+---
+
+### FEAT-030 — POC Matrix Script
+**Priority:** P2 — Sprint 6
+**Description:** `scripts/poc-matrix.mjs` (Node.js for safe path handling) iterates backend × dimensions × corpus combinations, runs `pythia init --force` + `pythia benchmark` per combination. Crash-safe via `--resume`. One-time research tool, not CI.
+**Acceptance criteria:**
+- [ ] `--dry-run` prints all combinations without executing
+- [ ] `--resume` skips completed combinations (checks for `summary.json`)
+- [ ] `--only <selector>` filters by backend or dimension
+
+---
+
+### FEAT-031 — oracle_add_to_corpus Batch Mode
+**Priority:** P1 — Sprint 6
+**Description:** `oracle_add_to_corpus` accepts `files: string | string[]`. One MCP call → one Gemini CLI spawn → all N files injected in a single session turn. Manifest updated atomically via file lock + atomic rename. Source code extensions trigger a warning, not an error.
+**Note:** This feature lives in `~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts`, not the Pythia LCS repo.
+**Acceptance criteria:**
+- [ ] `files: ["a.md", "b.md", "c.md"]` → exactly 1 Gemini CLI spawn
+- [ ] Single string `files: "a.md"` identical to old API
+- [ ] Manifest updated atomically (file lock + temp-file rename)
+- [ ] Source code extension → warning in response; `type: "source"` suppresses it
+- [ ] Corpus > 1.5M chars → `CORPUS_SIZE_WARNING` in response
+
+---
+
 ### FEAT-021 — `lcs_global_search` (DEFERRED to v2)
 **Priority:** DEFERRED
 **Description:** Thematic community search via Leiden algorithm on `lcs_communities` table.

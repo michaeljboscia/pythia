@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-03-12 — Native npm Packages Must Be Build-Tested Before Entering a Spec
+💥 What happened: Sprint 6 spec locked in `tree-sitter-xml`, `tree-sitter-php`, `tree-sitter-sql`, `tree-sitter-css` as dependencies. Codex hit a native binding compilation failure on Node 22 (`gyp ERR! not ok`) on the very first `npm install`. The existing grammars worked because they were vetted at project setup — the new ones were assumed to work without verification.
+✅ Lesson: Before any native npm package (tree-sitter grammar, WASM addon, native binding) enters a spec or implementation plan, run `mkdir /tmp/dep-test && cd /tmp/dep-test && npm init -y && npm install <package>` on the target Node version. If it fails to build, find the alternative BEFORE writing the plan. Implementation plans that add native deps must include a "dependency validation" pre-step as Step 0.
+Scope: project
+
+## 2026-03-12 — Never Invoke Codex via MCP Daemon for Code Implementation
+💥 What happened: Spawned a Codex MCP daemon and attempted to have it implement Sprint 6 via ask_daemon(). This is wrong — Codex writes code via a real terminal session, not through the inter-agent MCP wrapper. Using the daemon for code implementation burns tokens, loses file context, and can't run tests. User nearly threw their laptop.
+✅ Lesson: Codex implementation handoffs are always copy/paste prompts to a real Codex terminal window — never via mcp__inter-agent-codex__ask_daemon. The MCP daemon is for analysis, review, and questions only. Implementation = terminal.
+Scope: project
+
 ## Format
 
 ```

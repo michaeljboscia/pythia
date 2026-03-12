@@ -2,8 +2,8 @@ PYTHIA v1 — PROGRESS TRACKER
 ========================================
 Last Updated: 2026-03-11
 
-CURRENT PHASE: Sprint 5 (CLI + GC + Distribution) — COMPLETE
-IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md
+CURRENT PHASE: Sprint 6 (Language Breadth + Embedding Flexibility + Benchmarking) — NOT STARTED
+IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-sprint6.md
 
 STATUS SUMMARY
 --------------
@@ -119,13 +119,25 @@ Config (runtime):     ~/.pythia/config.json
 Workspace DB:         <workspace>/.pythia/lcs.db
 Docs:                 /Users/mikeboscia/pythia/docs/
 
+SPRINT 6 STATUS
+---------------
+[ ] Step 6.1: New language packages + chunker wiring (PHP, XML, SQL, CSS/SCSS)
+[ ] Step 6.2: Golden fixtures + language integration tests
+[ ] Step 6.3: Max chunk size enforcement (chunk-splitter.ts)
+[ ] Step 6.4: Configurable embedding dimensions + --force DDL
+[ ] Step 6.5: Parallel embedding workers (p-limit + Retry-After)
+[ ] Step 6.6: Benchmark CLI (pythia benchmark subcommand)
+[ ] Step 6.7: POC matrix script (poc-matrix.mjs)
+[ ] Step 6.8: oracle_add_to_corpus batch mode (inter-agent MCP server)
+[ ] Sprint 6 proof script
+
 BLOCKERS
 --------
 None.
 
 NEXT STEP
 ---------
-Await user direction before beginning Sprint 6.
+Step 6.1 — Install tree-sitter-php/xml/sql/css packages, extend chunker-treesitter.ts language registry and extractors.
 
 LIVE SMOKE TEST RESULTS (2026-03-11)
 -------------------------------------

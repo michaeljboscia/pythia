@@ -70,6 +70,15 @@
 | `tree-sitter-go` | latest | Go grammar (`.go`) |
 | `tree-sitter-rust` | latest | Rust grammar (`.rs`) |
 | `tree-sitter-java` | latest | Java grammar (`.java`) |
+| `tree-sitter-php` | latest | PHP + PHTML grammar (`.php`, `.phtml`) — **Sprint 6** |
+| `tree-sitter-xml` | latest | XML grammar (`.xml`) — **Sprint 6** |
+| `tree-sitter-sql` | latest | SQL grammar (`.sql`) — **Sprint 6** |
+| `tree-sitter-css` | latest | CSS + SCSS grammar (`.css`, `.scss`) — **Sprint 6** |
+
+### Concurrency
+| Package | Version | Purpose |
+|---|---|---|
+| `p-limit` | ^6.x (ESM) | Concurrent HTTP embedding request cap — **Sprint 6** |
 
 ### TypeScript Compiler (Slow Path)
 | Component | Version | Purpose |
@@ -127,28 +136,31 @@ Validated at startup via Zod. Missing required fields = hard startup error.
     gemini_api_key?: string                      // Required if mode = "sdk"
   },
   embeddings: {
-    mode: "local" | "voyage",                    // "local" = ONNX, "voyage" = Voyage AI API
-    model: string,                               // e.g., "nomic-embed-text-v1.5"
-    revision: string                             // Model revision for pinning
-  },
-  vector_store: {
-    mode: "sqlite" | "qdrant",
-    qdrant_url?: string                          // Required if mode = "qdrant"
-  },
-  graph_store: {
-    mode: "sqlite" | "falkor"
-  },
-  limits: {
-    spawn_chars_max: number,                     // Default: 180000
-    ask_context_chars_max: number,               // Default: 48000
-    session_idle_ttl_minutes: number             // Default: 30
+    mode: "local" | "openai_compatible" | "vertex_ai",
+    dimensions: 128 | 256 | 512 | 768 | 1024 | 1536,  // Default: 256 — Sprint 6
+    // openai_compatible fields:
+    base_url?: string,
+    api_key?: string,
+    model?: string,
+    // vertex_ai fields:
+    project?: string,
+    location?: string,
+    // retry (openai_compatible + vertex_ai):
+    retry_max_attempts?: number,                 // Default: 3
+    initial_backoff_ms?: number,                 // Default: 500
+    honor_retry_after?: boolean                  // Default: true
   },
   indexing: {
-    scan_on_start: boolean,                      // Default: true
-    max_worker_restarts: number                  // Default: 3 (within 10 min window)
+    scan_on_start: boolean,                      // Default: false
+    max_worker_restarts: number,                 // Default: 3 (within 10 min window)
+    embedding_concurrency: number,               // Default: 1 (max 16) — Sprint 6
+    embedding_batch_size: number,                // Default: 32 (max 256) — Sprint 6
+    css_rule_chunk_min_chars: number,            // Default: 80 — Sprint 6
+    max_chunk_chars: Record<string, number>,     // Per-type map, defaults per spec — Sprint 6
+    oversize_strategy: "split" | "truncate"      // Default: "split" — Sprint 6
   },
   gc: {
-    deleted_chunk_retention_days: number         // Default: 30
+    deleted_chunk_retention_days: number         // Default: 7
   }
 }
 ```
