@@ -461,6 +461,14 @@
       "sha256": "6a4f66c2f2dba2c000fdedb621a0653e9f3e400274ebdbdb784b2bec2a19c467",
       "added_at": "2026-03-12T02:04:45.223Z",
       "priority": 73
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/obsidian/writer.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "6ca49009758ffb30444ad7342f14d1f2a0f3db07e3ad540ecfe164d3a2551386",
+      "added_at": "2026-03-12T02:04:51.161Z",
+      "priority": 75
     }
   ],
   "live_sources": [
