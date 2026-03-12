@@ -629,6 +629,14 @@
       "sha256": "a3c007cdd1afb3466fdca8ff174c3d41c24ede183bd3af66b93ac774c66f8232",
       "added_at": "2026-03-12T02:06:19.025Z",
       "priority": 108
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/graph-store.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "d759331298c80663ef08164dd9e3d1ef788838f72fb6d1c09f3f99c1a8c6234e",
+      "added_at": "2026-03-12T02:06:24.939Z",
+      "priority": 109
     }
   ],
   "live_sources": [
