@@ -813,6 +813,14 @@
       "sha256": "7b30439a80383cd27c4a8e5e96281ece4b30f5b91b73c98d76277144cb5ed24d",
       "added_at": "2026-03-12T02:07:59.692Z",
       "priority": 133
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/integration/worker-failure.integration.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "c38a3579ac101033090bbc9b2413df9bafed5130bdf8d020a80197e2772aa73e",
+      "added_at": "2026-03-12T02:08:03.836Z",
+      "priority": 134
     }
   ],
   "live_sources": [
