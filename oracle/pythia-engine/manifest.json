@@ -885,6 +885,14 @@
       "sha256": "47b1cdf323cb5fb56470f063bbee85aee43f1b8a38e2bcf7fcaef2d599086215",
       "added_at": "2026-03-12T11:07:10.425Z",
       "priority": 7
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-sprint6.md",
+      "role": "core_research",
+      "required": true,
+      "sha256": "03cc5d869c02d6db2be3d29171a6bb857f4fc6e8f0fe8cec90dce840fc29819c",
+      "added_at": "2026-03-12T11:07:11.429Z",
+      "priority": 8
     }
   ],
   "live_sources": [
