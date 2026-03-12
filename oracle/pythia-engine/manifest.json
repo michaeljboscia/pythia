@@ -765,6 +765,14 @@
       "sha256": "cb60fe999145c0b8e1ff305225d1bc2ce218ffcb7dfc3c0267f17792387e977c",
       "added_at": "2026-03-12T02:07:33.700Z",
       "priority": 125
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/cli-provider.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "d0752d5e71da36d3479533749773fb1afe4149ff4e54b49f3e91caac225129f2",
+      "added_at": "2026-03-12T02:07:37.671Z",
+      "priority": 126
     }
   ],
   "live_sources": [
