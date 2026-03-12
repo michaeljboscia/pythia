@@ -709,6 +709,14 @@
       "sha256": "c42d9cca2b9aee885a36af8dd3e2df83a7cad706ed9fd7884d8ae05913825a74",
       "added_at": "2026-03-12T02:07:03.404Z",
       "priority": 118
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/ask-oracle.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "57b1f42c0633d66494d47dda8a9f7f36579a684ef15c49c71ec11fecca093feb",
+      "added_at": "2026-03-12T02:07:08.260Z",
+      "priority": 119
     }
   ],
   "live_sources": [
