@@ -485,6 +485,14 @@
       "sha256": "f2dbd3f5c973afbe2973e2984aa2179460d97fad85126432728bd5f2423e2964",
       "added_at": "2026-03-12T02:04:58.345Z",
       "priority": 80
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/cli/init.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "39cbb77e48cb9d1c81e56b7139049e9fdf4cde269577e1ac82e2e7a9bee9ac36",
+      "added_at": "2026-03-12T02:05:02.958Z",
+      "priority": 81
     }
   ],
   "live_sources": [
