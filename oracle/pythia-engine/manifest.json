@@ -189,6 +189,14 @@
       "sha256": "336ffb85e5c80266d22ed8c3ee966aee86b7ae3258ff8d43c5d546a6640f4974",
       "added_at": "2026-03-12T01:59:55.055Z",
       "priority": 25
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/reference/tree-sitter-query-reference.md",
+      "role": "core_research",
+      "required": false,
+      "sha256": "881fc8758358c0bc3cb606374f07275b33d2176742b67e874fcfeb4afeb5abac",
+      "added_at": "2026-03-12T02:00:04.696Z",
+      "priority": 26
     }
   ],
   "live_sources": [
