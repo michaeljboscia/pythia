@@ -653,6 +653,14 @@
       "sha256": "1b10df462c31061751d06e8d6b4f548104fb8859a612fdbacd37176d5f78b7fb",
       "added_at": "2026-03-12T02:06:34.804Z",
       "priority": 111
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/force-index.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "3884b1da2566247874a49c1df21e13d344429e4f70489ec459d88f525a03c7a9",
+      "added_at": "2026-03-12T02:06:39.484Z",
+      "priority": 112
     }
   ],
   "live_sources": [
