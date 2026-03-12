@@ -389,6 +389,14 @@
       "sha256": "16d81a72bccf1c9fb33e4518b8e196384ec4f7d42cd6b3e6d4b463dce8f9da75",
       "added_at": "2026-03-12T02:04:09.322Z",
       "priority": 62
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/mcp/force-index.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "05078513156f7191a70831932b723294c5d4aca78729fc44a505d3ac0691c53c",
+      "added_at": "2026-03-12T02:04:13.200Z",
+      "priority": 63
     }
   ],
   "live_sources": [
