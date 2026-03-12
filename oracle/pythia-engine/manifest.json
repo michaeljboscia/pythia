@@ -221,6 +221,14 @@
       "sha256": "ec9f682f316caedc5a23c342b12be9b5da94c462c42256e3bcc874d4c9f345bf",
       "added_at": "2026-03-12T02:00:59.128Z",
       "priority": 31
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/progress.txt",
+      "role": "other",
+      "required": false,
+      "sha256": "b3f484339c2e70909db6b41e8818723d50f20d5192bdd294d7642a1f7b765858",
+      "added_at": "2026-03-12T02:01:07.370Z",
+      "priority": 32
     }
   ],
   "live_sources": [
