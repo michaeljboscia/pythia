@@ -789,6 +789,14 @@
       "sha256": "f82900cb95ed4cd91509d48695cc103a832d7226d19796e3b688be9399c68c52",
       "added_at": "2026-03-12T02:07:47.166Z",
       "priority": 130
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/integration/retrieval-pipeline.integration.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "f2fa43dc1ab77eb9de6915e3ef6cc5944fa2848b8e3417a946de2bd3e4bd1edb",
+      "added_at": "2026-03-12T02:07:51.596Z",
+      "priority": 131
     }
   ],
   "live_sources": [
