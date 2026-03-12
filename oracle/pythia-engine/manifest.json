@@ -589,6 +589,14 @@
       "sha256": "fa47c33b1852f4c0a70e516486553708bc03d181ece901728bddc34fe0c92a55",
       "added_at": "2026-03-12T02:05:57.193Z",
       "priority": 103
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/cdc.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "5adcdad644f42d57e797e78a5db590ee728e0d18240b378fc11bed2fed577f94",
+      "added_at": "2026-03-12T02:06:02.588Z",
+      "priority": 104
     }
   ],
   "live_sources": [
