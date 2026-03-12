@@ -637,6 +637,14 @@
       "sha256": "d759331298c80663ef08164dd9e3d1ef788838f72fb6d1c09f3f99c1a8c6234e",
       "added_at": "2026-03-12T02:06:24.939Z",
       "priority": 109
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/vector-store.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "0fe21f88f1a07932d232e35595fd6295411e50b168821339256b6db43ad916e7",
+      "added_at": "2026-03-12T02:06:28.521Z",
+      "priority": 110
     }
   ],
   "live_sources": [
