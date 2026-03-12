@@ -23,10 +23,21 @@ function configToFingerprint(config: EmbeddingsBackendConfig): Omit<EmbeddingMet
     };
   }
 
+  if (config.mode === "openai_compatible") {
+    return {
+      provider: "openai_compatible",
+      model_name: config.model,
+      model_revision: config.base_url,
+      dimensions: 256,
+      normalization: "l2"
+    };
+  }
+
+  // vertex_ai — fingerprint includes project+location+model to uniquely identify the endpoint
   return {
-    provider: "openai_compatible",
-    model_name: config.model,
-    model_revision: config.base_url,
+    provider: "vertex_ai",
+    model_name: `${config.project}/${config.location}/${config.model}`,
+    model_revision: "",
     dimensions: 256,
     normalization: "l2"
   };

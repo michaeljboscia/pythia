@@ -65,6 +65,58 @@ function startFakeEmbeddingsServer(options: FakeServerOptions = {}): Promise<{ c
   });
 }
 
+type FakeVertexServerOptions = {
+  dims?: number;
+  statusCode?: number;
+};
+
+function startFakeVertexServer(options: FakeVertexServerOptions = {}): Promise<{ close: () => Promise<void>; port: number; lastRequestBody: () => unknown }> {
+  const { dims = 256, statusCode = 200 } = options;
+  let lastBody: unknown = null;
+
+  return new Promise((resolve) => {
+    const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+      let body = "";
+
+      req.on("data", (chunk: Buffer) => {
+        body += chunk.toString();
+      });
+
+      req.on("end", () => {
+        lastBody = JSON.parse(body);
+
+        if (statusCode !== 200) {
+          res.writeHead(statusCode, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: { message: "mock vertex error" } }));
+          return;
+        }
+
+        const parsed = JSON.parse(body) as { instances: { content: string }[] };
+        const predictions = parsed.instances.map(() => ({
+          embeddings: {
+            values: buildFakeEmbedding(0, dims)
+          }
+        }));
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ predictions }));
+      });
+    });
+
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address() as { port: number };
+      resolve({
+        port: address.port,
+        lastRequestBody: () => lastBody,
+        close: () =>
+          new Promise<void>((closeResolve) => {
+            server.close(() => closeResolve());
+          })
+      });
+    });
+  });
+}
+
 // Tests ───────────────────────────────────────────────────────────────────────
 
 test("createEmbedder local returns embedChunks and embedQuery wrappers", () => {
@@ -212,5 +264,149 @@ test("openai_compatible embedQuery adds search_query prefix and returns single v
     assert.ok(capturedBody.includes("search_query:"), `Expected search_query prefix in: ${capturedBody}`);
   } finally {
     await new Promise<void>((resolve) => captureServer.close(() => resolve()));
+  }
+});
+
+// ─── Vertex AI tests ─────────────────────────────────────────────────────────
+
+test("vertex_ai embedder returns 256d normalized vectors", async () => {
+  const fake = await startFakeVertexServer({ dims: 256 });
+  const savedToken = process.env.PYTHIA_TEST_VERTEX_TOKEN;
+  process.env.PYTHIA_TEST_VERTEX_TOKEN = "fake-vertex-token";
+
+  try {
+    const embedder = createEmbedder(
+      {
+        mode: "vertex_ai",
+        project: "my-project",
+        location: "us-central1",
+        model: "text-embedding-005"
+      },
+      { vertexEndpointOverride: `http://127.0.0.1:${fake.port}` }
+    );
+
+    const results = await embedder.embedChunks(["hello", "world"]);
+
+    assert.equal(results.length, 2);
+    assert.ok(results[0] instanceof Float32Array);
+    assert.equal(results[0].length, 256, "should be 256d");
+
+    // Check L2 normalization
+    for (const vec of results) {
+      let sum = 0;
+
+      for (const v of vec) {
+        sum += v * v;
+      }
+
+      assert.ok(Math.abs(Math.sqrt(sum) - 1) <= 0.001, `Expected normalized vector, magnitude was ${Math.sqrt(sum)}`);
+    }
+  } finally {
+    if (savedToken === undefined) {
+      delete process.env.PYTHIA_TEST_VERTEX_TOKEN;
+    } else {
+      process.env.PYTHIA_TEST_VERTEX_TOKEN = savedToken;
+    }
+    await fake.close();
+  }
+});
+
+test("vertex_ai embedder sends RETRIEVAL_DOCUMENT task_type for embedChunks", async () => {
+  const fake = await startFakeVertexServer({ dims: 256 });
+  const savedToken = process.env.PYTHIA_TEST_VERTEX_TOKEN;
+  process.env.PYTHIA_TEST_VERTEX_TOKEN = "fake-vertex-token";
+
+  try {
+    const embedder = createEmbedder(
+      {
+        mode: "vertex_ai",
+        project: "my-project",
+        location: "us-central1",
+        model: "text-embedding-005"
+      },
+      { vertexEndpointOverride: `http://127.0.0.1:${fake.port}` }
+    );
+
+    await embedder.embedChunks(["hello"]);
+
+    const body = fake.lastRequestBody() as { instances: { content: string; task_type: string }[]; parameters: { outputDimensionality: number } };
+    assert.equal(body.instances[0].task_type, "RETRIEVAL_DOCUMENT");
+    assert.equal(body.instances[0].content, "hello");
+    assert.equal(body.parameters.outputDimensionality, 256);
+  } finally {
+    if (savedToken === undefined) {
+      delete process.env.PYTHIA_TEST_VERTEX_TOKEN;
+    } else {
+      process.env.PYTHIA_TEST_VERTEX_TOKEN = savedToken;
+    }
+    await fake.close();
+  }
+});
+
+test("vertex_ai embedder sends RETRIEVAL_QUERY task_type for embedQuery and returns single vector", async () => {
+  const fake = await startFakeVertexServer({ dims: 256 });
+  const savedToken = process.env.PYTHIA_TEST_VERTEX_TOKEN;
+  process.env.PYTHIA_TEST_VERTEX_TOKEN = "fake-vertex-token";
+
+  try {
+    const embedder = createEmbedder(
+      {
+        mode: "vertex_ai",
+        project: "my-project",
+        location: "us-central1",
+        model: "text-embedding-005"
+      },
+      { vertexEndpointOverride: `http://127.0.0.1:${fake.port}` }
+    );
+
+    const result = await embedder.embedQuery("find something");
+
+    assert.ok(result instanceof Float32Array);
+    assert.equal(result.length, 256);
+
+    const body = fake.lastRequestBody() as { instances: { content: string; task_type: string }[] };
+    assert.equal(body.instances[0].task_type, "RETRIEVAL_QUERY");
+    assert.equal(body.instances[0].content, "find something");
+  } finally {
+    if (savedToken === undefined) {
+      delete process.env.PYTHIA_TEST_VERTEX_TOKEN;
+    } else {
+      process.env.PYTHIA_TEST_VERTEX_TOKEN = savedToken;
+    }
+    await fake.close();
+  }
+});
+
+test("vertex_ai embedder rejects on HTTP error status", async () => {
+  const fake = await startFakeVertexServer({ statusCode: 403 });
+  const savedToken = process.env.PYTHIA_TEST_VERTEX_TOKEN;
+  process.env.PYTHIA_TEST_VERTEX_TOKEN = "fake-vertex-token";
+
+  try {
+    const embedder = createEmbedder(
+      {
+        mode: "vertex_ai",
+        project: "my-project",
+        location: "us-central1",
+        model: "text-embedding-005"
+      },
+      { vertexEndpointOverride: `http://127.0.0.1:${fake.port}` }
+    );
+
+    await assert.rejects(
+      () => embedder.embedChunks(["hello"]),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.ok(error.message.includes("403"), `Expected 403 in message, got: ${error.message}`);
+        return true;
+      }
+    );
+  } finally {
+    if (savedToken === undefined) {
+      delete process.env.PYTHIA_TEST_VERTEX_TOKEN;
+    } else {
+      process.env.PYTHIA_TEST_VERTEX_TOKEN = savedToken;
+    }
+    await fake.close();
   }
 });

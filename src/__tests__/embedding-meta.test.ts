@@ -148,6 +148,29 @@ test("assertEmbeddingMetaCompatible throws FULL_REINDEX_REQUIRED on provider mis
   }
 });
 
+test("writeEmbeddingMetaOnce writes vertex_ai fingerprint correctly", () => {
+  const { db, cleanup } = createTestDb();
+
+  try {
+    writeEmbeddingMetaOnce(db, {
+      mode: "vertex_ai",
+      project: "my-project",
+      location: "us-central1",
+      model: "text-embedding-005"
+    });
+    const meta = readEmbeddingMeta(db);
+
+    assert.ok(meta !== null);
+    assert.equal(meta.provider, "vertex_ai");
+    assert.equal(meta.model_name, "my-project/us-central1/text-embedding-005");
+    assert.equal(meta.model_revision, "");
+    assert.equal(meta.dimensions, 256);
+    assert.equal(meta.normalization, "l2");
+  } finally {
+    cleanup();
+  }
+});
+
 test("assertEmbeddingMetaCompatible throws FULL_REINDEX_REQUIRED on model name mismatch", () => {
   const { db, cleanup } = createTestDb();
 

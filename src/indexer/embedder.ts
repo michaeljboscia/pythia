@@ -99,7 +99,8 @@ export async function embedQuery(text: string): Promise<Float32Array> {
 
 export type EmbeddingsBackendConfig =
   | { mode: "local" }
-  | { mode: "openai_compatible"; base_url: string; api_key: string; model: string };
+  | { mode: "openai_compatible"; base_url: string; api_key: string; model: string }
+  | { mode: "vertex_ai"; project: string; location: string; model: string };
 
 export type Embedder = {
   embedChunks: (texts: string[]) => Promise<Float32Array[]>;
@@ -109,6 +110,10 @@ export type Embedder = {
 
 type OpenAiEmbeddingsResponse = {
   data: { index: number; embedding: number[] }[];
+};
+
+type VertexAiEmbeddingsResponse = {
+  predictions: { embeddings: { values: number[] } }[];
 };
 
 async function httpEmbedTexts(
@@ -145,7 +150,75 @@ async function httpEmbedTexts(
   });
 }
 
-export function createEmbedder(config: EmbeddingsBackendConfig): Embedder {
+async function getVertexToken(): Promise<string> {
+  // Test escape hatch — set this env var in tests to bypass real ADC
+  if (process.env.PYTHIA_TEST_VERTEX_TOKEN !== undefined) {
+    return process.env.PYTHIA_TEST_VERTEX_TOKEN;
+  }
+
+  const { GoogleAuth } = await import("google-auth-library");
+  const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+  const token = await auth.getAccessToken();
+
+  if (token === null) {
+    throw new Error(
+      "Failed to obtain Google auth token. Run `gcloud auth application-default login` " +
+      "or set GOOGLE_APPLICATION_CREDENTIALS to a service account key file."
+    );
+  }
+
+  return token;
+}
+
+async function vertexEmbedTexts(
+  config: { project: string; location: string; model: string },
+  texts: string[],
+  taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY",
+  endpointOverride?: string
+): Promise<Float32Array[]> {
+  const token = await getVertexToken();
+
+  const endpoint = endpointOverride ??
+    `https://${config.location}-aiplatform.googleapis.com/v1` +
+    `/projects/${config.project}/locations/${config.location}` +
+    `/publishers/google/models/${config.model}:predict`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      instances: texts.map((text) => ({ content: text, task_type: taskType })),
+      parameters: { outputDimensionality: 256 }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Vertex AI embeddings request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const json = await response.json() as VertexAiEmbeddingsResponse;
+
+  // Vertex AI returns embeddings in the same order as instances — no sorting needed
+  return json.predictions.map(({ embeddings }) => {
+    const vec = new Float32Array(embeddings.values);
+
+    if (vec.length < 256) {
+      throw new Error(`Vertex AI embedding dimension ${vec.length} is smaller than 256`);
+    }
+
+    // Normalize even though Vertex AI claims to return unit vectors — floating point safety
+    return normalizeVector(vec.length === 256 ? vec : vec.slice(0, 256));
+  });
+}
+
+type CreateEmbedderOptions = {
+  vertexEndpointOverride?: string;
+};
+
+export function createEmbedder(config: EmbeddingsBackendConfig, options: CreateEmbedderOptions = {}): Embedder {
   if (config.mode === "local") {
     return {
       embedChunks,
@@ -154,20 +227,39 @@ export function createEmbedder(config: EmbeddingsBackendConfig): Embedder {
     };
   }
 
-  const httpConfig = config;
+  if (config.mode === "openai_compatible") {
+    const httpConfig = config;
+
+    return {
+      embedChunks: (texts) =>
+        httpEmbedTexts(httpConfig, texts.map((t) => `search_document: ${t}`)),
+
+      embedQuery: async (text) => {
+        const [embedding] = await httpEmbedTexts(httpConfig, [`search_query: ${text}`]);
+        return embedding;
+      },
+
+      warm: async () => {
+        await httpEmbedTexts(httpConfig, ["warm"]);
+      }
+    };
+  }
+
+  // vertex_ai
+  const vertexConfig = config;
+  const { vertexEndpointOverride } = options;
 
   return {
     embedChunks: (texts) =>
-      httpEmbedTexts(httpConfig, texts.map((t) => `search_document: ${t}`)),
+      vertexEmbedTexts(vertexConfig, texts, "RETRIEVAL_DOCUMENT", vertexEndpointOverride),
 
     embedQuery: async (text) => {
-      const [embedding] = await httpEmbedTexts(httpConfig, [`search_query: ${text}`]);
+      const [embedding] = await vertexEmbedTexts(vertexConfig, [text], "RETRIEVAL_QUERY", vertexEndpointOverride);
       return embedding;
     },
 
     warm: async () => {
-      // Probe the endpoint with a single token to verify connectivity
-      await httpEmbedTexts(httpConfig, ["warm"]);
+      await vertexEmbedTexts(vertexConfig, ["warm"], "RETRIEVAL_DOCUMENT", vertexEndpointOverride);
     }
   };
 }

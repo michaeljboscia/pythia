@@ -40,6 +40,12 @@ const embeddingsSchema = z.discriminatedUnion("mode", [
     base_url: z.string().url(),
     api_key: z.string().min(1),
     model: z.string().min(1)
+  }),
+  z.object({
+    mode: z.literal("vertex_ai"),
+    project: z.string().min(1),
+    location: z.string().min(1),
+    model: z.string().min(1)
   })
 ]);
 
