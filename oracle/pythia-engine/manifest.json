@@ -597,6 +597,14 @@
       "sha256": "5adcdad644f42d57e797e78a5db590ee728e0d18240b378fc11bed2fed577f94",
       "added_at": "2026-03-12T02:06:02.588Z",
       "priority": 104
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/chunker-treesitter.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "43c8801838d38209cb0fceacd6df356d8c45342cad1befac1303fbbc58e21975",
+      "added_at": "2026-03-12T02:06:07.140Z",
+      "priority": 105
     }
   ],
   "live_sources": [
