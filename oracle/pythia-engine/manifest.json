@@ -293,6 +293,14 @@
       "sha256": "f370ffebb51065ae8c598ffa8768c07c242017a310242a9e71d803a5db0fa03e",
       "added_at": "2026-03-12T02:03:13.887Z",
       "priority": 50
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/indexer/worker.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "21734daa3cd7b52e18b728adf3d51da7ae1eb89f6f2c929e250c3a9ea91db123",
+      "added_at": "2026-03-12T02:03:20.417Z",
+      "priority": 51
     }
   ],
   "live_sources": [
