@@ -565,6 +565,14 @@
       "sha256": "1d062bb8c8034cd27839294fa6e9caeac6f225f18a46e5831192bf01558f34e6",
       "added_at": "2026-03-12T02:05:43.786Z",
       "priority": 100
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/__tests__/embedder.test.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "55324b51850cea29b48745c0616af7c20189830400bfb97bc82d9cfcee9af16e",
+      "added_at": "2026-03-12T02:05:48.908Z",
+      "priority": 101
     }
   ],
   "live_sources": [
