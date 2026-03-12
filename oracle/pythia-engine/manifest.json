@@ -157,6 +157,14 @@
       "sha256": "d9870c423015054bf03f58d626a2757b02551c36d42e86b7308ccef97df54bab",
       "added_at": "2026-03-12T01:59:36.657Z",
       "priority": 21
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/reference/hash-wasm-gemini-cli-reference.md",
+      "role": "core_research",
+      "required": false,
+      "sha256": "237c45aa759505c5d5e08c1d1c9dba4d44ffa5afd01c29b637445982d7a7181f",
+      "added_at": "2026-03-12T01:59:41.103Z",
+      "priority": 22
     }
   ],
   "live_sources": [
