@@ -533,6 +533,14 @@
       "sha256": "93264fa23ee9c0406c12e076883d0da9952b455d8d91c39fc477fd819f956487",
       "added_at": "2026-03-12T02:05:23.548Z",
       "priority": 90
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/migrations/002-graph-trigger.sql",
+      "role": "other",
+      "required": false,
+      "sha256": "70a7aaf65ed8f3cf28fe65301e0c6fe1e2ad9a5b1331e2146dc03c4cf86e753b",
+      "added_at": "2026-03-12T02:05:29.087Z",
+      "priority": 91
     }
   ],
   "live_sources": [
