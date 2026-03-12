@@ -117,6 +117,14 @@
       "sha256": "230649a3a147e50ad112c4087c98c56d97f80d4b2a5fd0834202def9d923ee52",
       "added_at": "2026-03-12T01:59:13.507Z",
       "priority": 7
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/FRONTEND_GUIDELINES.md",
+      "role": "core_research",
+      "required": false,
+      "sha256": "51e3018c071e2966b00a3d2ff924036ad61fd1c2918147256822d4f864d95919",
+      "added_at": "2026-03-12T01:59:18.415Z",
+      "priority": 8
     }
   ],
   "live_sources": [
