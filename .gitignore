@@ -9,3 +9,10 @@ dist-test/
 **/.DS_Store
 research/lcs/prompts-web/
 benchmarks/results/
+
+# Runtime state — never commit
+.pythia-active/
+oracle/
+registry.json
+session-logs/
+skills/

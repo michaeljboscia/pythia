@@ -207,7 +207,7 @@ re-embeds changed files, keeping ongoing costs near zero.
 
 **Retrieval pipeline:** Query embedding → top-30 vec cosine + top-30 FTS → RRF fusion → cross-encoder rerank → top-12
 
-**Supported languages:** TypeScript, JavaScript, Python, Go, Rust, Java (Tree-sitter fast path), plus Markdown as plaintext.
+**Supported languages:** TypeScript, JavaScript, Python, Go, Rust, Java, PHP, SQL, CSS, SCSS (Tree-sitter fast path), plus Markdown as plaintext.
 
 ---
 
@@ -223,8 +223,8 @@ re-embeds changed files, keeping ongoing costs near zero.
 
 This repo is Pythia v1 — a single MCP server combining LCS indexing and oracle memory.
 
-- All source: `/Users/mikeboscia/pythia/src/`
-- Design spec (authoritative): `/Users/mikeboscia/pythia/design/pythia-lcs-spec.md`
+- All source: `src/`
+- Design spec (authoritative): `design/pythia-lcs-spec.md`
 - DB per workspace: `<workspace>/.pythia/lcs.db`
 - Global config: `~/.pythia/config.json`
 - 6 MCP tools: `lcs_investigate`, `pythia_force_index`, `spawn_oracle`, `ask_oracle`, `oracle_commit_decision`, `oracle_decommission`

@@ -107,6 +107,7 @@ At the start of every session, read these files in this order:
 - Never break working functionality to implement new functionality
 - If a change touches more than one system, verify each system still works after
 - When in doubt, ask before overwriting
+- Whenever new languages, tools, or CLI commands are implemented, update the Supported languages, MCP Tools, and Quick Context sections in `README.md` in the same commit
 
 ### No File Overwrites (Documentation)
 - Never overwrite existing documentation files (`PRD.md`, `APP_FLOW.md`, etc. from oracle era)
