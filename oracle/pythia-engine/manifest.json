@@ -285,6 +285,14 @@
       "sha256": "c4536cce68b168dbd692acec893636fcb172602b6ac7dc006fdebeef5604bbee",
       "added_at": "2026-03-12T02:03:09.594Z",
       "priority": 46
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/indexer/embedder.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "f370ffebb51065ae8c598ffa8768c07c242017a310242a9e71d803a5db0fa03e",
+      "added_at": "2026-03-12T02:03:13.887Z",
+      "priority": 50
     }
   ],
   "live_sources": [
