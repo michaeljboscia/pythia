@@ -381,6 +381,14 @@
       "sha256": "e33474bcaf46ae455c3d4e1c0c2f29f308a1e04efec6c1e198a7a864da5cab70",
       "added_at": "2026-03-12T02:04:05.509Z",
       "priority": 61
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/mcp/lcs-investigate.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "16d81a72bccf1c9fb33e4518b8e196384ec4f7d42cd6b3e6d4b463dce8f9da75",
+      "added_at": "2026-03-12T02:04:09.322Z",
+      "priority": 62
     }
   ],
   "live_sources": [
