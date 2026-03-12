@@ -39,6 +39,28 @@ type SupervisorOptions = {
 const CRASH_WINDOW_MS = 600_000;
 const MAX_CRASHES = 3;
 
+export function resolveWorkerEntryPoint(
+  moduleUrl: string,
+  pathExists: (candidatePath: string) => boolean = existsSync
+): string {
+  const moduleDirectory = path.dirname(fileURLToPath(moduleUrl));
+  const candidatePaths = [
+    path.resolve(moduleDirectory, "worker.js"),
+    path.resolve(moduleDirectory, "worker.ts"),
+    path.resolve(moduleDirectory, "indexer", "worker.js"),
+    path.resolve(moduleDirectory, "indexer", "worker.ts"),
+    path.resolve(moduleDirectory, "..", "indexer", "worker.js"),
+    path.resolve(moduleDirectory, "..", "indexer", "worker.ts")
+  ];
+  const workerPath = candidatePaths.find((candidatePath) => pathExists(candidatePath));
+
+  if (workerPath === undefined) {
+    throw new Error("Unable to resolve worker entry point");
+  }
+
+  return workerPath;
+}
+
 function createWorker(
   dbPath: string,
   workspaceRoot: string,
@@ -46,17 +68,7 @@ function createWorker(
   embeddingsConfig?: EmbeddingsBackendConfig,
   indexingConfig?: PythiaIndexingConfig
 ): Worker {
-  const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
-  const candidatePaths = [
-    path.resolve(moduleDirectory, "worker.js"),
-    path.resolve(moduleDirectory, "indexer", "worker.js"),
-    path.resolve(moduleDirectory, "..", "indexer", "worker.js")
-  ];
-  const workerPath = candidatePaths.find((candidatePath) => existsSync(candidatePath));
-
-  if (workerPath === undefined) {
-    throw new Error("Unable to resolve worker entry point");
-  }
+  const workerPath = resolveWorkerEntryPoint(import.meta.url);
 
   return new Worker(workerPath, {
     workerData: { dbPath, workspaceRoot, retentionDays, embeddingsConfig, indexingConfig }

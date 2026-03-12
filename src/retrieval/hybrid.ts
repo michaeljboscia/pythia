@@ -84,6 +84,33 @@ function isTrigramCandidate(query: string): boolean {
     || query.includes(".");
 }
 
+export function normalizeKeywordFtsQuery(query: string): string | null {
+  const tokens = query.match(/[\p{L}\p{N}._:/#<>?!-]+/gu) ?? [];
+  const normalized = tokens
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0);
+
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  return normalized.map((token) => `"${token}"`).join(" ");
+}
+
+export function normalizeSubstringFtsQuery(query: string): string | null {
+  const trimmed = query.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const phrase = trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length >= 2
+    ? trimmed.slice(1, -1)
+    : trimmed;
+
+  return `"${phrase.replaceAll("\"", "\"\"")}"`;
+}
+
 export function chooseFtsRoute(query: string, keywordHitCount: number): FtsRoute {
   if (keywordHitCount > 0) {
     return "kw";
@@ -146,25 +173,37 @@ function runVectorSearch(
 }
 
 function runKeywordFts(db: Database.Database, query: string): SearchResult[] {
+  const normalizedQuery = normalizeKeywordFtsQuery(query);
+
+  if (normalizedQuery === null) {
+    return [];
+  }
+
   const rows = db.prepare(`
     SELECT id
     FROM fts_lcs_chunks_kw
     WHERE fts_lcs_chunks_kw MATCH ?
     ORDER BY rank
     LIMIT ?
-  `).all(query, FTS_LIMIT) as FtsRow[];
+  `).all(normalizedQuery, FTS_LIMIT) as FtsRow[];
 
   return getChunkRows(db, rows.map((row) => row.id));
 }
 
 function runSubstringFts(db: Database.Database, query: string): SearchResult[] {
+  const normalizedQuery = normalizeSubstringFtsQuery(query);
+
+  if (normalizedQuery === null) {
+    return [];
+  }
+
   const rows = db.prepare(`
     SELECT id
     FROM fts_lcs_chunks_sub
     WHERE fts_lcs_chunks_sub MATCH ?
     ORDER BY rank
     LIMIT ?
-  `).all(query, FTS_LIMIT) as FtsRow[];
+  `).all(normalizedQuery, FTS_LIMIT) as FtsRow[];
 
   return getChunkRows(db, rows.map((row) => row.id));
 }

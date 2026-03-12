@@ -1,6 +1,6 @@
 {
   "name": "pythia-lcs",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "type": "module",
   "bin": {
     "pythia": "./dist/cli/main.js"
@@ -23,6 +23,7 @@
   "scripts": {
     "build": "tsup",
     "build:test": "tsc -p tsconfig.json --outDir dist-test",
+    "benchmark": "node scripts/csn-benchmark.mjs",
     "test": "npm run build:test --silent && node --experimental-strip-types --test dist-test/src/__tests__/*.test.js dist-test/src/__tests__/integration/*.test.js dist-test/src/__tests__/performance/*.test.js",
     "prepublishOnly": "npm run build && npm test"
   },

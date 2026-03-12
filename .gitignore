@@ -8,3 +8,4 @@ dist-test/
 .DS_Store
 **/.DS_Store
 research/lcs/prompts-web/
+benchmarks/results/

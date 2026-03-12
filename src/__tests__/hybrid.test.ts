@@ -9,6 +9,8 @@ import { runMigrations } from "../db/migrate.js";
 import {
   chooseFtsRoute,
   fuseSearchResults,
+  normalizeKeywordFtsQuery,
+  normalizeSubstringFtsQuery,
   search,
   type SearchResult
 } from "../retrieval/hybrid.js";
@@ -127,6 +129,20 @@ test("FTS routing stays on keyword FTS when keyword hits exist even if query loo
   assert.equal(chooseFtsRoute("src/auth.ts::function::login", 1), "kw");
 });
 
+test("keyword FTS query normalization strips parser-breaking punctuation", () => {
+  assert.equal(
+    normalizeKeywordFtsQuery("A `CancelToken` is an object that can be used to request cancellation."),
+    "\"A\" \"CancelToken\" \"is\" \"an\" \"object\" \"that\" \"can\" \"be\" \"used\" \"to\" \"request\" \"cancellation.\""
+  );
+});
+
+test("substring FTS query normalization quotes the full structural query safely", () => {
+  assert.equal(
+    normalizeSubstringFtsQuery("\"src/auth.ts::function::login\""),
+    "\"src/auth.ts::function::login\""
+  );
+});
+
 test("cross-encoder timeout leaves RRF order unchanged and marks reranker unavailable", async () => {
   const { db, cleanup } = createDb();
 
@@ -156,6 +172,35 @@ test("cross-encoder timeout leaves RRF order unchanged and marks reranker unavai
     assert.equal(result.results[0]?.id, "src/auth.ts::function::login");
   } finally {
     __resetRerankerForTests();
+    cleanup();
+  }
+});
+
+test("search tolerates natural-language queries containing backticks", async () => {
+  const { db, cleanup } = createDb();
+
+  seedChunkTables(db, [{
+    id: "src/auth.ts::function::cancelToken",
+    content: "CancelToken object used to request cancellation of an operation"
+  }]);
+
+  try {
+    const result = await search(
+      "A `CancelToken` is an object that can be used to request cancellation of an operation.",
+      "semantic",
+      db,
+      8,
+      {
+        embedQueryImpl: async () => new Float32Array(256),
+        rerankImpl: async (_query, candidates) => ({
+          chunks: candidates,
+          rerankerUsed: false
+        })
+      }
+    );
+
+    assert.equal(result.results[0]?.id, "src/auth.ts::function::cancelToken");
+  } finally {
     cleanup();
   }
 });

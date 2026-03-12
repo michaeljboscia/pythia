@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import test from "node:test";
 
-import { IndexingSupervisor } from "../indexer/supervisor.js";
+import { IndexingSupervisor, resolveWorkerEntryPoint } from "../indexer/supervisor.js";
 import type { MainToWorker, WorkerToMain } from "../indexer/worker-protocol.js";
 
 class FakeWorker extends EventEmitter {
@@ -115,4 +115,22 @@ test("die() sends DIE and resolves when ACK: DIE arrives", async () => {
   await rig.supervisor.die();
 
   assert.equal(postedDie, true);
+});
+
+test("resolveWorkerEntryPoint prefers worker.ts when running from source", () => {
+  const workerPath = resolveWorkerEntryPoint(
+    "file:///tmp/pythia/src/indexer/supervisor.ts",
+    (candidatePath) => candidatePath === "/tmp/pythia/src/indexer/worker.ts"
+  );
+
+  assert.equal(workerPath, "/tmp/pythia/src/indexer/worker.ts");
+});
+
+test("resolveWorkerEntryPoint falls back to worker.js for built output", () => {
+  const workerPath = resolveWorkerEntryPoint(
+    "file:///tmp/pythia/dist/indexer/supervisor.js",
+    (candidatePath) => candidatePath === "/tmp/pythia/dist/indexer/worker.js"
+  );
+
+  assert.equal(workerPath, "/tmp/pythia/dist/indexer/worker.js");
 });

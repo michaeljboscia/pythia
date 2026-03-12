@@ -61,6 +61,18 @@ test("valid config parses cleanly", () => {
   }
 });
 
+test("indexing defaults include embedding batch and concurrency settings", () => {
+  const { cleanup, configPath } = writeConfigFile(createValidConfig());
+
+  try {
+    const config = loadConfig(configPath);
+    assert.equal(config.indexing.embedding_batch_size, 32);
+    assert.equal(config.indexing.embedding_concurrency, 1);
+  } finally {
+    cleanup();
+  }
+});
+
 test("missing required field throws with CONFIG_INVALID", () => {
   const invalidConfig = createValidConfig();
   delete invalidConfig.workspace_path;

@@ -1,0 +1,1483 @@
+{
+  "run_id": "2026-03-12T14-30-35Z",
+  "config": {
+    "backend": "local_onnx",
+    "dimensions": 256,
+    "embedding_batch_size": 32,
+    "embedding_concurrency": 1
+  },
+  "summary": {
+    "precision_at_1": 0.5833333333333334,
+    "precision_at_3": 0.25000000000000006,
+    "precision_at_5": 0.1583333333333334,
+    "mrr": 0.6501984126984126,
+    "ndcg_at_10": 0.6897299780792169,
+    "zero_result_queries": 0,
+    "missing_label_queries": 0
+  },
+  "by_difficulty": {
+    "easy": {
+      "precision_at_1": 0,
+      "precision_at_3": 0,
+      "precision_at_5": 0,
+      "mrr": 0,
+      "ndcg_at_10": 0
+    },
+    "medium": {
+      "precision_at_1": 0.5833333333333334,
+      "precision_at_3": 0.25000000000000006,
+      "precision_at_5": 0.1583333333333334,
+      "mrr": 0.6501984126984126,
+      "ndcg_at_10": 0.6897299780792169
+    },
+    "hard": {
+      "precision_at_1": 0,
+      "precision_at_3": 0,
+      "precision_at_5": 0,
+      "mrr": 0,
+      "ndcg_at_10": 0
+    }
+  },
+  "queries": [
+    {
+      "id": "csn-00000_createInstance.js",
+      "query": "Create an instance of Axios",
+      "relevant_chunks": [
+        "00000_createInstance.js::function::createInstance"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00000_createInstance.js::function::createInstance",
+        "00000_createInstance.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default",
+        "00007_retryStrategy.js::function::retryStrategy",
+        "00007_retryStrategy.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00001_CancelToken.js",
+      "query": "A `CancelToken` is an object that can be used to request cancellation of an operation.",
+      "relevant_chunks": [
+        "00001_CancelToken.js::function::CancelToken"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00001_CancelToken.js::function::CancelToken",
+        "00001_CancelToken.js::module::default",
+        "00007_retryStrategy.js::function::retryStrategy",
+        "00007_retryStrategy.js::module::default",
+        "00028_parseSegments.js::function::parseSegments",
+        "00028_parseSegments.js::module::default",
+        "00006_fetchQuery.js::function::fetchQuery",
+        "00006_fetchQuery.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00002_isArrayBufferView.js",
+      "query": "Determine if a value is a view on an ArrayBuffer",
+      "relevant_chunks": [
+        "00002_isArrayBufferView.js::function::isArrayBufferView"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00002_isArrayBufferView.js::function::isArrayBufferView",
+        "00002_isArrayBufferView.js::module::default",
+        "00003_isStandardBrowserEnv.js::function::isStandardBrowserEnv",
+        "00003_isStandardBrowserEnv.js::module::default",
+        "00042_am1.js::function::am1",
+        "00042_am1.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00003_isStandardBrowserEnv.js",
+      "query": "Determine if we're running in a standard browser environment",
+      "relevant_chunks": [
+        "00003_isStandardBrowserEnv.js::function::isStandardBrowserEnv"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00003_isStandardBrowserEnv.js::function::isStandardBrowserEnv",
+        "00003_isStandardBrowserEnv.js::module::default",
+        "00017_slideNext.js::function::slideNext",
+        "00017_slideNext.js::module::default",
+        "00042_am1.js::function::am1",
+        "00042_am1.js::module::default",
+        "00034_browserEntropy.js::function::browserEntropy",
+        "00034_browserEntropy.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00004_forEach.js",
+      "query": "Iterate over an Array or an Object invoking a function for each item.",
+      "relevant_chunks": [
+        "00004_forEach.js::function::forEach"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00004_forEach.js::function::forEach",
+        "00004_forEach.js::module::default",
+        "00044_bnpCopyTo.js::function::bnpCopyTo",
+        "00044_bnpCopyTo.js::module::default",
+        "00005_extend.js::function::extend",
+        "00005_extend.js::module::default",
+        "00042_am1.js::function::am1",
+        "00042_am1.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00005_extend.js",
+      "query": "Extends object a by mutably adding to it the properties of object b.",
+      "relevant_chunks": [
+        "00005_extend.js::function::extend"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00005_extend.js::function::extend",
+        "00005_extend.js::module::default",
+        "00004_forEach.js::function::forEach",
+        "00004_forEach.js::module::default",
+        "00015_tryApplyUpdates.js::function::tryApplyUpdates",
+        "00015_tryApplyUpdates.js::module::default",
+        "00010_addEntry.js::function::addEntry",
+        "00010_addEntry.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00006_fetchQuery.js",
+      "query": "Define a function that fetches the results of an operation (query/mutation/etc) and returns its results as a Promise:",
+      "relevant_chunks": [
+        "00006_fetchQuery.js::function::fetchQuery"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00006_fetchQuery.js::function::fetchQuery",
+        "00006_fetchQuery.js::module::default",
+        "00010_addEntry.js::function::addEntry",
+        "00010_addEntry.js::module::default",
+        "00044_bnpCopyTo.js::function::bnpCopyTo",
+        "00044_bnpCopyTo.js::module::default",
+        "00005_extend.js::function::extend",
+        "00005_extend.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00007_retryStrategy.js",
+      "query": "konstructor: The redis client constructor method.  All redis methods must be promises args: The arguments to pass to the constructor buildNew: is it `new konstructor()` or just `konstructor()`?",
+      "relevant_chunks": [
+        "00007_retryStrategy.js::function::retryStrategy"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00010_addEntry.js::function::addEntry",
+        "00010_addEntry.js::module::default",
+        "00000_createInstance.js::function::createInstance",
+        "00000_createInstance.js::module::default",
+        "00007_retryStrategy.js::function::retryStrategy",
+        "00007_retryStrategy.js::module::default",
+        "00003_isStandardBrowserEnv.js::function::isStandardBrowserEnv",
+        "00003_isStandardBrowserEnv.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0.2,
+        "rr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00008_writePackageManifest.js",
+      "query": "This function writes a minimal `package.json` file for a compiled package. It defines `name`, `main`, `author`, and `license`. It also defines `types`. n.b. types intended for development usage only.",
+      "relevant_chunks": [
+        "00008_writePackageManifest.js::function::writePackageManifest"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00008_writePackageManifest.js::function::writePackageManifest",
+        "00008_writePackageManifest.js::module::default",
+        "00010_addEntry.js::function::addEntry",
+        "00010_addEntry.js::module::default",
+        "00012_handleErrors.js::function::handleErrors",
+        "00012_handleErrors.js::module::default",
+        "00003_isStandardBrowserEnv.js::function::isStandardBrowserEnv",
+        "00003_isStandardBrowserEnv.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00009_supportsPreload.js",
+      "query": "smaller version of https://gist.github.com/igrigorik/a02f2359f3bc50ca7a9c",
+      "relevant_chunks": [
+        "00009_supportsPreload.js::function::supportsPreload"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00018_slidePrev.js::function::slidePrev",
+        "00018_slidePrev.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default",
+        "00043_am2.js::function::am2",
+        "00043_am2.js::module::default",
+        "00017_slideNext.js::function::slideNext",
+        "00017_slideNext.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0,
+        "rr": 0,
+        "ndcg_at_10": 0
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00010_addEntry.js",
+      "query": "Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37",
+      "relevant_chunks": [
+        "00010_addEntry.js::function::addEntry"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00010_addEntry.js::function::addEntry",
+        "00010_addEntry.js::module::default",
+        "00014_tryApplyUpdates.js::function::tryApplyUpdates",
+        "00014_tryApplyUpdates.js::module::default",
+        "00000_createInstance.js::function::createInstance",
+        "00000_createInstance.js::module::default",
+        "00006_fetchQuery.js::function::fetchQuery",
+        "00006_fetchQuery.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00011_handleWarnings.js",
+      "query": "Compilation with warnings (e.g. ESLint).",
+      "relevant_chunks": [
+        "00011_handleWarnings.js::function::handleWarnings"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00011_handleWarnings.js::function::handleWarnings",
+        "00011_handleWarnings.js::module::default",
+        "00012_handleErrors.js::function::handleErrors",
+        "00012_handleErrors.js::module::default",
+        "00010_addEntry.js::function::addEntry",
+        "00010_addEntry.js::module::default",
+        "00016_formatMessage.js::function::formatMessage",
+        "00016_formatMessage.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00012_handleErrors.js",
+      "query": "Compilation with errors (e.g. syntax error or missing modules).",
+      "relevant_chunks": [
+        "00012_handleErrors.js::function::handleErrors"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00010_addEntry.js::function::addEntry",
+        "00010_addEntry.js::module::default",
+        "00012_handleErrors.js::function::handleErrors",
+        "00012_handleErrors.js::module::default",
+        "00016_formatMessage.js::function::formatMessage",
+        "00016_formatMessage.js::module::default",
+        "00008_writePackageManifest.js::function::writePackageManifest",
+        "00008_writePackageManifest.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00013_processMessage.js",
+      "query": "Handle messages from the server.",
+      "relevant_chunks": [
+        "00013_processMessage.js::function::processMessage"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00012_handleErrors.js::function::handleErrors",
+        "00012_handleErrors.js::module::default",
+        "00013_processMessage.js::function::processMessage",
+        "00013_processMessage.js::module::default",
+        "00011_handleWarnings.js::function::handleWarnings",
+        "00011_handleWarnings.js::module::default",
+        "00003_isStandardBrowserEnv.js::function::isStandardBrowserEnv",
+        "00003_isStandardBrowserEnv.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00014_tryApplyUpdates.js",
+      "query": "Attempt to update code on the fly, fall back to a hard reload.",
+      "relevant_chunks": [
+        "00014_tryApplyUpdates.js::function::tryApplyUpdates"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00014_tryApplyUpdates.js::function::tryApplyUpdates",
+        "00014_tryApplyUpdates.js::module::default",
+        "00015_tryApplyUpdates.js::function::tryApplyUpdates",
+        "00015_tryApplyUpdates.js::module::default",
+        "00007_retryStrategy.js::function::retryStrategy",
+        "00007_retryStrategy.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00015_tryApplyUpdates.js",
+      "query": "This function reads code updates on the fly and hard reloads the page when it has changed.",
+      "relevant_chunks": [
+        "00015_tryApplyUpdates.js::function::tryApplyUpdates"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00015_tryApplyUpdates.js::function::tryApplyUpdates",
+        "00015_tryApplyUpdates.js::module::default",
+        "00014_tryApplyUpdates.js::function::tryApplyUpdates",
+        "00014_tryApplyUpdates.js::module::default",
+        "00012_handleErrors.js::function::handleErrors",
+        "00012_handleErrors.js::module::default",
+        "00006_fetchQuery.js::function::fetchQuery",
+        "00006_fetchQuery.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00016_formatMessage.js",
+      "query": "Cleans up webpack error messages. eslint-disable-next-line no-unused-vars",
+      "relevant_chunks": [
+        "00016_formatMessage.js::function::formatMessage"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00016_formatMessage.js::function::formatMessage",
+        "00016_formatMessage.js::module::default",
+        "00012_handleErrors.js::function::handleErrors",
+        "00012_handleErrors.js::module::default",
+        "00011_handleWarnings.js::function::handleWarnings",
+        "00011_handleWarnings.js::module::default",
+        "00014_tryApplyUpdates.js::function::tryApplyUpdates",
+        "00014_tryApplyUpdates.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00017_slideNext.js",
+      "query": "/* eslint no-unused-vars: \"off\"",
+      "relevant_chunks": [
+        "00017_slideNext.js::function::slideNext"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00004_forEach.js::function::forEach",
+        "00004_forEach.js::module::default",
+        "00016_formatMessage.js::function::formatMessage",
+        "00016_formatMessage.js::module::default",
+        "00038_cryptoJsEncrypt.js::function::cryptoJsEncrypt",
+        "00038_cryptoJsEncrypt.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0,
+        "rr": 0,
+        "ndcg_at_10": 0
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00018_slidePrev.js",
+      "query": "/* eslint no-unused-vars: \"off\"",
+      "relevant_chunks": [
+        "00018_slidePrev.js::function::slidePrev"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00004_forEach.js::function::forEach",
+        "00004_forEach.js::module::default",
+        "00016_formatMessage.js::function::formatMessage",
+        "00016_formatMessage.js::module::default",
+        "00038_cryptoJsEncrypt.js::function::cryptoJsEncrypt",
+        "00038_cryptoJsEncrypt.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0,
+        "rr": 0,
+        "ndcg_at_10": 0
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00019_encodeName.js",
+      "query": "Original Name encode and decode logic is in github.com/eosio/eos  native.hpp",
+      "relevant_chunks": [
+        "00019_encodeName.js::function::encodeName"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00024_encodeAddress.js::function::encodeAddress",
+        "00024_encodeAddress.js::module::default",
+        "00019_encodeName.js::function::encodeName",
+        "00019_encodeName.js::module::default",
+        "00025_decodeAddress.js::function::decodeAddress",
+        "00025_decodeAddress.js::module::default",
+        "00012_handleErrors.js::function::handleErrors",
+        "00012_handleErrors.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00020_UDecimalString.js",
+      "query": "Normalize and validate decimal string (potentially large values).  Should",
+      "relevant_chunks": [
+        "00020_UDecimalString.js::function::UDecimalString"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00022_UDecimalUnimply.js::function::UDecimalUnimply",
+        "00022_UDecimalUnimply.js::module::default",
+        "00020_UDecimalString.js::function::UDecimalString",
+        "00020_UDecimalString.js::module::default",
+        "00021_UDecimalPad.js::function::UDecimalPad",
+        "00021_UDecimalPad.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00021_UDecimalPad.js",
+      "query": "Ensure a fixed number of decimal places.  Safe for large numbers.",
+      "relevant_chunks": [
+        "00021_UDecimalPad.js::function::UDecimalPad"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default",
+        "00021_UDecimalPad.js::function::UDecimalPad",
+        "00021_UDecimalPad.js::module::default",
+        "00022_UDecimalUnimply.js::function::UDecimalUnimply",
+        "00022_UDecimalUnimply.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00022_UDecimalUnimply.js",
+      "query": "Put the decimal place back in its position and return the normalized number",
+      "relevant_chunks": [
+        "00022_UDecimalUnimply.js::function::UDecimalUnimply"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default",
+        "00045_bnpInvDigit.js::function::bnpInvDigit",
+        "00045_bnpInvDigit.js::module::default",
+        "00021_UDecimalPad.js::function::UDecimalPad",
+        "00021_UDecimalPad.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0,
+        "rr": 0,
+        "ndcg_at_10": 0
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00023_parseAssetSymbol.js",
+      "query": "@arg {string} assetSymbol - 4,SYM",
+      "relevant_chunks": [
+        "00023_parseAssetSymbol.js::function::parseAssetSymbol"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00023_parseAssetSymbol.js::function::parseAssetSymbol",
+        "00023_parseAssetSymbol.js::module::default",
+        "00005_extend.js::function::extend",
+        "00005_extend.js::module::default",
+        "00013_processMessage.js::function::processMessage",
+        "00013_processMessage.js::module::default",
+        "00042_am1.js::function::am1",
+        "00042_am1.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00024_encodeAddress.js",
+      "query": "/* Encode EVT Address in address.cpp",
+      "relevant_chunks": [
+        "00024_encodeAddress.js::function::encodeAddress"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00024_encodeAddress.js::function::encodeAddress",
+        "00024_encodeAddress.js::module::default",
+        "00025_decodeAddress.js::function::decodeAddress",
+        "00025_decodeAddress.js::module::default",
+        "00038_cryptoJsEncrypt.js::function::cryptoJsEncrypt",
+        "00038_cryptoJsEncrypt.js::module::default",
+        "00039_getSharedSecret.js::function::getSharedSecret",
+        "00039_getSharedSecret.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00025_decodeAddress.js",
+      "query": "/* Decode EVT Address in address.cpp",
+      "relevant_chunks": [
+        "00025_decodeAddress.js::function::decodeAddress"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00024_encodeAddress.js::function::encodeAddress",
+        "00024_encodeAddress.js::module::default",
+        "00025_decodeAddress.js::function::decodeAddress",
+        "00025_decodeAddress.js::module::default",
+        "00033_cpuEntropy.js::function::cpuEntropy",
+        "00033_cpuEntropy.js::module::default",
+        "00039_getSharedSecret.js::function::getSharedSecret",
+        "00039_getSharedSecret.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00026_createSegment.js",
+      "query": "create a buffer representing a segment.",
+      "relevant_chunks": [
+        "00026_createSegment.js::function::createSegment"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00028_parseSegments.js::function::parseSegments",
+        "00028_parseSegments.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default",
+        "00000_createInstance.js::function::createInstance",
+        "00000_createInstance.js::module::default",
+        "00047_bnNot.js::function::bnNot",
+        "00047_bnNot.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0,
+        "rr": 0,
+        "ndcg_at_10": 0
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00027_parseSegment.js",
+      "query": "Parse a segment and convert it into json.",
+      "relevant_chunks": [
+        "00027_parseSegment.js::function::parseSegment"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00028_parseSegments.js::function::parseSegments",
+        "00028_parseSegments.js::module::default",
+        "00029_parseQRCode.js::function::parseQRCode",
+        "00029_parseQRCode.js::module::default",
+        "00006_fetchQuery.js::function::fetchQuery",
+        "00006_fetchQuery.js::module::default",
+        "00013_processMessage.js::function::processMessage",
+        "00013_processMessage.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0,
+        "rr": 0,
+        "ndcg_at_10": 0
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00028_parseSegments.js",
+      "query": "Parse a buffer to a array of segments",
+      "relevant_chunks": [
+        "00028_parseSegments.js::function::parseSegments"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00028_parseSegments.js::function::parseSegments",
+        "00028_parseSegments.js::module::default",
+        "00029_parseQRCode.js::function::parseQRCode",
+        "00029_parseQRCode.js::module::default",
+        "00027_parseSegment.js::function::parseSegment",
+        "00027_parseSegment.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00029_parseQRCode.js",
+      "query": "Parse a everiToken's QRCode Text",
+      "relevant_chunks": [
+        "00029_parseQRCode.js::function::parseQRCode"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00029_parseQRCode.js::function::parseQRCode",
+        "00029_parseQRCode.js::module::default",
+        "00038_cryptoJsEncrypt.js::function::cryptoJsEncrypt",
+        "00038_cryptoJsEncrypt.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default",
+        "00023_parseAssetSymbol.js::function::parseAssetSymbol",
+        "00023_parseAssetSymbol.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00030___calcKeyProvider.js",
+      "query": "Calculate the value of keyProvider",
+      "relevant_chunks": [
+        "00030___calcKeyProvider.js::function::__calcKeyProvider"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00030___calcKeyProvider.js::function::__calcKeyProvider",
+        "00030___calcKeyProvider.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default",
+        "00039_getSharedSecret.js::function::getSharedSecret",
+        "00039_getSharedSecret.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00031_random32ByteBuffer.js",
+      "query": "Additional forms of entropy are used.  A week random number generator can run out of entropy.  This should ensure even the worst random number implementation will be reasonably safe.",
+      "relevant_chunks": [
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default",
+        "00033_cpuEntropy.js::function::cpuEntropy",
+        "00033_cpuEntropy.js::module::default",
+        "00034_browserEntropy.js::function::browserEntropy",
+        "00034_browserEntropy.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00032_addEntropy.js",
+      "query": "Adds entropy.  This may be called many times while the amount of data saved",
+      "relevant_chunks": [
+        "00032_addEntropy.js::function::addEntropy"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00032_addEntropy.js::function::addEntropy",
+        "00032_addEntropy.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default",
+        "00033_cpuEntropy.js::function::cpuEntropy",
+        "00033_cpuEntropy.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00033_cpuEntropy.js",
+      "query": "This runs in just under 1 second and ensures a minimum of cpuEntropyBits",
+      "relevant_chunks": [
+        "00033_cpuEntropy.js::function::cpuEntropy"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00033_cpuEntropy.js::function::cpuEntropy",
+        "00033_cpuEntropy.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default",
+        "00017_slideNext.js::function::slideNext",
+        "00017_slideNext.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00034_browserEntropy.js",
+      "query": "Attempt to gather and hash information from the browser's window, history, and supported mime types.  For non-browser environments this simply includes secure random data.  In any event, the information is re-hashed in a loop for 25 milliseconds seconds.",
+      "relevant_chunks": [
+        "00034_browserEntropy.js::function::browserEntropy"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00034_browserEntropy.js::function::browserEntropy",
+        "00034_browserEntropy.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default",
+        "00007_retryStrategy.js::function::retryStrategy",
+        "00007_retryStrategy.js::module::default",
+        "00006_fetchQuery.js::function::fetchQuery",
+        "00006_fetchQuery.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00035_encrypt.js",
+      "query": "Spec: http://localhost:3002/steem/@dantheman/how-to-encrypt-a-memo-when-transferring-steem",
+      "relevant_chunks": [
+        "00035_encrypt.js::function::encrypt"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00036_decrypt.js::function::decrypt",
+        "00036_decrypt.js::module::default",
+        "00035_encrypt.js::function::encrypt",
+        "00035_encrypt.js::module::default",
+        "00038_cryptoJsEncrypt.js::function::cryptoJsEncrypt",
+        "00038_cryptoJsEncrypt.js::module::default",
+        "00037_cryptoJsDecrypt.js::function::cryptoJsDecrypt",
+        "00037_cryptoJsDecrypt.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00036_decrypt.js",
+      "query": "Spec: http://localhost:3002/steem/@dantheman/how-to-encrypt-a-memo-when-transferring-steem",
+      "relevant_chunks": [
+        "00036_decrypt.js::function::decrypt"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00036_decrypt.js::function::decrypt",
+        "00036_decrypt.js::module::default",
+        "00035_encrypt.js::function::encrypt",
+        "00035_encrypt.js::module::default",
+        "00038_cryptoJsEncrypt.js::function::cryptoJsEncrypt",
+        "00038_cryptoJsEncrypt.js::module::default",
+        "00037_cryptoJsDecrypt.js::function::cryptoJsDecrypt",
+        "00037_cryptoJsDecrypt.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00037_cryptoJsDecrypt.js",
+      "query": "This method does not use a checksum, the returned data must be validated some other way.",
+      "relevant_chunks": [
+        "00037_cryptoJsDecrypt.js::function::cryptoJsDecrypt"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00036_decrypt.js::function::decrypt",
+        "00036_decrypt.js::module::default",
+        "00003_isStandardBrowserEnv.js::function::isStandardBrowserEnv",
+        "00003_isStandardBrowserEnv.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0,
+        "rr": 0,
+        "ndcg_at_10": 0
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00038_cryptoJsEncrypt.js",
+      "query": "This method does not use a checksum, the returned data must be validated some other way.",
+      "relevant_chunks": [
+        "00038_cryptoJsEncrypt.js::function::cryptoJsEncrypt"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00036_decrypt.js::function::decrypt",
+        "00036_decrypt.js::module::default",
+        "00003_isStandardBrowserEnv.js::function::isStandardBrowserEnv",
+        "00003_isStandardBrowserEnv.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0,
+        "rr": 0,
+        "ndcg_at_10": 0
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00039_getSharedSecret.js",
+      "query": "@arg {string|Object} pubkey wif, PublicKey object",
+      "relevant_chunks": [
+        "00039_getSharedSecret.js::function::getSharedSecret"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00039_getSharedSecret.js::function::getSharedSecret",
+        "00039_getSharedSecret.js::module::default",
+        "00030___calcKeyProvider.js::function::__calcKeyProvider",
+        "00030___calcKeyProvider.js::module::default",
+        "00040_getChildKey.js::function::getChildKey",
+        "00040_getChildKey.js::module::default",
+        "00035_encrypt.js::function::encrypt",
+        "00035_encrypt.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00040_getChildKey.js",
+      "query": "/** ECIES TODO unit test @arg {string|Object} pubkey wif, PublicKey object @return {Buffer} 64 byte shared secret  function getSharedSecret(public_key) { public_key = PublicKey(public_key).toUncompressed() var P = public_key.Q.multiply( d ); var S = P.affineX.toBuffer({size: 32}); // ECIES, adds an extra sha512 return hash.sha512(S); }",
+      "relevant_chunks": [
+        "00040_getChildKey.js::function::getChildKey"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00039_getSharedSecret.js::function::getSharedSecret",
+        "00039_getSharedSecret.js::module::default",
+        "00040_getChildKey.js::function::getChildKey",
+        "00040_getChildKey.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default",
+        "00035_encrypt.js::function::encrypt",
+        "00035_encrypt.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00041_initialize.js",
+      "query": "Run self-checking code and gather CPU entropy.",
+      "relevant_chunks": [
+        "00041_initialize.js::function::initialize"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default",
+        "00033_cpuEntropy.js::function::cpuEntropy",
+        "00033_cpuEntropy.js::module::default",
+        "00041_initialize.js::function::initialize",
+        "00041_initialize.js::module::default",
+        "00006_fetchQuery.js::function::fetchQuery",
+        "00006_fetchQuery.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0.2,
+        "rr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00042_am1.js",
+      "query": "am1: use a single mult and divide to get the high bits, max digit bits should be 26 because max internal value = 2*dvalue^2-2*dvalue (< 2^53)",
+      "relevant_chunks": [
+        "00042_am1.js::function::am1"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00045_bnpInvDigit.js::function::bnpInvDigit",
+        "00045_bnpInvDigit.js::module::default",
+        "00043_am2.js::function::am2",
+        "00043_am2.js::module::default",
+        "00033_cpuEntropy.js::function::cpuEntropy",
+        "00033_cpuEntropy.js::module::default",
+        "00042_am1.js::function::am1",
+        "00042_am1.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0,
+        "rr": 0.14285714285714285,
+        "ndcg_at_10": 0.3333333333333333
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00043_am2.js",
+      "query": "am2 avoids a big mult-and-extract completely. Max digit bits should be <= 30 because we do bitwise ops on values up to 2*hdvalue^2-hdvalue-1 (< 2^31)",
+      "relevant_chunks": [
+        "00043_am2.js::function::am2"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00043_am2.js::function::am2",
+        "00043_am2.js::module::default",
+        "00033_cpuEntropy.js::function::cpuEntropy",
+        "00033_cpuEntropy.js::module::default",
+        "00025_decodeAddress.js::function::decodeAddress",
+        "00025_decodeAddress.js::module::default",
+        "00045_bnpInvDigit.js::function::bnpInvDigit",
+        "00045_bnpInvDigit.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00044_bnpCopyTo.js",
+      "query": "(protected) copy this to r",
+      "relevant_chunks": [
+        "00044_bnpCopyTo.js::function::bnpCopyTo"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00044_bnpCopyTo.js::function::bnpCopyTo",
+        "00044_bnpCopyTo.js::module::default",
+        "00003_isStandardBrowserEnv.js::function::isStandardBrowserEnv",
+        "00003_isStandardBrowserEnv.js::module::default",
+        "00015_tryApplyUpdates.js::function::tryApplyUpdates",
+        "00015_tryApplyUpdates.js::module::default",
+        "00029_parseQRCode.js::function::parseQRCode",
+        "00029_parseQRCode.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00045_bnpInvDigit.js",
+      "query": "(protected) return \"-1/this % 2^DB\"; useful for Mont. reduction justification: xy == 1 (mod m) xy =  1+km xy(2-xy) = (1+km)(1-km) x[y(2-xy)] = 1-k^2m^2 x[y(2-xy)] == 1 (mod m^2) if y is 1/x mod m, then y(2-xy) is 1/x mod m^2 should reduce x and y(2-xy) by m^2 at each step to keep size bounded. JS multiply \"overflows\" differently from C/C++, so care is needed here.",
+      "relevant_chunks": [
+        "00045_bnpInvDigit.js::function::bnpInvDigit"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00045_bnpInvDigit.js::function::bnpInvDigit",
+        "00045_bnpInvDigit.js::module::default",
+        "00046_Montgomery.js::function::Montgomery",
+        "00046_Montgomery.js::module::default",
+        "00043_am2.js::function::am2",
+        "00043_am2.js::module::default",
+        "00042_am1.js::function::am1",
+        "00042_am1.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00046_Montgomery.js",
+      "query": "Montgomery reduction",
+      "relevant_chunks": [
+        "00046_Montgomery.js::function::Montgomery"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00046_Montgomery.js::function::Montgomery",
+        "00046_Montgomery.js::module::default",
+        "00043_am2.js::function::am2",
+        "00043_am2.js::module::default",
+        "00042_am1.js::function::am1",
+        "00042_am1.js::module::default",
+        "00021_UDecimalPad.js::function::UDecimalPad",
+        "00021_UDecimalPad.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 1,
+        "precision_at_3": 0.3333333333333333,
+        "precision_at_5": 0.2,
+        "rr": 1,
+        "ndcg_at_10": 1
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    },
+    {
+      "id": "csn-00047_bnNot.js",
+      "query": "(public) ~this",
+      "relevant_chunks": [
+        "00047_bnNot.js::function::bnNot"
+      ],
+      "difficulty": "medium",
+      "type": "semantic",
+      "returned_chunks": [
+        "00035_encrypt.js::function::encrypt",
+        "00035_encrypt.js::module::default",
+        "00005_extend.js::function::extend",
+        "00005_extend.js::module::default",
+        "00039_getSharedSecret.js::function::getSharedSecret",
+        "00039_getSharedSecret.js::module::default",
+        "00031_random32ByteBuffer.js::function::random32ByteBuffer",
+        "00031_random32ByteBuffer.js::module::default"
+      ],
+      "metrics": {
+        "precision_at_1": 0,
+        "precision_at_3": 0,
+        "precision_at_5": 0,
+        "rr": 0,
+        "ndcg_at_10": 0
+      },
+      "flags": {
+        "zero_results": false,
+        "missing_labels_in_index": false
+      }
+    }
+  ]
+}

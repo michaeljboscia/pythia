@@ -20,6 +20,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -43,8 +44,12 @@ if (!runningUnderTsx) {
 // --- Dynamic imports (resolved under tsx) ---
 const { openDb } = await import("../src/db/connection.js");
 const { search } = await import("../src/retrieval/hybrid.js");
-const { runBenchmark } = await import("../src/benchmark/runner.js");
-const { writeBenchmarkArtifacts } = await import("../src/benchmark/report.js");
+const { computeBaselineDiff, runBenchmark } = await import("../src/benchmark/runner.js");
+const {
+  baselineEligible,
+  writeBaselineFile,
+  writeBenchmarkArtifacts,
+} = await import("../src/benchmark/report.js");
 
 // --- Parse args ---
 const argv = process.argv.slice(2);
@@ -57,8 +62,10 @@ const flag = (name) => argv.includes(name);
 const lang = opt("--lang", "javascript");
 const samples = parseInt(opt("--samples", "500"), 10);
 const keepTmp = flag("--keep-tmp");
+const setBaseline = flag("--baseline");
 const hfConfig = lang === "php" ? "php" : "javascript";
 const fileExt = lang === "php" ? ".php" : ".js";
+const baselinePath = path.join(repoRoot, "benchmarks", "baselines", `${lang}.json`);
 
 const timestamp = new Date()
   .toISOString()
@@ -69,6 +76,7 @@ const outputDir = opt(
   "--output",
   path.join(repoRoot, "benchmarks", "results", `csn-${lang}-${timestamp}`)
 );
+const distCliPath = path.join(repoRoot, "dist-test", "src", "cli", "main.js");
 
 console.log("\n📊 CodeSearchNet Benchmark");
 console.log(`   Language : ${lang}`);
@@ -78,6 +86,13 @@ console.log(`   Output   : ${outputDir}\n`);
 // --- Step 1: Fetch CodeSearchNet test split from HuggingFace ---
 console.log("⬇️  Fetching from HuggingFace Datasets Server...");
 
+const HF_DATASET = "code-search-net/code_search_net";
+const HF_HEADERS = {
+  accept: "application/json",
+  // HF's rows endpoint intermittently rejects Node's default fetch user agent.
+  "user-agent": "pythia-csn-benchmark/1.3.0",
+};
+
 async function fetchCSN(config, split, needed) {
   const rows = [];
   const batchSize = 100;
@@ -86,10 +101,10 @@ async function fetchCSN(config, split, needed) {
   while (rows.length < needed) {
     const url =
       `https://datasets-server.huggingface.co/rows` +
-      `?dataset=code_search_net&config=${config}&split=${split}` +
+      `?dataset=${encodeURIComponent(HF_DATASET)}&config=${config}&split=${split}` +
       `&offset=${offset}&limit=${batchSize}`;
 
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: HF_HEADERS });
     if (!res.ok) {
       throw new Error(`HF API error ${res.status}: ${await res.text()}`);
     }
@@ -120,8 +135,8 @@ const usable = rawExamples.filter(
     ex.func_name.length > 0 &&
     ex.func_documentation_string &&
     ex.func_documentation_string.trim().length >= 10 &&
-    ex.func_code &&
-    ex.func_code.length > 0
+    ex.func_code_string &&
+    ex.func_code_string.length > 0
 );
 
 console.log(`   Usable after filter: ${usable.length} / ${rawExamples.length}\n`);
@@ -132,7 +147,7 @@ for (let i = 0; i < usable.length; i++) {
   // Safe filename: index prefix ensures uniqueness even with duplicate func names
   const safeName = ex.func_name.replace(/[^a-zA-Z0-9_$]/gu, "_").slice(0, 64);
   const filename = `${String(i).padStart(5, "0")}_${safeName}${fileExt}`;
-  writeFileSync(path.join(tmpDir, filename), ex.func_code, "utf8");
+  writeFileSync(path.join(tmpDir, filename), ex.func_code_string, "utf8");
   ex._filename = filename;
 }
 
@@ -176,11 +191,15 @@ writeFileSync(
 // --- Step 3: pythia init ---
 console.log("🔧 Running pythia init (indexing functions)...");
 const initStart = Date.now();
-execFileSync(
-  "npx",
-  ["tsx", "src/cli/main.ts", "init", "--workspace", tmpDir, "--config", configPath],
-  { cwd: repoRoot, stdio: "inherit" }
-);
+console.log("   Building dist-test artifacts for benchmark runtime...");
+execFileSync("npm", ["run", "build:test", "--silent"], {
+  cwd: repoRoot,
+  stdio: "inherit",
+});
+execFileSync("node", [distCliPath, "init", "--workspace", tmpDir, "--config", configPath], {
+  cwd: repoRoot,
+  stdio: "inherit",
+});
 console.log(`\n   Init complete in ${((Date.now() - initStart) / 1000).toFixed(1)}s\n`);
 
 // --- Step 4: Open DB and resolve actual CNIs ---
@@ -269,6 +288,30 @@ const run = await runBenchmark(
 const elapsed = ((Date.now() - queryStart) / 1000).toFixed(1);
 console.log(`   Done in ${elapsed}s\n`);
 
+const baselineExists = existsSync(baselinePath);
+if (baselineExists) {
+  const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+  run.baseline_diff = computeBaselineDiff(run.summary, baseline.summary ?? null);
+} else if (!setBaseline) {
+  console.warn(`⚠️  No baseline found at ${baselinePath}. Run again with --baseline to create one.\n`);
+}
+
+if (setBaseline) {
+  if (!baselineEligible(run.summary, queries.length)) {
+    console.error(
+      `❌ Refusing to overwrite baseline at ${baselinePath}: run is degraded ` +
+      `(zero-result queries=${run.summary.zero_result_queries}, missing-label queries=${run.summary.missing_label_queries}).`
+    );
+    db.close();
+    if (!keepTmp) {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+    process.exit(1);
+  }
+
+  writeBaselineFile(baselinePath, run);
+}
+
 // --- Step 7: Write results ---
 writeBenchmarkArtifacts(outputDir, run, {
   source: "codesearchnet",
@@ -294,11 +337,22 @@ console.log(`│  NDCG@10   : ${pad(s.ndcg_at_10.toFixed(4))} │`);
 console.log(`│  P@1       : ${pad(s.precision_at_1.toFixed(4))} │`);
 console.log(`│  P@3       : ${pad(s.precision_at_3.toFixed(4))} │`);
 console.log(`│  P@5       : ${pad(s.precision_at_5.toFixed(4))} │`);
+if (run.baseline_diff) {
+  console.log("├─────────────────────────────────────────────────┤");
+  console.log(`│  Δ MRR@10  : ${pad(run.baseline_diff.mrr?.toFixed(4) ?? "0.0000")} │`);
+  console.log(`│  Δ NDCG@10 : ${pad(run.baseline_diff.ndcg_at_10?.toFixed(4) ?? "0.0000")} │`);
+  console.log(`│  Δ P@1     : ${pad(run.baseline_diff.precision_at_1?.toFixed(4) ?? "0.0000")} │`);
+  console.log(`│  Δ P@3     : ${pad(run.baseline_diff.precision_at_3?.toFixed(4) ?? "0.0000")} │`);
+  console.log(`│  Δ P@5     : ${pad(run.baseline_diff.precision_at_5?.toFixed(4) ?? "0.0000")} │`);
+}
 console.log("├─────────────────────────────────────────────────┤");
 console.log(`│  Zero-result queries  : ${pad(s.zero_result_queries)} │`);
 console.log(`│  Missing-label queries: ${pad(s.missing_label_queries)} │`);
 console.log("└─────────────────────────────────────────────────┘");
 console.log(`\nResults written to: ${outputDir}\n`);
+if (setBaseline) {
+  console.log(`Baseline written to: ${baselinePath}\n`);
+}
 
 // --- Cleanup ---
 db.close();

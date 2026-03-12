@@ -24,6 +24,7 @@ type ChunkStrategy =
   | "symbols"
   | "php"
   | "phtml"
+  | "sql"
   | "xml"
   | "css"
   | "scss"
@@ -81,7 +82,7 @@ const languageConfigEntries: Array<[string, LanguageConfig]> = [
   [".php", { language: "php", parserLanguage: PHP.php as Parser.Language, strategy: "php" }],
   [".phtml", { language: "php", parserLanguage: PHP.php as Parser.Language, strategy: "phtml" }],
   [".xml", { language: "xml", parserLanguage: XML.xml as Parser.Language, strategy: "xml" }],
-  [".sql", { language: "sql", parserLanguage: SQL as Parser.Language, strategy: "module" }],
+  [".sql", { language: "sql", parserLanguage: SQL as Parser.Language, strategy: "sql" }],
   [".css", { language: "css", parserLanguage: CSS as Parser.Language, strategy: "css" }],
   [".scss", { language: "scss", parserLanguage: CSS as Parser.Language, strategy: "scss" }]
 ];
@@ -615,6 +616,70 @@ function extractCssChunks(
   return chunks;
 }
 
+function getSqlObjectReference(node: SyntaxNode): SyntaxNode | null {
+  return node.namedChildren.find((child) => child.type === "object_reference") ?? null;
+}
+
+function getSqlQualifiedName(referenceNode: SyntaxNode | null): string | null {
+  if (referenceNode === null) {
+    return null;
+  }
+
+  const nameNode = referenceNode.childForFieldName("name");
+  const schemaNode = referenceNode.childForFieldName("schema");
+  const name = nameNode?.text ?? null;
+
+  if (name === null) {
+    return null;
+  }
+
+  if (schemaNode !== null) {
+    return `${schemaNode.text}.${name}`;
+  }
+
+  return name;
+}
+
+function hasRoutineLevelError(node: SyntaxNode): boolean {
+  return node.hasError || node.descendantsOfType("ERROR").length > 0;
+}
+
+function extractSqlChunks(rootNode: SyntaxNode, filePath: string): Chunk[] {
+  const chunks: Chunk[] = [];
+  const routines = rootNode.descendantsOfType([
+    "create_function",
+    "create_function_statement",
+    "create_procedure",
+    "create_procedure_statement",
+    "create_trigger",
+    "create_trigger_statement"
+  ]) as SyntaxNode[];
+
+  for (const routine of routines) {
+    if (hasRoutineLevelError(routine)) {
+      continue;
+    }
+
+    const qualifiedName = getSqlQualifiedName(getSqlObjectReference(routine));
+
+    if (qualifiedName === null) {
+      continue;
+    }
+
+    chunks.push({
+      id: `${filePath}::function::${qualifiedName}`,
+      file_path: filePath,
+      chunk_type: "function",
+      content: routine.text,
+      start_line: routine.startPosition.row,
+      end_line: routine.endPosition.row,
+      language: "sql"
+    });
+  }
+
+  return chunks;
+}
+
 function addDisambiguators(chunks: Chunk[]): Chunk[] {
   const seen = new Map<string, number>();
 
@@ -766,6 +831,11 @@ export function chunkFile(
 
   if (config.strategy === "xml") {
     baseChunks.push(...extractXmlChunks(rootNode, normalizedPath));
+    return finalizeChunks(baseChunks, options);
+  }
+
+  if (config.strategy === "sql") {
+    baseChunks.push(...extractSqlChunks(rootNode, normalizedPath));
     return finalizeChunks(baseChunks, options);
   }
 

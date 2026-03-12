@@ -2,7 +2,7 @@ PYTHIA v1 — PROGRESS TRACKER
 ========================================
 Last Updated: 2026-03-12
 
-CURRENT PHASE: Sprint 7 (Oracle Hardening + SQL Structural + CSN Benchmark) — NOT STARTED
+CURRENT PHASE: Sprint 7 (Oracle Hardening + SQL Structural + CSN Benchmark) — COMPLETE
 IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-sprint7.md
 
 NOTE: Sprint 6 (Language Breadth) is on hold. Sprint 7 is a hardening sprint that incorporates
@@ -14,7 +14,7 @@ STATUS SUMMARY
 --------------
 Design:          COMPLETE — pythia-lcs-spec.md, 7 interrogation cycles, 17 bound decisions
 Documentation:   COMPLETE — 11 canonical docs generated (v2 suite + session files)
-Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [x]
+Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [x] Sprint 7 [x]
 
 WHAT EXISTS
 -----------
@@ -131,13 +131,13 @@ FEAT-024 Phase 2 (SQL structural) and FEAT-036 (benchmark wiring) pulled forward
 
 SPRINT 7 STATUS
 ---------------
-[ ] Step 7.1: SQL Structural Extraction (FEAT-024 Phase 2)
+[x] Step 7.1: SQL Structural Extraction (FEAT-024 Phase 2)
     Files: src/indexer/chunker-treesitter.ts, src/__tests__/chunker-sql.test.ts
-[ ] Step 7.2: CodeSearchNet Benchmark Wiring (FEAT-036)
+[x] Step 7.2: CodeSearchNet Benchmark Wiring (FEAT-036)
     Files: package.json, src/config.ts, scripts/csn-benchmark.mjs, benchmarks/baselines/.gitkeep
-[ ] Step 7.3: Spawn Audit Log & Fail-All Validation (FEAT-032 + FEAT-033)
+[x] Step 7.3: Spawn Audit Log & Fail-All Validation (FEAT-032 + FEAT-033)
     Files: ~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts
-[ ] Step 7.4: Oracle Core Tools (FEAT-000 + FEAT-034 + FEAT-035)
+[x] Step 7.4: Oracle Core Tools (FEAT-000 + FEAT-034 + FEAT-035)
     Files: ~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts, server.ts
     Test files: test-oracle-init.mjs, test-oracle-health.mjs, test-oracle-refresh.mjs
 
@@ -147,7 +147,7 @@ None.
 
 NEXT STEP
 ---------
-Step 7.1 — Add extractSqlChunks() to src/indexer/chunker-treesitter.ts for named SQL routine extraction.
+Sprint 8 planning — pull-forward deferred language breadth work, LocalReasoningProvider, and YAML support.
 
 LIVE SMOKE TEST RESULTS (2026-03-11)
 -------------------------------------
@@ -181,3 +181,5 @@ SESSION HISTORY
 2026-03-12: Sprint 7 design complete — 2 rounds ruthless interrogation + twin synthesis (Gemini + Codex)
 2026-03-12: Sprint 7 spec finalized at /Users/mikeboscia/pythia/design/sprint-7-spec.md (v1.3.0)
 2026-03-12: IMPLEMENTATION_PLAN-sprint7.md generated, PRD-v2.md updated (FEAT-000 + 032-036), BACKEND_STRUCTURE-v2.md updated (new error codes)
+2026-03-12: Sprint 7 implementation completed — SQL structural extraction, CSN benchmark wiring, fail-all hash validation, spawn audit log, oracle_init/oracle_health/oracle_refresh
+2026-03-12: Verification complete — npm test 255/255 PASS, oracle init/health/refresh + phase4 PASS, CSN benchmark smoke + baseline + diff PASS
