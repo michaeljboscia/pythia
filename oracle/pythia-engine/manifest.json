@@ -373,6 +373,14 @@
       "sha256": "07b94355f43b5d4504041a1c35d1d19f424fb0c19890722f9d4eea5e86ccd901",
       "added_at": "2026-03-12T02:04:01.538Z",
       "priority": 60
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/mcp/tools.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "e33474bcaf46ae455c3d4e1c0c2f29f308a1e04efec6c1e198a7a864da5cab70",
+      "added_at": "2026-03-12T02:04:05.509Z",
+      "priority": 61
     }
   ],
   "live_sources": [
