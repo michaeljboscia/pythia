@@ -453,6 +453,14 @@
       "sha256": "13da2eeaa05692740b9160e97dd7cbaa884bb290350674049d898d9122e571dd",
       "added_at": "2026-03-12T02:04:40.982Z",
       "priority": 72
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/retrieval/reranker.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "6a4f66c2f2dba2c000fdedb621a0653e9f3e400274ebdbdb784b2bec2a19c467",
+      "added_at": "2026-03-12T02:04:45.223Z",
+      "priority": 73
     }
   ],
   "live_sources": [
