@@ -421,6 +421,14 @@
       "sha256": "9e3a2cbf34ec04a568db5b1e066ea3e87ca2d26353792db4574750b318cca522",
       "added_at": "2026-03-12T02:04:25.869Z",
       "priority": 66
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/src/mcp/decommission.ts",
+      "role": "other",
+      "required": false,
+      "sha256": "7bdae19827dbff24cb0efafa80c556051051672f82ddcd59a6e6c254d2fc3303",
+      "added_at": "2026-03-12T02:04:29.664Z",
+      "priority": 67
     }
   ],
   "live_sources": [
