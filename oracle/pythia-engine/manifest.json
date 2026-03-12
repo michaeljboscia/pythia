@@ -101,6 +101,14 @@
       "sha256": "871af9d07f7cbb05915f5e73bd8299bbf764d796008b1f4e90b84053c842dd5d",
       "added_at": "2026-03-12T01:59:03.023Z",
       "priority": 5
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-v2.md",
+      "role": "core_research",
+      "required": true,
+      "sha256": "dae7863050c50227d5f1f3c67a373c7c52ef837c2b46e7632a03fafb16a7019c",
+      "added_at": "2026-03-12T01:59:08.439Z",
+      "priority": 6
     }
   ],
   "live_sources": [
