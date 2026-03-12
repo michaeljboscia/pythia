@@ -165,6 +165,14 @@
       "sha256": "237c45aa759505c5d5e08c1d1c9dba4d44ffa5afd01c29b637445982d7a7181f",
       "added_at": "2026-03-12T01:59:41.103Z",
       "priority": 22
+    },
+    {
+      "path": "/Users/mikeboscia/pythia/docs/reference/mcp-sdk-tool-registration-reference.md",
+      "role": "core_research",
+      "required": false,
+      "sha256": "0800a06ab8330f88fe2bcb5210a6abfda7aae2f83c7cf530883345c7ac1638da",
+      "added_at": "2026-03-12T01:59:44.956Z",
+      "priority": 23
     }
   ],
   "live_sources": [
