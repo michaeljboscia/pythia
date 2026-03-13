@@ -2,19 +2,19 @@ PYTHIA v1 — PROGRESS TRACKER
 ========================================
 Last Updated: 2026-03-12
 
-CURRENT PHASE: Sprint 7 (Oracle Hardening + SQL Structural + CSN Benchmark) — COMPLETE
-IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-sprint7.md
+CURRENT PHASE: Sprint 8 (Language Breadth + Hardening) — COMPLETE
+IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/design/sprint-8-spec.md
 
-NOTE: Sprint 6 (Language Breadth) is on hold. Sprint 7 is a hardening sprint that incorporates
-Sprint 6's SQL structural extraction (FEAT-024 Phase 2) and benchmark wiring (FEAT-036).
-Original Sprint 6 features (PHP, XML, CSS, max chunk size, parallel embedding, POC matrix)
-are deferred to Sprint 8. LocalReasoningProvider and YAML (original Sprint 7) also Sprint 8.
+NOTE: Sprint 8 completed all deferred Sprint 6 work: PHP language support, CSS/SCSS fixes,
+max chunk size config (FEAT-026), parallel embedding (FEAT-027), embedding health (FEAT-029),
+YAML chunking (FEAT-030 partial), and poc-matrix benchmark script.
+Next: Sprint 9 — Sovereign Oracle (LocalReasoningProvider) + API Surface Extraction (FEAT-037) + Ruby/C#.
 
 STATUS SUMMARY
 --------------
 Design:          COMPLETE — pythia-lcs-spec.md, 7 interrogation cycles, 17 bound decisions
 Documentation:   COMPLETE — 11 canonical docs generated (v2 suite + session files)
-Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [x] Sprint 7 [x]
+Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [x] Sprint 7 [x] Sprint 8 [x]
 
 WHAT EXISTS
 -----------
@@ -147,7 +147,7 @@ None.
 
 NEXT STEP
 ---------
-Sprint 8 planning — pull-forward deferred language breadth work, LocalReasoningProvider, and YAML support.
+Sprint 9 design — two rounds of twin review (Gemini + Codex) + ruthless interrogation of sprint-9-spec.md before generating Codex worker prompts.
 
 LIVE SMOKE TEST RESULTS (2026-03-11)
 -------------------------------------
@@ -183,3 +183,5 @@ SESSION HISTORY
 2026-03-12: IMPLEMENTATION_PLAN-sprint7.md generated, PRD-v2.md updated (FEAT-000 + 032-036), BACKEND_STRUCTURE-v2.md updated (new error codes)
 2026-03-12: Sprint 7 implementation completed — SQL structural extraction, CSN benchmark wiring, fail-all hash validation, spawn audit log, oracle_init/oracle_health/oracle_refresh
 2026-03-12: Verification complete — npm test 255/255 PASS, oracle init/health/refresh + phase4 PASS, CSN benchmark smoke + baseline + diff PASS
+2026-03-12: Sprint 8 complete — PHP support (Worker A), CSS/SCSS fixes (Worker B), FEAT-026/027/029 tests + poc-matrix (Worker C). 328/328 tests passing.
+2026-03-12: sprint-9-spec.md v1.0 written at /Users/mikeboscia/pythia/design/sprint-9-spec.md (Gemini daemon). Awaiting twin review + ruthless interrogation.
