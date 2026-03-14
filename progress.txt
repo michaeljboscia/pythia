@@ -2,19 +2,19 @@ PYTHIA v1 — PROGRESS TRACKER
 ========================================
 Last Updated: 2026-03-12
 
-CURRENT PHASE: Sprint 8 (Language Breadth + Hardening) — COMPLETE
-IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/design/sprint-8-spec.md
+CURRENT PHASE: Sprint 9 (Sovereign Oracle + API Surface + Ruby/C#/YAML) — COMPLETE
+IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/design/sprint-9-spec.md
 
-NOTE: Sprint 8 completed all deferred Sprint 6 work: PHP language support, CSS/SCSS fixes,
-max chunk size config (FEAT-026), parallel embedding (FEAT-027), embedding health (FEAT-029),
-YAML chunking (FEAT-030 partial), and poc-matrix benchmark script.
-Next: Sprint 9 — Sovereign Oracle (LocalReasoningProvider) + API Surface Extraction (FEAT-037) + Ruby/C#.
+NOTE: Sprint 9 made Pythia fully sovereign (LocalReasoningProvider via Ollama/LM Studio),
+added pythia_api_surface MCP tool (ts-morph + tree-sitter dual-path), added Ruby/C#/YAML
+language support, and fixed hardcoded "gemini-2.5-flash" in oracle transcripts via describe().
+Next: Sprint 10 — Tier 1/2 languages (Swift, Kotlin, Elixir) requiring compiler/LSP integration.
 
 STATUS SUMMARY
 --------------
 Design:          COMPLETE — pythia-lcs-spec.md, 7 interrogation cycles, 17 bound decisions
 Documentation:   COMPLETE — 11 canonical docs generated (v2 suite + session files)
-Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [x] Sprint 7 [x] Sprint 8 [x]
+Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [x] Sprint 7 [x] Sprint 8 [x] Sprint 9 [x]
 
 WHAT EXISTS
 -----------
@@ -184,4 +184,5 @@ SESSION HISTORY
 2026-03-12: Sprint 7 implementation completed — SQL structural extraction, CSN benchmark wiring, fail-all hash validation, spawn audit log, oracle_init/oracle_health/oracle_refresh
 2026-03-12: Verification complete — npm test 255/255 PASS, oracle init/health/refresh + phase4 PASS, CSN benchmark smoke + baseline + diff PASS
 2026-03-12: Sprint 8 complete — PHP support (Worker A), CSS/SCSS fixes (Worker B), FEAT-026/027/029 tests + poc-matrix (Worker C). 328/328 tests passing.
-2026-03-12: sprint-9-spec.md v1.0 written at /Users/mikeboscia/pythia/design/sprint-9-spec.md (Gemini daemon). Awaiting twin review + ruthless interrogation.
+2026-03-12: sprint-9-spec.md v3.0 — two rounds twin review (12 issues fixed). Worker prompts at tasks/sprint9-worker-[a/b/c].md
+2026-03-12: Sprint 9 COMPLETE — LocalReasoningProvider, pythia_api_surface, Ruby/C#/YAML chunkers. 382/383 tests passing (1 pre-existing flaky timing test).

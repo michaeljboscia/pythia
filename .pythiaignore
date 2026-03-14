@@ -8,3 +8,10 @@ tasks/
 skills/
 src/__tests__/
 *.md
+node_modules/
+dist/
+dist-test/
+.git/
+coverage/
+*.lock
+*.log
