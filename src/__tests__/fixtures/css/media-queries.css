@@ -1,0 +1,21 @@
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+    padding: 0.5rem;
+    align-items: stretch;
+    row-gap: 0.75rem;
+  }
+
+  .button {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@supports (display: grid) {
+  .grid-layout {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+}

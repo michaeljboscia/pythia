@@ -68,7 +68,7 @@ test("server starts without error and does not call process.exit", async () => {
   }
 });
 
-test("all 6 tool names are registered", async () => {
+test("all 8 tool names are registered", async () => {
   const { cleanup, configPath } = createConfigFile();
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "pythia-test-client", version: "1.0.0" });
@@ -87,6 +87,8 @@ test("all 6 tool names are registered", async () => {
       "lcs_investigate",
       "oracle_commit_decision",
       "oracle_decommission",
+      "pythia_api_surface",
+      "pythia_corpus_health",
       "pythia_force_index",
       "spawn_oracle"
     ]);

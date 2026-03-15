@@ -75,7 +75,8 @@ test("write-ahead user turn persists even when provider throws", async () => {
     query: async () => {
       throw new PythiaError("PROVIDER_UNAVAILABLE", "upstream");
     },
-    healthCheck: async () => true
+    healthCheck: async () => true,
+    describe: () => ({ provider: "test", model: "test-model" })
   };
   const handler = createAskOracleHandler(db, createConfig(1000), provider, reaper, {
     searchImpl: async () => ({
@@ -121,7 +122,8 @@ test("queue depth 5 rejects the 6th concurrent call with SESSION_BUSY", async ()
       });
       return "ok";
     },
-    healthCheck: async () => true
+    healthCheck: async () => true,
+    describe: () => ({ provider: "test", model: "test-model" })
   };
   const handler = createAskOracleHandler(db, createConfig(1000), provider, reaper, {
     searchImpl: async () => ({
@@ -167,7 +169,8 @@ test("idle session is auto-reconstituted before provider call", async () => {
   let reconstituted = false;
   const provider: ReasoningProvider = {
     query: async () => "answer",
-    healthCheck: async () => true
+    healthCheck: async () => true,
+    describe: () => ({ provider: "test", model: "test-model" })
   };
   const handler = createAskOracleHandler(db, createConfig(1000), provider, reaper, {
     ensureSessionActiveImpl: async () => {
@@ -217,6 +220,56 @@ test("idle session is auto-reconstituted before provider call", async () => {
   }
 });
 
+test("model transcript row records provider.describe metadata", async () => {
+  const { db, cleanup } = createDb();
+  const sessionId = insertSession(db);
+  const reaper = new SessionReaper(db, 30, {
+    dismissImpl: async () => undefined
+  });
+  const provider: ReasoningProvider = {
+    query: async () => "answer",
+    healthCheck: async () => true,
+    describe: () => ({ provider: "local", model: "llama3.2" })
+  };
+  const handler = createAskOracleHandler(db, createConfig(1000), provider, reaper, {
+    searchImpl: async () => ({
+      results: [],
+      rerankerUsed: true
+    })
+  });
+
+  try {
+    await handler({
+      session_id: sessionId,
+      prompt: "What model answered?"
+    });
+
+    const row = db.prepare(`
+      SELECT content
+      FROM pythia_transcripts
+      WHERE session_id = ?
+        AND role = 'model'
+      ORDER BY turn_index DESC
+      LIMIT 1
+    `).get(sessionId) as { content: string } | undefined;
+    const parsed = JSON.parse(row?.content ?? "{}") as {
+      finish_reason?: string;
+      model?: string;
+      provider?: string;
+      text?: string;
+    };
+
+    assert.equal(parsed.text, "answer");
+    assert.equal(parsed.provider, "local");
+    assert.equal(parsed.model, "llama3.2");
+    assert.equal(parsed.finish_reason, "stop");
+  } finally {
+    reaper.close();
+    __resetAskOracleQueuesForTests();
+    cleanup();
+  }
+});
+
 test("context budget overrun throws CONTEXT_BUDGET_EXCEEDED", async () => {
   const { db, cleanup } = createDb();
   const sessionId = insertSession(db);
@@ -225,7 +278,8 @@ test("context budget overrun throws CONTEXT_BUDGET_EXCEEDED", async () => {
   });
   const provider: ReasoningProvider = {
     query: async () => "should not run",
-    healthCheck: async () => true
+    healthCheck: async () => true,
+    describe: () => ({ provider: "test", model: "test-model" })
   };
   const handler = createAskOracleHandler(db, createConfig(10), provider, reaper, {
     searchImpl: async () => ({

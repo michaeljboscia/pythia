@@ -77,7 +77,7 @@ function getCssNamedChild(node: SyntaxNode, type: string): SyntaxNode | null {
 }
 
 function combineSelectors(parentSelector: string | null, childSelector: string): string {
-  const normalizedChild = normalizeWhitespace(childSelector);
+  const normalizedChild = normalizeWhitespace(childSelector).replace(/&\s+([_-])/gu, "&$1");
 
   if (parentSelector === null || parentSelector === "") {
     return normalizedChild;
@@ -91,6 +91,13 @@ function combineSelectors(parentSelector: string | null, childSelector: string):
     if (childPart.includes("&")) {
       for (const parentPart of parentParts) {
         combined.push(normalizeWhitespace(childPart.replace(/&/gu, parentPart)));
+      }
+      continue;
+    }
+
+    if (/^[-_]/u.test(childPart)) {
+      for (const parentPart of parentParts) {
+        combined.push(normalizeWhitespace(`${parentPart}${childPart}`));
       }
       continue;
     }
@@ -142,7 +149,7 @@ export function extractCssOrScssChunks(
             });
           }
 
-          if (strategy === "scss") {
+          if (strategy === "scss" || strategy === "css") {
             const blockNode = getCssNamedChild(child, "block");
             if (blockNode !== null) {
               walk(blockNode, selectorName);
@@ -172,7 +179,7 @@ export function extractCssOrScssChunks(
           });
         }
 
-        if (strategy === "scss") {
+        if (strategy === "scss" || strategy === "css") {
           const blockNode = getCssNamedChild(child, "block");
           if (blockNode !== null) {
             walk(blockNode, parentSelector);

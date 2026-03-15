@@ -1,10 +1,12 @@
 import type { PythiaConfig } from "../config.js";
 import { CliReasoningProvider } from "./cli-provider.js";
+import { LocalReasoningProvider } from "./local-provider.js";
 import { SdkReasoningProvider } from "./sdk-provider.js";
 
 export interface ReasoningProvider {
   query(prompt: string, context: string[]): Promise<string>;
   healthCheck(): Promise<boolean>;
+  describe(): { provider: string; model: string };
 }
 
 export function createReasoningProvider(
@@ -17,6 +19,13 @@ export function createReasoningProvider(
 
   if (config.reasoning.mode === "sdk" && apiKey && apiKey.length > 0) {
     return new SdkReasoningProvider(apiKey);
+  }
+
+  if (config.reasoning.mode === "local") {
+    return new LocalReasoningProvider(
+      config.reasoning.ollama_base_url,
+      config.reasoning.ollama_model
+    );
   }
 
   return new CliReasoningProvider();

@@ -1,0 +1,21 @@
+.button {
+  background: blue;
+  color: white;
+
+  &:hover {
+    background: darkblue;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &--primary {
+    background: #0070f3;
+  }
+
+  &--secondary {
+    background: #6c757d;
+  }
+}

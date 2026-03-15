@@ -3,11 +3,13 @@ import path from "node:path";
 import { XMLParser } from "fast-xml-parser";
 import Parser from "tree-sitter";
 import CSS from "tree-sitter-css";
+import CSharp from "tree-sitter-c-sharp";
 import Go from "tree-sitter-go";
 import Java from "tree-sitter-java";
 import JavaScript from "tree-sitter-javascript";
 import PHP from "tree-sitter-php";
 import Python from "tree-sitter-python";
+import Ruby from "tree-sitter-ruby";
 import Rust from "tree-sitter-rust";
 import SQL from "tree-sitter-sql";
 import TypeScript from "tree-sitter-typescript";
@@ -17,8 +19,11 @@ import {
   DEFAULT_OVERSIZE_STRATEGY
 } from "../config.js";
 import { splitOversizedChunks } from "./chunk-splitter.js";
+import { extractCSharpChunks } from "./chunker-c-sharp.js";
 import { extractCssOrScssChunks } from "./chunker-css.js";
 import { extractPhpChunks } from "./chunker-php.js";
+import { extractRubyChunks } from "./chunker-ruby.js";
+import { extractYamlChunks } from "./chunker-yaml.js";
 
 type SyntaxNode = Parser.SyntaxNode;
 type ChunkStrategy =
@@ -28,6 +33,9 @@ type ChunkStrategy =
   | "sql"
   | "css"
   | "scss"
+  | "ruby"
+  | "csharp"
+  | "yaml"
   | "module";
 
 type LanguageConfig = {
@@ -37,6 +45,7 @@ type LanguageConfig = {
 };
 
 export type ChunkType =
+  | "block"
   | "at_rule"
   | "class"
   | "doc"
@@ -83,7 +92,11 @@ const languageConfigEntries: Array<[string, LanguageConfig]> = [
   [".phtml", { language: "php", parserLanguage: PHP.php as Parser.Language, strategy: "phtml" }],
   [".sql", { language: "sql", parserLanguage: SQL as Parser.Language, strategy: "sql" }],
   [".css", { language: "css", parserLanguage: CSS as Parser.Language, strategy: "css" }],
-  [".scss", { language: "scss", parserLanguage: CSS as Parser.Language, strategy: "scss" }]
+  [".scss", { language: "scss", parserLanguage: CSS as Parser.Language, strategy: "scss" }],
+  [".rb", { language: "ruby", parserLanguage: Ruby as Parser.Language, strategy: "ruby" }],
+  [".cs", { language: "csharp", parserLanguage: CSharp as Parser.Language, strategy: "csharp" }],
+  [".yaml", { language: "yaml", strategy: "yaml" }],
+  [".yml", { language: "yaml", strategy: "yaml" }]
 ];
 
 const languageConfigByExtension = new Map<string, LanguageConfig>(languageConfigEntries);
@@ -647,6 +660,11 @@ export function chunkFile(
     return finalizeChunks(baseChunks, options);
   }
 
+  if (config.strategy === "yaml") {
+    baseChunks.push(...extractYamlChunks(content, normalizedPath));
+    return finalizeChunks(baseChunks, options);
+  }
+
   const parser = createParser(extension);
 
   if (parser === null) {
@@ -680,6 +698,16 @@ export function chunkFile(
 
   if (config.strategy === "css" || config.strategy === "scss") {
     baseChunks.push(...extractCssOrScssChunks(rootNode, normalizedPath, options, config.strategy));
+    return finalizeChunks(baseChunks, options);
+  }
+
+  if (config.strategy === "ruby") {
+    baseChunks.push(...extractRubyChunks(rootNode, normalizedPath));
+    return finalizeChunks(baseChunks, options);
+  }
+
+  if (config.strategy === "csharp") {
+    baseChunks.push(...extractCSharpChunks(rootNode, normalizedPath));
     return finalizeChunks(baseChunks, options);
   }
 

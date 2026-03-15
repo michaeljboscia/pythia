@@ -30,6 +30,8 @@ export const DEFAULT_MAX_CHUNK_CHARS = {
   method: 4_000,
   trait: 6_000,
   interface: 6_000,
+  enum: 6_000,
+  block: 4_000,
   rule: 2_000,
   at_rule: 4_000,
   element: 4_000,
@@ -50,6 +52,11 @@ const reasoningSchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("sdk"),
     gemini_api_key: z.string().min(1).optional()
+  }),
+  z.object({
+    mode: z.literal("local"),
+    ollama_base_url: z.string().url().default("http://localhost:11434"),
+    ollama_model: z.string().min(1)
   })
 ]);
 
@@ -66,7 +73,8 @@ const vectorStoreSchema = z.discriminatedUnion("mode", [
 const embeddingsSchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("local"),
-    dimensions: embeddingDimensionsSchema.default(256)
+    dimensions: embeddingDimensionsSchema.default(256),
+    dtype: z.enum(["fp32", "q8"]).default("fp32")
   }),
   z.object({
     mode: z.literal("openai_compatible"),

@@ -3,8 +3,9 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { ZodError } from "zod";
 
-import { loadConfig } from "../config.js";
+import { DEFAULT_MAX_CHUNK_CHARS, configSchema, loadConfig } from "../config.js";
 import { PythiaError } from "../errors.js";
 
 function writeConfigFile(config: object): { cleanup: () => void; configPath: string } {
@@ -70,6 +71,38 @@ test("indexing defaults include embedding batch and concurrency settings", () =>
     assert.equal(config.indexing.embedding_concurrency, 1);
   } finally {
     cleanup();
+  }
+});
+
+test("local embeddings default dtype to fp32", () => {
+  const { cleanup, configPath } = writeConfigFile(createValidConfig());
+
+  try {
+    const config = loadConfig(configPath);
+
+    if (config.embeddings.mode !== "local") {
+      assert.fail("expected local embeddings mode");
+    }
+
+    assert.equal(config.embeddings.dtype, "fp32");
+  } finally {
+    cleanup();
+  }
+});
+
+test("local embeddings accept dtype q8", () => {
+  const config = createValidConfig();
+  config.embeddings = {
+    mode: "local",
+    dimensions: 256,
+    dtype: "q8"
+  };
+
+  const result = configSchema.parse(config);
+
+  assert.equal(result.embeddings.mode, "local");
+  if (result.embeddings.mode === "local") {
+    assert.equal(result.embeddings.dtype, "q8");
   }
 });
 
@@ -209,4 +242,94 @@ test("embedding dimensions outside the allowed set throw CONFIG_INVALID", () => 
   } finally {
     cleanup();
   }
+});
+
+test("dimensions 900 is rejected by the config schema as an invalid literal", () => {
+  const config = createValidConfig();
+  config.embeddings = {
+    mode: "openai_compatible",
+    dimensions: 900,
+    base_url: "http://192.168.2.110:11434/v1",
+    api_key: "ollama",
+    model: "nomic-embed-text"
+  };
+
+  assert.throws(
+    () => configSchema.parse(config),
+    (error: unknown) => {
+      assert.ok(error instanceof ZodError);
+      return true;
+    }
+  );
+});
+
+test("dimensions 512 loads without error", () => {
+  const config = createValidConfig();
+  config.embeddings = {
+    mode: "openai_compatible",
+    dimensions: 512,
+    base_url: "http://192.168.2.110:11434/v1",
+    api_key: "ollama",
+    model: "nomic-embed-text"
+  };
+
+  const { cleanup, configPath } = writeConfigFile(config);
+
+  try {
+    const result = loadConfig(configPath);
+    assert.equal(result.embeddings.dimensions, 512);
+  } finally {
+    cleanup();
+  }
+});
+
+test("embedding_concurrency 17 is rejected by the config schema", () => {
+  const config = createValidConfig();
+  config.indexing = {
+    scan_on_start: true,
+    max_worker_restarts: 3,
+    embedding_concurrency: 17
+  };
+
+  assert.throws(
+    () => configSchema.parse(config),
+    (error: unknown) => {
+      assert.ok(error instanceof ZodError);
+      return true;
+    }
+  );
+});
+
+test("embedding_concurrency 16 loads without error", () => {
+  const config = createValidConfig();
+  config.indexing = {
+    scan_on_start: true,
+    max_worker_restarts: 3,
+    embedding_concurrency: 16
+  };
+
+  const { cleanup, configPath } = writeConfigFile(config);
+
+  try {
+    const result = loadConfig(configPath);
+    assert.equal(result.indexing.embedding_concurrency, 16);
+  } finally {
+    cleanup();
+  }
+});
+
+test("DEFAULT_MAX_CHUNK_CHARS has no default fallback key", () => {
+  assert.equal("default" in DEFAULT_MAX_CHUNK_CHARS, false);
+});
+
+test("DEFAULT_MAX_CHUNK_CHARS.function is 6000", () => {
+  assert.equal(DEFAULT_MAX_CHUNK_CHARS.function, 6_000);
+});
+
+test("DEFAULT_MAX_CHUNK_CHARS.class is 8000", () => {
+  assert.equal(DEFAULT_MAX_CHUNK_CHARS.class, 8_000);
+});
+
+test("DEFAULT_MAX_CHUNK_CHARS.enum is 6000", () => {
+  assert.equal(DEFAULT_MAX_CHUNK_CHARS.enum, 6_000);
 });

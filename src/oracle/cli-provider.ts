@@ -153,4 +153,8 @@ export class CliReasoningProvider implements ReasoningProvider {
       return false;
     }
   }
+
+  describe(): { provider: string; model: string } {
+    return { provider: "gemini-cli", model: "gemini" };
+  }
 }

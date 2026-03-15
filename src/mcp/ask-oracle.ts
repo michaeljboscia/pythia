@@ -205,12 +205,11 @@ export function createAskOracleHandler(
         appendTranscriptTurn(
           session.id,
           "model",
-          JSON.stringify({
+          JSON.stringify(Object.assign({
             text: providerResponse,
             provider: provider.constructor.name,
-            model: "gemini-2.5-flash",
             finish_reason: "stop"
-          }),
+          }, provider.describe())),
           db,
           modelTimestamp
         );

@@ -1,20 +1,21 @@
 PYTHIA v1 — PROGRESS TRACKER
 ========================================
-Last Updated: 2026-03-12
+Last Updated: 2026-03-13
 
-CURRENT PHASE: Sprint 9 (Sovereign Oracle + API Surface + Ruby/C#/YAML) — COMPLETE
-IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/design/sprint-9-spec.md
+CURRENT PHASE: Sprint 10 (Corpus Intelligence + DType Control) — COMPLETE
+IMPLEMENTATION_PLAN REFERENCE: /Users/mikeboscia/pythia/design/sprint-10-spec.md
 
-NOTE: Sprint 9 made Pythia fully sovereign (LocalReasoningProvider via Ollama/LM Studio),
-added pythia_api_surface MCP tool (ts-morph + tree-sitter dual-path), added Ruby/C#/YAML
-language support, and fixed hardcoded "gemini-2.5-flash" in oracle transcripts via describe().
-Next: Sprint 10 — Tier 1/2 languages (Swift, Kotlin, Elixir) requiring compiler/LSP integration.
+NOTE: Sprint 10 solved the noisy-corpus problem by auto-generating `.pythiaignore`,
+printing corpus health in `pythia init`, adding `pythia_corpus_health`, enriching all
+8 MCP tool descriptions, and wiring local embedding `dtype` (`fp32` / `q8`) through config,
+cache identity, and fingerprint compatibility checks. Next: Sprint 11 — Language expansion (Swift/Kotlin/Elixir) + perf observability.
+Spec: /Users/mikeboscia/pythia/design/sprint-11-spec.md
 
 STATUS SUMMARY
 --------------
 Design:          COMPLETE — pythia-lcs-spec.md, 7 interrogation cycles, 17 bound decisions
 Documentation:   COMPLETE — 11 canonical docs generated (v2 suite + session files)
-Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [x] Sprint 7 [x] Sprint 8 [x] Sprint 9 [x]
+Implementation:  Sprint 1 [x] Sprint 2 [x] Sprint 3 [x] Sprint 4 [x] Sprint 5 [x] Sprint 7 [x] Sprint 8 [x] Sprint 9 [x] Sprint 10 [x]
 
 WHAT EXISTS
 -----------
@@ -141,13 +142,32 @@ SPRINT 7 STATUS
     Files: ~/.claude/mcp-servers/inter-agent/src/oracle-tools.ts, server.ts
     Test files: test-oracle-init.mjs, test-oracle-health.mjs, test-oracle-refresh.mjs
 
+SPRINT 10 STATUS
+----------------
+[x] FEAT-040: Opinionated `.pythiaignore` generation on every `pythia init`
+    Files: src/cli/init.ts
+[x] FEAT-041: DB-driven corpus health reporting in both init paths
+    Files: src/indexer/health.ts, src/cli/init.ts, src/__tests__/health.test.ts
+[x] FEAT-042: `pythia_corpus_health` MCP tool
+    Files: src/mcp/corpus-health.ts, src/mcp/tools.ts, src/__tests__/corpus-health.test.ts, src/__tests__/mcp-server.test.ts
+[x] FEAT-043: Behavioral 4-section descriptions for all 8 MCP tools
+    Files: src/mcp/tools.ts
+[x] FEAT-044: Local embeddings `dtype` support (`fp32` / `q8`) with fingerprint compatibility
+    Files: src/config.ts, src/indexer/embedder.ts, src/db/embedding-meta.ts, src/__tests__/config.test.ts, src/__tests__/embedder.test.ts
+[x] Sprint 10 proof script
+    File: scripts/sprint10-proof.mjs
+[x] Verification complete
+    `npm test`: 399/399 PASS
+    `node scripts/sprint10-proof.mjs`: PASS (CLI + MCP)
+    Direct q8 verification: pipeline returned `Float32Array` length 768
+
 BLOCKERS
 --------
 None.
 
 NEXT STEP
 ---------
-Sprint 9 design — two rounds of twin review (Gemini + Codex) + ruthless interrogation of sprint-9-spec.md before generating Codex worker prompts.
+Sprint 11 planning — decide whether to resume the reprioritized Swift/Kotlin/Elixir work or take the next post-hardening product slice.
 
 LIVE SMOKE TEST RESULTS (2026-03-11)
 -------------------------------------
@@ -158,7 +178,7 @@ Graph edges: 263
 Query: "how does the chunking and embedding pipeline work"
 Result: 8 chunks retrieved, correct semantic ranking, PASS ✓
 Protocol: MCP stdio via StdioClientTransport, scripts/smoke-test.mjs
-Note: fp32 model cold-load ~90s (q8 dtype requested but library falls back to fp32 — nomic model lacks quantized ONNX variant)
+Note: fp32 model cold-load ~90s. Sprint 10 follow-up verified the local `dtype: "q8"` pipeline returns `Float32Array` at 768 dimensions, so dtype support is now wired and runtime-checked.
 
 COMPUTE BOUNDARIES (documented — required in README)
 ------------------------------------------------------
@@ -186,3 +206,5 @@ SESSION HISTORY
 2026-03-12: Sprint 8 complete — PHP support (Worker A), CSS/SCSS fixes (Worker B), FEAT-026/027/029 tests + poc-matrix (Worker C). 328/328 tests passing.
 2026-03-12: sprint-9-spec.md v3.0 — two rounds twin review (12 issues fixed). Worker prompts at tasks/sprint9-worker-[a/b/c].md
 2026-03-12: Sprint 9 COMPLETE — LocalReasoningProvider, pythia_api_surface, Ruby/C#/YAML chunkers. 382/383 tests passing (1 pre-existing flaky timing test).
+2026-03-13: Sprint 10 COMPLETE — `.pythiaignore` auto-generation, corpus health CLI+MCP, 8-tool behavioral descriptions, local `dtype` support, and proof script. 399/399 tests passing.
+2026-03-14: Sprint 11 spec written — Swift/Kotlin/Elixir chunkers + max_files + --perf + CSN --embedding-config. Spec at /Users/mikeboscia/pythia/design/sprint-11-spec.md. Gate: ≥447 tests.

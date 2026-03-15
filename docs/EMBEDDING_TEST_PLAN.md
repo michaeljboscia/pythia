@@ -341,7 +341,6 @@ Run in this order — each scenario gates the next:
 
 | Gap | Impact | Fix |
 |-----|--------|-----|
-| `dtype` hardcoded to `"fp32"` in `embedder.ts:54` | Can't use q8 model, 2× memory vs needed | Add `dtype` field to local embeddings config schema |
 | No max_files_per_index limit | Runaway indexing on huge repos | Config knob: `indexing.max_files` |
 | No per-run memory report from `pythia init` | User doesn't know peak RSS | Add `--perf` flag to `pythia init` |
 | CSN benchmark uses local mode only | Can't compare quality across backends | Extend `csn-benchmark.mjs` with `--embedding-config` flag |

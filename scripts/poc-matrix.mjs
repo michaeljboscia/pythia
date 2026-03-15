@@ -17,9 +17,11 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "main.js");
 const globalConfigPath = path.join(os.homedir(), ".pythia", "config.json");
-const backends = ["local", "ollama", "vertex_ai", "voyage"];
-const dimensions = [128, 256, 512, 768];
-const corpora = ["pythia", "hyva", "luma"];
+const defaultQueriesPath = path.join(repoRoot, "scripts", "sprint-6-proof-queries.yaml");
+const pocMatrixDirectory = path.join(repoRoot, "benchmarks", "poc-matrix");
+const backends = ["local", "openai_compatible"];
+const dimensions = [128, 256, 512];
+const corpora = ["src_only", "src_plus_docs"];
 
 function parseArgs(argv) {
   const options = {
@@ -81,13 +83,11 @@ function readJsonIfExists(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
-function writeGlobalConfig(backend, dimension) {
+function writeConfigFile(configPath, backend, dimension) {
   const existing = readJsonIfExists(globalConfigPath) ?? {};
-  const configDirectory = path.dirname(globalConfigPath);
-  mkdirSync(configDirectory, { recursive: true });
-
   const embeddings = buildEmbeddingsConfig(backend, dimension);
-  writeFileSync(globalConfigPath, `${JSON.stringify({ ...existing, embeddings }, null, 2)}\n`, "utf8");
+  mkdirSync(path.dirname(configPath), { recursive: true });
+  writeFileSync(configPath, `${JSON.stringify({ ...existing, embeddings }, null, 2)}\n`, "utf8");
 }
 
 function buildEmbeddingsConfig(backend, dimension) {
@@ -97,29 +97,13 @@ function buildEmbeddingsConfig(backend, dimension) {
         mode: "local",
         dimensions: dimension,
       };
-    case "ollama":
+    case "openai_compatible":
       return {
         mode: "openai_compatible",
         dimensions: dimension,
-        base_url: process.env.PYTHIA_OLLAMA_BASE_URL ?? "http://127.0.0.1:11434/v1",
-        api_key: process.env.PYTHIA_OLLAMA_API_KEY ?? "ollama",
-        model: process.env.PYTHIA_OLLAMA_MODEL ?? "nomic-embed-text",
-      };
-    case "vertex_ai":
-      return {
-        mode: "vertex_ai",
-        dimensions: dimension,
-        project: requiredEnv("PYTHIA_VERTEX_PROJECT"),
-        location: process.env.PYTHIA_VERTEX_LOCATION ?? "us-central1",
-        model: process.env.PYTHIA_VERTEX_MODEL ?? "text-embedding-005",
-      };
-    case "voyage":
-      return {
-        mode: "openai_compatible",
-        dimensions: dimension,
-        base_url: process.env.PYTHIA_VOYAGE_BASE_URL ?? "https://api.voyageai.com/v1",
-        api_key: requiredEnv("PYTHIA_VOYAGE_API_KEY"),
-        model: process.env.PYTHIA_VOYAGE_MODEL ?? "voyage-code-2",
+        base_url: process.env.PYTHIA_MATRIX_OPENAI_BASE_URL ?? "http://127.0.0.1:11434/v1",
+        api_key: process.env.PYTHIA_MATRIX_OPENAI_API_KEY ?? "ollama",
+        model: process.env.PYTHIA_MATRIX_OPENAI_MODEL ?? "nomic-embed-text",
       };
     default:
       throw new Error(`Unsupported backend: ${backend}`);
@@ -137,23 +121,19 @@ function requiredEnv(name) {
 }
 
 function corpusConfig(corpus) {
-  const defaultQueries = path.join(repoRoot, "benchmarks", "queries", `${corpus}.yaml`);
+  const defaultWorkspace = process.env.PYTHIA_MATRIX_WORKSPACE ?? repoRoot;
+  const defaultQueries = process.env.PYTHIA_MATRIX_QUERIES ?? defaultQueriesPath;
 
   switch (corpus) {
-    case "pythia":
+    case "src_only":
       return {
-        workspace: process.env.PYTHIA_MATRIX_PYTHIA_WORKSPACE ?? repoRoot,
-        queries: process.env.PYTHIA_MATRIX_PYTHIA_QUERIES ?? defaultQueries,
+        workspace: process.env.PYTHIA_MATRIX_SRC_ONLY_WORKSPACE ?? defaultWorkspace,
+        queries: process.env.PYTHIA_MATRIX_SRC_ONLY_QUERIES ?? defaultQueries,
       };
-    case "hyva":
+    case "src_plus_docs":
       return {
-        workspace: process.env.PYTHIA_MATRIX_HYVA_WORKSPACE ?? requiredEnv("PYTHIA_MATRIX_HYVA_WORKSPACE"),
-        queries: process.env.PYTHIA_MATRIX_HYVA_QUERIES ?? defaultQueries,
-      };
-    case "luma":
-      return {
-        workspace: process.env.PYTHIA_MATRIX_LUMA_WORKSPACE ?? requiredEnv("PYTHIA_MATRIX_LUMA_WORKSPACE"),
-        queries: process.env.PYTHIA_MATRIX_LUMA_QUERIES ?? defaultQueries,
+        workspace: process.env.PYTHIA_MATRIX_SRC_PLUS_DOCS_WORKSPACE ?? defaultWorkspace,
+        queries: process.env.PYTHIA_MATRIX_SRC_PLUS_DOCS_QUERIES ?? defaultQueries,
       };
     default:
       throw new Error(`Unsupported corpus: ${corpus}`);
@@ -170,6 +150,10 @@ function comboDirectory(combo) {
 
 function comboSummaryPath(combo) {
   return path.join(comboDirectory(combo), "summary.json");
+}
+
+function comboResultPath(combo) {
+  return path.join(pocMatrixDirectory, `${comboId(combo)}.json`);
 }
 
 function runPythia(args) {
@@ -227,48 +211,61 @@ function listCombos(selector) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const combos = listCombos(options.only);
-  const originalGlobalConfig = existsSync(globalConfigPath)
-    ? readFileSync(globalConfigPath, "utf8")
-    : null;
 
   if (combos.length === 0) {
     throw new Error("No backend/dimension/corpus combinations matched the current filters.");
   }
 
-  ensureBuilt();
+  if (!options.dryRun) {
+    ensureBuilt();
+  }
 
-  try {
-    for (const combo of combos) {
-      const id = comboId(combo);
-      const comboDir = comboDirectory(combo);
-      const summaryPath = comboSummaryPath(combo);
-      const corpus = corpusConfig(combo.corpus);
+  for (const combo of combos) {
+    const id = comboId(combo);
+    const comboDir = comboDirectory(combo);
+    const summaryPath = comboSummaryPath(combo);
+    const resultPath = comboResultPath(combo);
+    const tempConfigPath = path.join(os.tmpdir(), `pythia-poc-matrix-${id}.json`);
+    const corpus = corpusConfig(combo.corpus);
 
-      if (options.resume && existsSync(summaryPath)) {
-        console.log(`SKIP ${id} (summary.json already exists)`);
-        continue;
+    if (options.resume && existsSync(resultPath)) {
+      try {
+        const priorResult = JSON.parse(readFileSync(resultPath, "utf8"));
+
+        if (priorResult && typeof priorResult.status === "string") {
+          console.log(`SKIP ${id} (valid result already exists)`);
+          continue;
+        }
+      } catch {
+        // Corrupted or incomplete result file — rerun this combination.
       }
+    }
 
-      if (options.dryRun) {
-        console.log(`${id} :: workspace=${corpus.workspace} :: queries=${corpus.queries}`);
-        continue;
-      }
+    if (options.dryRun) {
+      console.log(`${id} :: workspace=${corpus.workspace} :: queries=${corpus.queries}`);
+      continue;
+    }
 
-      if (!existsSync(corpus.workspace)) {
-        throw new Error(`Workspace does not exist for ${id}: ${corpus.workspace}`);
-      }
+    if (!existsSync(corpus.workspace)) {
+      throw new Error(`Workspace does not exist for ${id}: ${corpus.workspace}`);
+    }
 
-      if (!existsSync(corpus.queries)) {
-        throw new Error(`Query set does not exist for ${id}: ${corpus.queries}`);
-      }
+    if (!existsSync(corpus.queries)) {
+      throw new Error(`Query set does not exist for ${id}: ${corpus.queries}`);
+    }
 
-      rmSync(comboDir, { recursive: true, force: true });
-      mkdirSync(comboDir, { recursive: true });
+    rmSync(comboDir, { recursive: true, force: true });
+    mkdirSync(comboDir, { recursive: true });
+    mkdirSync(pocMatrixDirectory, { recursive: true });
 
-      console.log(`RUN ${id}`);
-      writeGlobalConfig(combo.backend, combo.dimension);
+    console.log(`RUN ${id}`);
+    writeConfigFile(tempConfigPath, combo.backend, combo.dimension);
 
-      runPythia(["init", "--force", "--workspace", corpus.workspace, "--config", globalConfigPath]);
+    try {
+      const initStart = Date.now();
+      runPythia(["init", "--force", "--workspace", corpus.workspace, "--config", tempConfigPath]);
+      const initWallClockMs = Date.now() - initStart;
+
       runPythia([
         "benchmark",
         "--workspace",
@@ -278,17 +275,26 @@ async function main() {
         "--output",
         comboDir,
         "--config",
-        globalConfigPath,
+        tempConfigPath,
       ]);
 
       flattenLatestRunArtifacts(comboDir);
-    }
-  } finally {
-    if (originalGlobalConfig === null) {
-      rmSync(globalConfigPath, { force: true });
-    } else {
-      mkdirSync(path.dirname(globalConfigPath), { recursive: true });
-      writeFileSync(globalConfigPath, originalGlobalConfig, "utf8");
+
+      writeFileSync(resultPath, `${JSON.stringify({
+        status: "success",
+        combo_id: id,
+        backend: combo.backend,
+        dimension: combo.dimension,
+        corpus: combo.corpus,
+        workspace: corpus.workspace,
+        queries: corpus.queries,
+        benchmark_output_dir: comboDir,
+        summary_path: summaryPath,
+        init_wall_clock_ms: initWallClockMs,
+        completed_at: new Date().toISOString(),
+      }, null, 2)}\n`, "utf8");
+    } finally {
+      rmSync(tempConfigPath, { force: true });
     }
   }
 }

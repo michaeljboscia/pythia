@@ -1,0 +1,14 @@
+services:
+  api:
+    image: myapp/api:latest
+    replicas: 3
+    env:
+      NODE_ENV: production
+
+  worker:
+    image: myapp/worker:latest
+    replicas: 2
+
+features:
+  dark_mode: true
+  beta_access: false

@@ -1,0 +1,12 @@
+database:
+  host: localhost
+  port: 5432
+  name: myapp
+
+server:
+  port: 3000
+  host: 0.0.0.0
+
+logging:
+  level: info
+  format: json

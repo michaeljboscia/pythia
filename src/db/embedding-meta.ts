@@ -19,7 +19,7 @@ function configToFingerprint(config: EmbeddingsBackendConfig): Omit<EmbeddingMet
     return {
       provider: "local",
       model_name: "nomic-ai/nomic-embed-text-v1.5",
-      model_revision: "fp32",
+      model_revision: config.dtype ?? "fp32",
       dimensions,
       normalization: "l2"
     };

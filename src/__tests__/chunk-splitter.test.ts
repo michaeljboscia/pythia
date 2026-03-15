@@ -90,3 +90,58 @@ test("missing chunk type limits pass through unchanged", () => {
 
   assert.deepEqual(result, chunk);
 });
+
+test("2500-char function chunks split into three parts at a 1000-char limit", () => {
+  const content = `${"a".repeat(999)}\n${"b".repeat(999)}\n${"c".repeat(500)}`;
+  const chunk = buildChunk({ content, end_line: 2 });
+
+  const parts = splitOversizedChunks([chunk], { function: 1000 }, "split");
+
+  assert.equal(parts.length, 3);
+  assert.deepEqual(parts.map((part) => part.id), [
+    "src/example.ts::function::render#part1",
+    "src/example.ts::function::render#part2",
+    "src/example.ts::function::render#part3"
+  ]);
+});
+
+test("truncate strategy keeps one chunk and appends the truncation marker", () => {
+  const content = "x".repeat(2500);
+  const chunk = buildChunk({ content });
+
+  const parts = splitOversizedChunks([chunk], { function: 1000 }, "truncate");
+
+  assert.equal(parts.length, 1);
+  assert.equal(parts[0].id, "src/example.ts::function::render");
+  assert.equal(parts[0].content.startsWith("x".repeat(1000)), true);
+  assert.equal(parts[0].content.endsWith("\n...[TRUNCATED]"), true);
+});
+
+test("unknown chunk types pass through unchanged even when content exceeds known limits", () => {
+  const chunk = buildChunk({
+    id: "src/example.ts::custom_unknown::payload",
+    chunk_type: "custom_unknown",
+    content: "z".repeat(2500)
+  });
+
+  const parts = splitOversizedChunks([chunk], { function: 1000 }, "split");
+
+  assert.equal(parts.length, 1);
+  assert.deepEqual(parts[0], chunk);
+});
+
+test("split chunk ids preserve #L42 before each generated #part suffix", () => {
+  const chunk = buildChunk({
+    id: "src/example.ts::function::render#L42",
+    content: `${"a".repeat(999)}\n${"b".repeat(600)}`,
+    start_line: 42,
+    end_line: 43
+  });
+
+  const parts = splitOversizedChunks([chunk], { function: 1000 }, "split");
+
+  assert.deepEqual(parts.map((part) => part.id), [
+    "src/example.ts::function::render#L42#part1",
+    "src/example.ts::function::render#L42#part2"
+  ]);
+});

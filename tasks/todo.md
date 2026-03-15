@@ -1,93 +1,57 @@
-# Sprint 7 — Session Todo
-**Date:** 2026-03-12
-**Sprint:** 7 (Hardening)
-**Spec:** `/Users/mikeboscia/pythia/design/sprint-7-spec.md`
-**Plan:** `/Users/mikeboscia/pythia/docs/IMPLEMENTATION_PLAN-sprint7.md`
+# Sprint 10 — Session Todo
+**Date:** 2026-03-13
+**Sprint:** 10 (Corpus Intelligence)
+**Spec:** `/Users/mikeboscia/pythia/design/sprint-10-spec.md`
 
 ---
 
-## Documentation (DONE ✓)
-- [x] Sprint 7 spec written: `/Users/mikeboscia/pythia/design/sprint-7-spec.md`
-- [x] `IMPLEMENTATION_PLAN-sprint7.md` generated
-- [x] `PRD-v2.md` updated (FEAT-000, FEAT-024 Phase 2, FEAT-032 through FEAT-036)
-- [x] `BACKEND_STRUCTURE-v2.md` error registry updated (HASH_MISMATCH_BATCH -32042, MISSING_REQUIRED_FILE -32043)
-- [x] `progress.txt` updated (Sprint 7 status, Sprint 6 on hold, session history)
+## Baseline
+- [x] Read `/Users/mikeboscia/pythia/CLAUDE.md`
+- [x] Read `/Users/mikeboscia/pythia/LESSONS.md`
+- [x] Read `/Users/mikeboscia/pythia/progress.txt`
+- [x] Run `npm test` baseline
+- [x] Confirm starting point is 383 passing tests
+
+## Step 1 — Corpus Health Core (FEAT-041)
+- [x] Create `/Users/mikeboscia/pythia/src/indexer/health.ts`
+- [x] Implement UNINITIALIZED handling for missing `lcs_chunks`
+- [x] Implement stats queries, prefix aggregation, and verdict logic
+- [x] Add `/Users/mikeboscia/pythia/src/__tests__/health.test.ts` with 8+ cases
+
+## Step 2 — Init Path: Ignore Generation + Health Summary + RAM Warning (FEAT-040 / 041 / 044)
+- [x] Update `/Users/mikeboscia/pythia/src/cli/init.ts` to auto-manage `.pythiaignore` before early return
+- [x] Handle create, zero-byte overwrite, append-without-newline, append-with-newline, and up-to-date cases
+- [x] Print corpus health summary in both init code paths
+- [x] Print WARN/DEGRADED reindex tip on stale early-return path
+- [x] Add low-RAM fp32 warning before the large-workspace warning
+- [x] Validate init behavior via the full suite and `scripts/sprint10-proof.mjs`
+
+## Step 3 — Embedding DType Support (FEAT-044)
+- [x] Update `/Users/mikeboscia/pythia/src/config.ts` schema and types for `dtype`
+- [x] Update `/Users/mikeboscia/pythia/src/indexer/embedder.ts` to cache local pipelines by dtype
+- [x] Clear rejected dtype promises from cache before re-throw
+- [x] Pass dtype through local embedder warm/query/chunk flows
+- [x] Update `/Users/mikeboscia/pythia/src/db/embedding-meta.ts` fingerprint to include dtype
+- [x] Update `/Users/mikeboscia/pythia/src/__tests__/config.test.ts` with dtype coverage
+- [x] Update `/Users/mikeboscia/pythia/src/__tests__/embedder.test.ts` with dtype cache coverage
+
+## Step 4 — MCP Corpus Health + Tool Descriptions (FEAT-042 / 043)
+- [x] Create `/Users/mikeboscia/pythia/src/mcp/corpus-health.ts`
+- [x] Register `pythia_corpus_health` in `/Users/mikeboscia/pythia/src/mcp/tools.ts`
+- [x] Rewrite all 8 MCP tool descriptions to the exact 4-section template
+- [x] Add `/Users/mikeboscia/pythia/src/__tests__/corpus-health.test.ts` with 4+ cases
+- [x] Update `/Users/mikeboscia/pythia/src/__tests__/mcp-server.test.ts` for 8 tools
+
+## Step 5 — Proof + Docs + Verification
+- [x] Remove the Sprint 10 dtype gap row from `/Users/mikeboscia/pythia/docs/EMBEDDING_TEST_PLAN.md`
+- [x] Create `/Users/mikeboscia/pythia/scripts/sprint10-proof.mjs`
+- [x] Run targeted tests during implementation
+- [x] Run `npm test` and confirm total tests >= 399
+- [x] Run `node scripts/sprint10-proof.mjs`
+- [x] Update `/Users/mikeboscia/pythia/progress.txt`
 
 ---
 
-## Step 7.1 — SQL Structural Extraction (FEAT-024 Phase 2)
-**Codebase:** `/Users/mikeboscia/pythia/`
-- [x] Modify `src/indexer/chunker-treesitter.ts`:
-  - [x] Add `extractSqlChunks()` targeting named routine statements
-  - [x] Emit `chunk_type: "function"` with CNI `<path>::function::<qualified_name>`
-  - [x] Always emit `chunk_type: "module"` for full file
-  - [x] ERROR node → skip routine, keep module only (silent)
-  - [x] Anonymous blocks → module chunk only, never function chunks
-  - [x] Register in language dispatch table for `.sql` files
-- [x] Create `src/__tests__/chunker-sql.test.ts` with 7+ test cases
-- [x] `npm test` — all new SQL tests pass
-
-## Step 7.2 — CSN Benchmark Wiring (FEAT-036)
-**Codebase:** `/Users/mikeboscia/pythia/`
-- [x] `package.json`: add `"benchmark": "node scripts/csn-benchmark.mjs"`
-- [x] `src/config.ts`: add `embedding_batch_size: 32` + `embedding_concurrency: 1` to Zod schema
-- [x] `scripts/csn-benchmark.mjs`: add `--baseline` flag logic
-  - [x] `computeBaselineDiff()` from runner.ts to compute diff
-  - [x] `baselineEligible()` gate — exit code 1 on degraded run
-  - [x] `writeBaselineFile()` to save baseline
-  - [x] Diff rows in terminal summary box
-- [x] Create `benchmarks/baselines/.gitkeep`
-- [x] Verify `npm run benchmark -- --samples 50` completes
-- [x] Verify `npm run benchmark -- --samples 50 --baseline` saves baseline file
-- [x] Verify follow-up benchmark run prints zero diff rows against the saved baseline
-
-## Step 7.3 — Spawn Audit Log & Fail-All Validation (FEAT-032 + FEAT-033)
-**Codebase:** `~/.claude/mcp-servers/inter-agent/`
-- [x] `oracle-tools.ts`: replace fail-fast hash check with accumulating loop
-  - [x] Collect all stale files before throwing
-  - [x] Throw `HASH_MISMATCH_BATCH` (-32042) with full `stale_files` array
-  - [x] Add `auto_refresh?: boolean` to `spawn_oracle` input schema
-  - [x] `auto_refresh: true`: re-hash stale, remove non-required missing, atomic write, continue
-  - [x] `auto_refresh: true` + deleted `required: true` file → `MISSING_REQUIRED_FILE` (-32043)
-- [x] `oracle-tools.ts`: add audit log appender
-  - [x] Create `~/.pythia/logs/` if not exists
-  - [x] Append JSONL entry after every spawn attempt (success + error)
-- [x] `oracle-tools.ts`: update `state.json` writes to schema_version 2 + `last_spawn_at`
-- [x] Write spawn tests: batch error payload, auto_refresh variants, audit log persistence
-
-## Step 7.4 — Oracle Core Tools (FEAT-000 + FEAT-034 + FEAT-035)
-**Codebase:** `~/.claude/mcp-servers/inter-agent/`
-- [x] `oracle-tools.ts`: implement `oracle_init` handler
-  - [x] `ORACLE_ALREADY_EXISTS` guard (no files modified)
-  - [x] Glob auto-discovery (3-level depth cap, README first, smallest-first sort)
-  - [x] Corpus cap (1.5M chars, skipped_files[] + corpus_truncated: true)
-  - [x] Write manifest.json (schema_version 2) + state.json (schema_version 2)
-  - [x] Register in registry.json with description field
-  - [x] Create `~/.pythia/logs/`
-- [x] `oracle-tools.ts`: implement `oracle_health` handler (strictly read-only — zero mutations)
-- [x] `oracle-tools.ts`: implement `oracle_refresh` handler (atomic manifest write via atomicWriteFile)
-- [x] `server.ts` registration path updated through `registerOracleTools`
-- [x] Create `src/test-oracle-init.mjs` with 4 targeted cases
-- [x] Create `src/test-oracle-health.mjs` with 3 targeted cases
-- [x] Create `src/test-oracle-refresh.mjs` with 8 targeted cases
-- [x] All 3 test suites pass
-
----
-
-## Sprint 7 Completion Gate
-- [x] `npm test` passes in `/Users/mikeboscia/pythia/` (255/255, includes SQL tests)
-- [x] `npm run benchmark -- --samples 50` completes
-- [x] All 3 oracle test suites pass
-- [x] 3 new oracle tools visible via MCP registration path
-- [x] `oracle-spawn-audit.jsonl` appends correctly on success + failure
-- [x] `oracle_init` creates oracle with zero manual steps
-- [x] Bump `package.json` version `1.2.0` → `1.3.0`
-- [ ] Git commit Sprint 7
-
----
-
-## Completion Snapshot
-- [x] Pythia verification complete
-- [x] Inter-agent verification complete
-- [x] CSN baseline created at `benchmarks/baselines/javascript.json`
-- [x] Baseline diff path exercised successfully
+## Review
+- [x] Record final verification results: `npm test` passed at 399/399; `node scripts/sprint10-proof.mjs` passed both phases; direct q8 pipeline check returned `Float32Array` length 768.
+- [x] Note residual risk: source-mode `npx tsx ... start` still emits worker import noise (`worker.ts` resolving `.js` siblings) even though Sprint 10 proof assertions pass.

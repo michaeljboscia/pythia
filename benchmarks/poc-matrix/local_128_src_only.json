@@ -1,0 +1,13 @@
+{
+  "status": "success",
+  "combo_id": "local_128_src_only",
+  "backend": "local",
+  "dimension": 128,
+  "corpus": "src_only",
+  "workspace": "/tmp/pythia-poc-mini",
+  "queries": "/Users/mikeboscia/pythia/scripts/sprint-6-proof-queries.yaml",
+  "benchmark_output_dir": "/Users/mikeboscia/pythia/benchmarks/results/local_128_src_only",
+  "summary_path": "/Users/mikeboscia/pythia/benchmarks/results/local_128_src_only/summary.json",
+  "init_wall_clock_ms": 1716,
+  "completed_at": "2026-03-12T18:51:10.550Z"
+}

@@ -16,7 +16,7 @@ import { PythiaError } from "../errors.js";
 env.cacheDir = path.join(homedir(), ".pythia", "models");
 
 type EmbeddingTensor = {
-  data: Float32Array;
+  data: ArrayLike<number>;
   dims: number[];
 };
 
@@ -45,17 +45,33 @@ type VertexConfig = {
   model: string;
 };
 
-let pipelinePromise: Promise<unknown> | null = null;
+type PipelineFactory = (
+  task: "feature-extraction",
+  model: string,
+  options: { dtype: string }
+) => Promise<unknown>;
+
+let pipelineFactory: PipelineFactory = pipeline as PipelineFactory;
+const pipelines = new Map<string, Promise<unknown>>();
 let localConcurrencyWarningEmitted = false;
 
-async function getEmbedder(): Promise<FeatureExtractionPipeline> {
-  if (pipelinePromise === null) {
-    pipelinePromise = pipeline("feature-extraction", "nomic-ai/nomic-embed-text-v1.5", {
-      dtype: "fp32"
-    });
+async function getEmbedder(dtype: string = "fp32"): Promise<FeatureExtractionPipeline> {
+  const cached = pipelines.get(dtype);
+
+  if (cached !== undefined) {
+    return await cached as FeatureExtractionPipeline;
   }
 
-  return await pipelinePromise as FeatureExtractionPipeline;
+  const promise = pipelineFactory("feature-extraction", "nomic-ai/nomic-embed-text-v1.5", {
+    dtype
+  }).catch((error) => {
+    pipelines.delete(dtype);
+    throw error;
+  });
+
+  pipelines.set(dtype, promise);
+
+  return await promise as FeatureExtractionPipeline;
 }
 
 function normalizeVector(vector: Float32Array): Float32Array {
@@ -88,6 +104,14 @@ function dimensionMismatchError(actualDimensions: number, targetDimensions: numb
   );
 }
 
+function toFloat32Array(values: ArrayLike<number>): Float32Array {
+  if (values instanceof Float32Array) {
+    return values;
+  }
+
+  return Float32Array.from(values);
+}
+
 function resolveDimensions(config: EmbeddingsBackendConfig): number {
   return config.dimensions ?? 256;
 }
@@ -106,10 +130,12 @@ function validateLocalDimensions(config: EmbeddingsBackendConfig): void {
 }
 
 function truncateAndNormalize(
-  flatEmbeddings: Float32Array,
+  flatEmbeddingsInput: ArrayLike<number>,
   dimensionsPerEmbedding: number,
   targetDimensions: number
 ): Float32Array[] {
+  const flatEmbeddings = toFloat32Array(flatEmbeddingsInput);
+
   if (dimensionsPerEmbedding < targetDimensions) {
     throw dimensionMismatchError(dimensionsPerEmbedding, targetDimensions);
   }
@@ -126,8 +152,12 @@ function truncateAndNormalize(
   return embeddings;
 }
 
-async function localEmbedTexts(texts: string[], targetDimensions: number): Promise<Float32Array[]> {
-  const embedder = await getEmbedder();
+async function localEmbedTexts(
+  texts: string[],
+  targetDimensions: number,
+  dtype: string = "fp32"
+): Promise<Float32Array[]> {
+  const embedder = await getEmbedder(dtype);
   const output = await embedder(texts, {
     normalize: true,
     pooling: "mean"
@@ -343,8 +373,8 @@ async function embedInParallel(
   return batches.flatMap((_, index) => cache.get(index) ?? []);
 }
 
-async function warmLocalEmbedder(targetDimensions: number): Promise<void> {
-  await localEmbedTexts(["warm"], targetDimensions);
+async function warmLocalEmbedder(targetDimensions: number, dtype: string = "fp32"): Promise<void> {
+  await localEmbedTexts(["warm"], targetDimensions, dtype);
 }
 
 export async function warmEmbedder(): Promise<void> {
@@ -361,7 +391,7 @@ export async function embedQuery(text: string): Promise<Float32Array> {
 }
 
 export type EmbeddingsBackendConfig =
-  | { mode: "local"; dimensions?: 128 | 256 | 512 | 768 | 1024 | 1536 }
+  | { mode: "local"; dimensions?: 128 | 256 | 512 | 768 | 1024 | 1536; dtype?: "fp32" | "q8" }
   | { mode: "openai_compatible"; dimensions?: 128 | 256 | 512 | 768 | 1024 | 1536; base_url: string; api_key: string; model: string }
   | { mode: "vertex_ai"; dimensions?: 128 | 256 | 512 | 768 | 1024 | 1536; project: string; location: string; model: string };
 
@@ -370,6 +400,18 @@ export type Embedder = {
   embedQuery: (text: string) => Promise<Float32Array>;
   warm: () => Promise<void>;
 };
+
+export function resetLocalEmbedderStateForTesting(): void {
+  pipelineFactory = pipeline as PipelineFactory;
+  pipelines.clear();
+  localConcurrencyWarningEmitted = false;
+}
+
+export function setPipelineFactoryForTesting(factory: PipelineFactory): void {
+  pipelineFactory = factory;
+  pipelines.clear();
+  localConcurrencyWarningEmitted = false;
+}
 
 type OpenAiEmbeddingsResponse = {
   data: { index: number; embedding: number[] }[];
@@ -397,19 +439,21 @@ export function createEmbedder(config: EmbeddingsBackendConfig, options: CreateE
   });
 
   if (config.mode === "local") {
+    const dtype = config.dtype ?? "fp32";
+
     if (settings.embedding_concurrency > 1 && !localConcurrencyWarningEmitted) {
       localConcurrencyWarningEmitted = true;
       warnImpl("Local embeddings backend ignores embedding_concurrency > 1; clamping to 1.");
     }
 
     return {
-      embedChunks: (texts) => localEmbedTexts(texts.map((text) => `search_document: ${text}`), targetDimensions),
+      embedChunks: (texts) => localEmbedTexts(texts.map((text) => `search_document: ${text}`), targetDimensions, dtype),
       embedQuery: async (text) => {
-        const [embedding] = await localEmbedTexts([`search_query: ${text}`], targetDimensions);
+        const [embedding] = await localEmbedTexts([`search_query: ${text}`], targetDimensions, dtype);
         return embedding;
       },
       warm: async () => {
-        await warmLocalEmbedder(targetDimensions);
+        await warmLocalEmbedder(targetDimensions, dtype);
       }
     };
   }
