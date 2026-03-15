@@ -12,7 +12,7 @@ benchmarks/results/
 
 # Runtime state — never commit
 .pythia-active/
-oracle/
+/oracle/
 registry.json
 session-logs/
 skills/
