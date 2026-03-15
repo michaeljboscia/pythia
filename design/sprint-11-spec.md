@@ -1,9 +1,8 @@
 # Sprint 11 Spec — Language Expansion (Swift / Kotlin / Elixir) + Performance Observability
-**Version:** 2.0
+**Version:** 3.0
 **Date:** 2026-03-15
 **Pythia version:** 1.5.0
-**Status:** REVIEWED (Round 1 complete — 18 findings applied)
-**Prerequisite:** Sprint 10 complete (≥399 tests pass)
+**Status:** REVIEWED (Round 1: 18 fixes, Round 2: 6 fixes — ready for implementation)
 **Prerequisite:** Sprint 10 complete (≥399 tests pass)
 
 ---
@@ -180,10 +179,12 @@ Add to `languageConfigEntries`:
 
 Add `"swift"` to the `ChunkStrategy` union type.
 
-Add case to the strategy dispatch (wherever `"ruby"`, `"csharp"` etc. are handled):
+Add to the `if` chain in `chunkFile` (matching the existing `if (config.strategy === "ruby")` pattern — do NOT use `switch`/`case`):
 ```typescript
-case "swift":
-  return extractSwiftChunks(rootNode, normalizedPath);
+if (config.strategy === "swift") {
+  baseChunks.push(...extractSwiftChunks(rootNode, normalizedPath));
+  return finalizeChunks(baseChunks, options);
+}
 ```
 
 **Registration in `cdc.ts`:**
@@ -252,6 +253,55 @@ function getKotlinName(node: SyntaxNode, fallbackRow: number): string {
 
 **Walk strategy:** Full recursive walk. `object_declaration` in Kotlin is a singleton — chunk it as `"class"`.
 
+**Full implementation template** (follow `src/indexer/chunker-ruby.ts` for structure):
+
+```typescript
+import Parser from "tree-sitter";
+import type { Chunk, ChunkType } from "./chunker-treesitter.js";
+
+type SyntaxNode = Parser.SyntaxNode;
+
+function getKotlinName(node: SyntaxNode, fallbackRow: number): string {
+  for (const child of node.namedChildren) {
+    if (child.type === "simple_identifier" || child.type === "type_identifier") {
+      return child.text;
+    }
+  }
+  return `anonymous_L${fallbackRow}`;
+}
+
+export function extractKotlinChunks(rootNode: SyntaxNode, filePath: string): Chunk[] {
+  const chunks: Chunk[] = [];
+  const typeToChunkType = new Map<string, ChunkType>([
+    ["class_declaration", "class"],
+    ["object_declaration", "class"],
+    ["function_declaration", "function"]
+  ]);
+
+  function walk(node: SyntaxNode): void {
+    const chunkType = typeToChunkType.get(node.type);
+    if (chunkType !== undefined) {
+      const name = getKotlinName(node, node.startPosition.row);
+      chunks.push({
+        id: `${filePath}::${chunkType}::${name}`,
+        file_path: filePath,
+        chunk_type: chunkType,
+        content: node.text,
+        start_line: node.startPosition.row,
+        end_line: node.endPosition.row,
+        language: "kotlin"
+      });
+    }
+    for (const child of node.namedChildren) {
+      walk(child);
+    }
+  }
+
+  walk(rootNode);
+  return chunks;
+}
+```
+
 **Registration in `chunker-treesitter.ts`:**
 
 Add import:
@@ -283,7 +333,7 @@ Add to `languageConfigEntries`:
 | 9 | Mixed file (class + object + fun) | 3+ chunks, all correct chunk types |
 | 10 | `.kts` script file | Extension is recognized, at least one chunk returned |
 | 11 | `language` field | Every chunk has `language: "kotlin"` |
-| 12 | Extension registration | Does not throw |
+| 12 | Extension registration | `chunkFile("test.kt", content, workspaceRoot)` returns chunks without throwing |
 
 ---
 
@@ -324,11 +374,12 @@ call
 
 **Name extraction details:**
 
+**IMPORTANT:** Use `.find(c => c.type === "arguments")` to locate the arguments node — NOT `namedChildren[1]`. The `.find()` approach is robust against AST ordering changes. The implementation template below uses `namedChildren[1]` for brevity but workers MUST use the `.find()` approach in the actual implementation.
+
 ```typescript
 // For defmodule/defprotocol:
 // call → arguments → first named child is an alias (e.g. "MyModule") or atom
-const args = node.childForFieldName?.("arguments")
-  ?? node.namedChildren.find(c => c.type === "arguments");
+const args = node.namedChildren.find(c => c.type === "arguments");
 const name = args?.firstNamedChild?.text ?? `anonymous_L${node.startPosition.row}`;
 
 // For def/defp/defmacro:
@@ -357,8 +408,8 @@ const ELIXIR_DEF_TO_CHUNK_TYPE: Record<string, string> = {
 };
 
 function getElixirName(defKeyword: string, callNode: SyntaxNode): string {
-  // arguments is the second named child of a call node
-  const args = callNode.namedChildren[1];
+  // Use .find() for robustness — do NOT rely on positional index
+  const args = callNode.namedChildren.find(c => c.type === "arguments");
   const firstArg = args?.firstNamedChild;
   if (!firstArg) return `anonymous_L${callNode.startPosition.row}`;
 
@@ -437,7 +488,7 @@ import { extractElixirChunks } from "./chunker-elixir.js";
 | 11 | No-arg function with keyword syntax (`def f(), do: 1`) | Chunk extracted |
 | 12 | Non-def call (e.g. `IO.puts("x")`) | NOT included in chunks |
 | 13 | `language` field | Every chunk has `language: "elixir"` |
-| 14 | Extension registration | Does not throw for `.exs` files |
+| 14 | Extension registration | `chunkFile("test.exs", content, workspaceRoot)` returns chunks without throwing |
 
 ---
 
@@ -478,17 +529,18 @@ export async function scanWorkspace(
 
 None of these callers need changes — they don't pass `maxFiles`, so the 4th param defaults to `undefined` (no cap).
 
-After building the full list of file changes (`fileChanges`), apply the cap BEFORE returning:
+Apply the cap to `filePaths` IMMEDIATELY AFTER `collectFiles()` — BEFORE reading file content or computing hashes. This avoids unnecessary I/O on large repos:
 
 ```typescript
-if (options?.maxFiles !== undefined && fileChanges.length > options.maxFiles) {
-  const capped = fileChanges.slice(0, options.maxFiles);
+collectFiles(absoluteWorkspaceRoot, absoluteWorkspaceRoot, [], filePaths);
+
+if (options?.maxFiles !== undefined && filePaths.length > options.maxFiles) {
   console.warn(
     `[Pythia] File cap reached: indexing ${options.maxFiles.toLocaleString()} of ` +
-    `${fileChanges.length.toLocaleString()} discovered files. ` +
+    `${filePaths.length.toLocaleString()} discovered files. ` +
     `Set indexing.max_files higher or add more rules to .pythiaignore.`
   );
-  return capped;
+  filePaths.length = options.maxFiles; // truncate in place
 }
 ```
 
@@ -635,6 +687,7 @@ Where `/tmp/pythia-homebox-config.json` contains:
 | File | Change |
 |------|--------|
 | `package.json` | Add `tree-sitter-swift`, `tree-sitter-kotlin`, `tree-sitter-elixir` |
+| `package-lock.json` | Auto-updated by npm install — commit the changes |
 | `src/indexer/chunker-treesitter.ts` | Add imports, language config entries, strategy cases, ChunkStrategy union |
 | `src/indexer/cdc.ts` | Add `.swift`, `.kt`, `.kts`, `.ex`, `.exs`, `.rb`, `.cs`, `.yaml`, `.yml` to `indexedExtensions`; add `maxFiles` as 4th param to `scanWorkspace` |
 | `src/config.ts` | Add `max_files` to `indexingSchema` |
