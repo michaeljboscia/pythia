@@ -1,8 +1,9 @@
 # Sprint 11 Spec — Language Expansion (Swift / Kotlin / Elixir) + Performance Observability
-**Version:** 1.0
-**Date:** 2026-03-13
+**Version:** 2.0
+**Date:** 2026-03-15
 **Pythia version:** 1.5.0
-**Status:** DRAFT
+**Status:** REVIEWED (Round 1 complete — 18 findings applied)
+**Prerequisite:** Sprint 10 complete (≥399 tests pass)
 **Prerequisite:** Sprint 10 complete (≥399 tests pass)
 
 ---
@@ -75,10 +76,10 @@ If any package fails to build, stop and find an alternative before proceeding.
 #    language === "elixir".
 #
 # Phase 2 — max_files cap (CLI)
-# 4. Create a temp workspace with 5 .ts files and no .pythiaignore.
+# 4. Create a temp workspace with 5 files (2 .ts, 1 .swift, 1 .kt, 1 .ex) and no .pythiaignore.
 #    Run `pythia init` with a config that sets `indexing.max_files: 3`.
 #    Assert: stdout contains "[Pythia] File cap reached" or equivalent warning.
-#    Assert: the DB contains ≤ 3 indexed files (query lcs_chunks for distinct file_path count).
+#    Assert: the DB contains ≤ 3 indexed files (query file_scan_cache for row count — NOT lcs_chunks, which misses files with zero chunks).
 #
 # Phase 3 — --perf flag (CLI)
 # 5. Run `pythia init --perf` on any workspace that has already been initialized.
@@ -189,6 +190,8 @@ case "swift":
 
 Add `".swift"` to the `indexedExtensions` Set.
 
+**Pre-existing bug fix:** Also add `.rb`, `.cs`, `.yaml`, `.yml` to `indexedExtensions` — these chunkers exist from Sprint 8-10 but were never added to the CDC scanner's extension set, so those files are never discovered for indexing.
+
 **Type declaration file:** Do NOT create a `.d.ts` file for `tree-sitter-swift`. The existing pattern in the project only declares types for `tree-sitter-css` (which has a non-standard export shape). Swift's export shape is a default export like Ruby — no `.d.ts` needed.
 
 **Tests** (`src/__tests__/chunker-swift.test.ts` — new file, minimum 12 tests):
@@ -206,7 +209,7 @@ Add `".swift"` to the `indexedExtensions` Set.
 | 9 | Mixed file (class + func + protocol) | 3+ chunks, all correct chunk types |
 | 10 | File with only comments | Returns `[]` |
 | 11 | `language` field | Every chunk has `language: "swift"` |
-| 12 | Extension registration | `chunkerTreeSitter({...})` called with a `.swift` file does not throw |
+| 12 | Extension registration | `chunkFile("test.swift", content, workspaceRoot)` returns chunks without throwing |
 
 ---
 
@@ -228,18 +231,18 @@ Add `".swift"` to the `indexedExtensions` Set.
 
 | AST node type | `chunk_type` | Name extraction |
 |---------------|-------------|-----------------|
-| `class_declaration` | `"class"` | First named child of type `simple_identifier` |
-| `object_declaration` | `"class"` | First named child of type `simple_identifier` |
+| `class_declaration` | `"class"` | First named child of type `type_identifier` or `simple_identifier` |
+| `object_declaration` | `"class"` | First named child of type `type_identifier` or `simple_identifier` |
 | `function_declaration` | `"function"` | First named child of type `simple_identifier` |
 
-**Note on Kotlin AST:** Unlike Swift, Kotlin's tree-sitter grammar does NOT expose `childForFieldName("name")`. Name extraction requires iterating `node.namedChildren` and finding the first child with `type === "simple_identifier"`.
+**Note on Kotlin AST:** Unlike Swift, Kotlin's tree-sitter grammar does NOT expose `childForFieldName("name")`. Name extraction requires iterating `node.namedChildren`. **Critical:** `class_declaration` and `object_declaration` use `type_identifier` for names, while `function_declaration` uses `simple_identifier`. The helper must check for both node types.
 
 **Name extraction helper:**
 
 ```typescript
 function getKotlinName(node: SyntaxNode, fallbackRow: number): string {
   for (const child of node.namedChildren) {
-    if (child.type === "simple_identifier") {
+    if (child.type === "simple_identifier" || child.type === "type_identifier") {
       return child.text;
     }
   }
@@ -274,7 +277,7 @@ Add to `languageConfigEntries`:
 | 3 | `class` with no methods | One chunk, `chunk_type: "class"` |
 | 4 | `class` with one method | Two chunks — class + method |
 | 5 | `object` declaration (singleton) | One chunk, `chunk_type: "class"` |
-| 6 | Interface-like class (Kotlin `interface`) | ≥1 chunk (chunk_type per grammar — class or interface) |
+| 6 | Kotlin `interface` declaration | ≥1 chunk, `chunk_type === "class"` (tree-sitter-kotlin emits `class_declaration` for interfaces) |
 | 7 | Anonymous node (no simple_identifier child) | chunk id includes `anonymous_L` |
 | 8 | Nested class inside class | Both are separate chunks |
 | 9 | Mixed file (class + object + fun) | 3+ chunks, all correct chunk types |
@@ -457,15 +460,23 @@ No default value — `undefined` means uncapped (preserving existing behavior).
 
 **CDC enforcer (`src/indexer/cdc.ts`):**
 
-The `scanWorkspace` function signature must be updated to accept the config value:
+The `scanWorkspace` function signature must be updated to accept `maxFiles` as a **4th parameter**, preserving the existing `forceReindex` boolean:
 
 ```typescript
-export function scanWorkspace(
+export async function scanWorkspace(
   workspaceRoot: string,
   db: Database.Database,
+  forceReindex: boolean = false,
   options?: { maxFiles?: number }
-): FileChange[]
+): Promise<FileChange[]>
 ```
+
+**IMPORTANT:** The existing 3rd parameter `forceReindex: boolean` MUST be preserved. It is used by:
+- `src/cli/init.ts:265` — passes `options.force === true`
+- `src/index.ts:35` — passes `false`
+- `src/mcp/force-index.ts` (lines 133, 145, 188, 196) — passes `false`
+
+None of these callers need changes — they don't pass `maxFiles`, so the 4th param defaults to `undefined` (no cap).
 
 After building the full list of file changes (`fileChanges`), apply the cap BEFORE returning:
 
@@ -483,11 +494,11 @@ if (options?.maxFiles !== undefined && fileChanges.length > options.maxFiles) {
 
 **Warning message format:** Use `.toLocaleString()` for both counts. The warning prints to `stderr` via `console.warn` (not `console.log`).
 
-**Caller update (`src/cli/init.ts`):** Pass `config.indexing.max_files` to `scanWorkspace`:
+**Caller update (`src/cli/init.ts`):** Pass `config.indexing.max_files` to `scanWorkspace`. Note: `scanWorkspaceImpl` is on the `dependencies` object (type `InitDependencies`), NOT `options` (type `InitOptions`):
 
 ```typescript
-const fileChanges = (options.scanWorkspaceImpl ?? scanWorkspace)(
-  workspaceRoot, db, { maxFiles: config.indexing.max_files }
+const fileChanges = await scanWorkspaceImpl(
+  workspaceRoot, db, options.force === true, { maxFiles: config.indexing.max_files }
 );
 ```
 
@@ -507,11 +518,11 @@ const fileChanges = (options.scanWorkspaceImpl ?? scanWorkspace)(
 
 **Status:** New implementation required.
 
-**Modified files:** `src/cli/init.ts`, `src/cli/main.ts`
+**Modified files:** `src/cli/init.ts`
 
 **Purpose:** Print peak RSS (resident set size) after `pythia init` completes, so users can verify that the OOM fix is effective and measure memory usage across embedding modes.
 
-**CLI option** (add to the `init` command in `src/cli/main.ts`):
+**CLI option** (add to `initCommand` in `src/cli/init.ts` — NOT `main.ts`, which only registers the pre-built command):
 ```typescript
 .option("--perf", "Print peak RSS memory usage after init completes")
 ```
@@ -526,7 +537,11 @@ type InitOptions = {
 };
 ```
 
-**Output** (print to `stdout` at the very end of `runInit`, after the health summary, in both the early-return path and the normal path):
+**Output** (print to `stdout` at the very end of `runInit`, after the health summary, in ALL THREE return paths):
+
+1. **Already-initialized early return** (init.ts:258) — after `reportCorpusHealth`
+2. **Zero-file-changes early return** (init.ts:271-275) — after `reportCorpusHealth`
+3. **Normal indexing path** (init.ts:314-318) — after `reportCorpusHealth`
 
 ```typescript
 if (options.perf === true) {
@@ -568,7 +583,7 @@ if (options.perf === true) {
 ```
 
 **Behavior:**
-1. If `--embedding-config <path>` is provided: read the file, parse as JSON, and use its `embeddings` object as the embedding configuration for the benchmark run. The file must contain a valid `embeddings` config object (same shape as the `embeddings` field in `~/.pythia/config.json`). Invalid JSON or missing `embeddings` key: print error and exit with code 1.
+1. If `--embedding-config <path>` is provided: read the file, parse as JSON, extract the `embeddings` key, and validate it using `configSchema.shape.embeddings.parse(parsed.embeddings)` (from `src/config.ts` — `configSchema` is exported, `embeddingsSchema` is not). Invalid JSON, missing `embeddings` key, or Zod validation failure: print error and exit with code 1.
 2. If `--embedding-config` is not provided: use the existing behavior (read from `~/.pythia/config.json`).
 
 **Implementation contract:** The `--embedding-config` flag is additive — it does not change any other benchmark behavior. Sample counts, language filter, output format, and baseline comparison are all unchanged.
@@ -611,6 +626,7 @@ Where `/tmp/pythia-homebox-config.json` contains:
 | `src/__tests__/chunker-kotlin.test.ts` | Worker | Kotlin chunker tests (≥12) |
 | `src/__tests__/chunker-elixir.test.ts` | Worker | Elixir chunker tests (≥14) |
 | `scripts/sprint11-proof.mjs` | Worker | Proof script |
+| `.npmrc` | Worker | `legacy-peer-deps=true` for CI compatibility |
 
 ---
 
@@ -620,26 +636,25 @@ Where `/tmp/pythia-homebox-config.json` contains:
 |------|--------|
 | `package.json` | Add `tree-sitter-swift`, `tree-sitter-kotlin`, `tree-sitter-elixir` |
 | `src/indexer/chunker-treesitter.ts` | Add imports, language config entries, strategy cases, ChunkStrategy union |
-| `src/indexer/cdc.ts` | Add `.swift`, `.kt`, `.kts`, `.ex`, `.exs` to `indexedExtensions`; add `maxFiles` param to `scanWorkspace` |
+| `src/indexer/cdc.ts` | Add `.swift`, `.kt`, `.kts`, `.ex`, `.exs`, `.rb`, `.cs`, `.yaml`, `.yml` to `indexedExtensions`; add `maxFiles` as 4th param to `scanWorkspace` |
 | `src/config.ts` | Add `max_files` to `indexingSchema` |
-| `src/cli/init.ts` | Add `perf` to `InitOptions`; print Peak RSS; pass `max_files` to `scanWorkspace` |
-| `src/cli/main.ts` | Add `--perf` option to init command |
+| `src/cli/init.ts` | Add `--perf` option to `initCommand`; add `perf` to `InitOptions`; print Peak RSS in all 3 return paths; pass `max_files` to `scanWorkspace` |
 | `src/__tests__/cdc.test.ts` | Add 5 new tests for `max_files` |
 | `src/__tests__/cli.test.ts` | Add 4 new tests for `--perf` |
 | `scripts/csn-benchmark.mjs` | Add `--embedding-config` flag |
-| `README.md` | Add Swift, Kotlin, Elixir to supported languages table; add `max_files` and `--perf` to configuration docs |
+| `README.md` | Append Swift, Kotlin, Elixir, Ruby, C#, YAML to supported languages paragraph in `## Architecture`; add `max_files` to JSON example in `## Configuration`; add `--perf` to `## Quickstart` |
 
 ---
 
 ## Constraints
 
-1. **No new npm dependencies other than the three tree-sitter grammars.** Install with `--legacy-peer-deps` if needed.
+1. **No new npm dependencies other than the three tree-sitter grammars.** Install with `--legacy-peer-deps`. **Create `.npmrc`** in the project root containing `legacy-peer-deps=true` so `npm ci` works in CI without flags.
 2. **`max_files` is optional in the config schema.** Omitting it preserves existing behavior exactly. Do not add a default value.
 3. **The `--perf` flag uses `process.memoryUsage().rss`.** Do not use any native addon or external library to measure memory. Add the comment explaining it's current RSS, not true peak.
 4. **No compiler or LSP integration.** Language support is tree-sitter fast-path only.
 5. **No changes to existing tests.** All 399 passing tests must continue to pass.
-6. **Minimum test gate: ≥447.** That is 399 + 48 minimum new tests (12 Swift + 12 Kotlin + 14 Elixir + 5 CDC + 4 CLI + 3 integration/registration = 50 minimum; 447 is a conservative gate).
-7. **README update is mandatory.** Add all three languages to the supported languages table. Add `indexing.max_files` to the configuration reference. Add `--perf` to CLI usage examples. CLAUDE.md project rule: "Whenever new languages, tools, or CLI commands are implemented, update the Supported languages, MCP Tools, and Quick Context sections in `README.md` in the same commit."
+6. **Minimum test gate: ≥449.** That is 399 + 50 minimum new tests (12 Swift + 12 Kotlin + 14 Elixir + 5 CDC + 4 CLI + 3 integration/registration = 50).
+7. **README update is mandatory.** Append Swift, Kotlin, Elixir, Ruby, C#, YAML to the supported languages paragraph in `## Architecture` (line 210 — it's a paragraph, not a table). Add `indexing.max_files` to the JSON example under `## Configuration`. Add `--perf` example to the `## Quickstart` section. CLAUDE.md project rule: "Whenever new languages, tools, or CLI commands are implemented, update the Supported languages, MCP Tools, and Quick Context sections in `README.md` in the same commit."
 8. **`console.warn` for the cap warning, not `console.log`.** The CDC scanner prints to stderr.
 
 ---
@@ -647,15 +662,15 @@ Where `/tmp/pythia-homebox-config.json` contains:
 ## Test Count Baseline
 
 - **Sprint 10 gate:** ≥399 (current passing: 399)
-- **Sprint 11 gate:** ≥447
+- **Sprint 11 gate:** ≥449
 - **New tests breakdown:**
   - Swift chunker: ≥12
   - Kotlin chunker: ≥12
   - Elixir chunker: ≥14
   - CDC `max_files`: ≥5
   - CLI `--perf`: ≥4
-  - Registration/integration (chunker-languages.test.ts or similar): ≥1 per language
-  - Total minimum: ≥48 new tests
+  - Registration/integration (chunker-languages.test.ts or similar): ≥3 (1 per language)
+  - Total minimum: ≥50 new tests (399 + 50 = 449)
 
 ---
 
