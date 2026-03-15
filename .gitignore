@@ -16,3 +16,4 @@ oracle/
 registry.json
 session-logs/
 skills/
+.worktrees/
