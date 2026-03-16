@@ -13,6 +13,7 @@
  *   --samples <N>        Number of examples to evaluate (default: 500)
  *   --keep-tmp           Preserve temp workspace after run
  *   --output <dir>       Output dir (default: benchmarks/results/csn-<lang>-<ts>/)
+ *   --embedding-config   Path to a JSON file containing an embeddings config object
  */
 
 import { execFileSync } from "node:child_process";
@@ -43,6 +44,7 @@ if (!runningUnderTsx) {
 
 // --- Dynamic imports (resolved under tsx) ---
 const { openDb } = await import("../src/db/connection.js");
+const { configSchema } = await import("../src/config.js");
 const { search } = await import("../src/retrieval/hybrid.js");
 const { computeBaselineDiff, runBenchmark } = await import("../src/benchmark/runner.js");
 const {
@@ -59,10 +61,28 @@ const opt = (name, def) => {
 };
 const flag = (name) => argv.includes(name);
 
+const helpText = `
+Usage:
+  node scripts/csn-benchmark.mjs [options]
+
+Options:
+  --lang <js|php>         Language subset (default: javascript)
+  --samples <N>           Number of examples to evaluate (default: 500)
+  --keep-tmp              Preserve temp workspace after run
+  --output <dir>          Output dir (default: benchmarks/results/csn-<lang>-<ts>/)
+  --embedding-config      Path to a JSON file containing an embeddings config object
+`;
+
+if (flag("--help") || flag("-h")) {
+  console.log(helpText.trim());
+  process.exit(0);
+}
+
 const lang = opt("--lang", "javascript");
 const samples = parseInt(opt("--samples", "500"), 10);
 const keepTmp = flag("--keep-tmp");
 const setBaseline = flag("--baseline");
+const embeddingConfigPath = opt("--embedding-config", undefined);
 const hfConfig = lang === "php" ? "php" : "javascript";
 const fileExt = lang === "php" ? ".php" : ".js";
 const baselinePath = path.join(repoRoot, "benchmarks", "baselines", `${lang}.json`);
@@ -77,6 +97,19 @@ const outputDir = opt(
   path.join(repoRoot, "benchmarks", "results", `csn-${lang}-${timestamp}`)
 );
 const distCliPath = path.join(repoRoot, "dist-test", "src", "cli", "main.js");
+let embeddingOverride;
+
+if (embeddingConfigPath) {
+  try {
+    const raw = readFileSync(path.resolve(embeddingConfigPath), "utf8");
+    const parsed = JSON.parse(raw);
+    embeddingOverride = configSchema.shape.embeddings.parse(parsed.embeddings);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[ERROR] Invalid --embedding-config: ${message}`);
+    process.exit(1);
+  }
+}
 
 console.log("\n📊 CodeSearchNet Benchmark");
 console.log(`   Language : ${lang}`);
@@ -162,7 +195,7 @@ writeFileSync(
     {
       workspace_path: tmpDir,
       reasoning: { mode: "cli" },
-      embeddings: {
+      embeddings: embeddingOverride ?? {
         mode: "local",
         dimensions: 256,
       },
