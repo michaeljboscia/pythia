@@ -52,6 +52,7 @@ cd /your/project
 echo "docs/\nresearch/\n*.md" > .pythiaignore
 
 pythia init       # index workspace, create .pythia/lcs.db
+pythia init --perf  # print peak RSS after init completes
 pythia mcp install  # register with Claude Code
 ```
 
@@ -99,7 +100,8 @@ Global config at `~/.pythia/config.json`:
     "deleted_chunk_retention_days": 7
   },
   "indexing": {
-    "scan_on_start": false
+    "scan_on_start": false,
+    "max_files": 500
   }
 }
 ```
@@ -207,7 +209,7 @@ re-embeds changed files, keeping ongoing costs near zero.
 
 **Retrieval pipeline:** Query embedding → top-30 vec cosine + top-30 FTS → RRF fusion → cross-encoder rerank → top-12
 
-**Supported languages:** TypeScript, JavaScript, Python, Go, Rust, Java, PHP, SQL, CSS, SCSS (Tree-sitter fast path), plus Markdown as plaintext.
+**Supported languages:** TypeScript, JavaScript, Python, Go, Rust, Java, PHP, SQL, CSS, SCSS, Ruby, C#, YAML, Swift, Kotlin, Elixir (Tree-sitter fast path), plus Markdown as plaintext.
 
 ---
 
@@ -229,5 +231,6 @@ This repo is Pythia v1 — a single MCP server combining LCS indexing and oracle
 - Global config: `~/.pythia/config.json`
 - 6 MCP tools: `lcs_investigate`, `pythia_force_index`, `spawn_oracle`, `ask_oracle`, `oracle_commit_decision`, `oracle_decommission`
 - Worker Thread handles all indexing; Main Thread handles all MCP requests
+- Supported languages: TypeScript, JavaScript, Python, Go, Rust, Java, PHP, SQL, CSS, SCSS, Ruby, C#, YAML, Swift, Kotlin, Elixir, Markdown
 - Embedding: nomic-embed-text-v1.5 ONNX, 256d Matryoshka truncation
 - `.pythiaignore` mirrors `.gitignore` semantics — use it to scope the index
