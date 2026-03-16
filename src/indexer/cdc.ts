@@ -37,6 +37,15 @@ const indexedExtensions = new Set([
   ".sql",
   ".css",
   ".scss",
+  ".rb",
+  ".cs",
+  ".yaml",
+  ".yml",
+  ".swift",
+  ".kt",
+  ".kts",
+  ".ex",
+  ".exs",
   ".md",
   ".mdx"
 ]);

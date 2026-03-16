@@ -4,14 +4,17 @@ import { XMLParser } from "fast-xml-parser";
 import Parser from "tree-sitter";
 import CSS from "tree-sitter-css";
 import CSharp from "tree-sitter-c-sharp";
+import Elixir from "tree-sitter-elixir";
 import Go from "tree-sitter-go";
 import Java from "tree-sitter-java";
 import JavaScript from "tree-sitter-javascript";
+import Kotlin from "tree-sitter-kotlin";
 import PHP from "tree-sitter-php";
 import Python from "tree-sitter-python";
 import Ruby from "tree-sitter-ruby";
 import Rust from "tree-sitter-rust";
 import SQL from "tree-sitter-sql";
+import Swift from "tree-sitter-swift";
 import TypeScript from "tree-sitter-typescript";
 
 import {
@@ -21,8 +24,11 @@ import {
 import { splitOversizedChunks } from "./chunk-splitter.js";
 import { extractCSharpChunks } from "./chunker-c-sharp.js";
 import { extractCssOrScssChunks } from "./chunker-css.js";
+import { extractElixirChunks } from "./chunker-elixir.js";
+import { extractKotlinChunks } from "./chunker-kotlin.js";
 import { extractPhpChunks } from "./chunker-php.js";
 import { extractRubyChunks } from "./chunker-ruby.js";
+import { extractSwiftChunks } from "./chunker-swift.js";
 import { extractYamlChunks } from "./chunker-yaml.js";
 
 type SyntaxNode = Parser.SyntaxNode;
@@ -36,6 +42,9 @@ type ChunkStrategy =
   | "ruby"
   | "csharp"
   | "yaml"
+  | "swift"
+  | "kotlin"
+  | "elixir"
   | "module";
 
 type LanguageConfig = {
@@ -96,7 +105,12 @@ const languageConfigEntries: Array<[string, LanguageConfig]> = [
   [".rb", { language: "ruby", parserLanguage: Ruby as Parser.Language, strategy: "ruby" }],
   [".cs", { language: "csharp", parserLanguage: CSharp as Parser.Language, strategy: "csharp" }],
   [".yaml", { language: "yaml", strategy: "yaml" }],
-  [".yml", { language: "yaml", strategy: "yaml" }]
+  [".yml", { language: "yaml", strategy: "yaml" }],
+  [".swift", { language: "swift", parserLanguage: Swift as Parser.Language, strategy: "swift" }],
+  [".kt", { language: "kotlin", parserLanguage: Kotlin as Parser.Language, strategy: "kotlin" }],
+  [".kts", { language: "kotlin", parserLanguage: Kotlin as Parser.Language, strategy: "kotlin" }],
+  [".ex", { language: "elixir", parserLanguage: Elixir as Parser.Language, strategy: "elixir" }],
+  [".exs", { language: "elixir", parserLanguage: Elixir as Parser.Language, strategy: "elixir" }]
 ];
 
 const languageConfigByExtension = new Map<string, LanguageConfig>(languageConfigEntries);
@@ -708,6 +722,21 @@ export function chunkFile(
 
   if (config.strategy === "csharp") {
     baseChunks.push(...extractCSharpChunks(rootNode, normalizedPath));
+    return finalizeChunks(baseChunks, options);
+  }
+
+  if (config.strategy === "swift") {
+    baseChunks.push(...extractSwiftChunks(rootNode, normalizedPath));
+    return finalizeChunks(baseChunks, options);
+  }
+
+  if (config.strategy === "kotlin") {
+    baseChunks.push(...extractKotlinChunks(rootNode, normalizedPath));
+    return finalizeChunks(baseChunks, options);
+  }
+
+  if (config.strategy === "elixir") {
+    baseChunks.push(...extractElixirChunks(rootNode, normalizedPath));
     return finalizeChunks(baseChunks, options);
   }
 
