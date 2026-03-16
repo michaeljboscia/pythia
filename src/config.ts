@@ -103,7 +103,8 @@ const indexingSchema = z.object({
   embedding_batch_size: z.number().int().min(1).max(256).default(DEFAULT_EMBEDDING_BATCH_SIZE),
   retry_max_attempts: z.number().int().min(1).max(10).default(DEFAULT_RETRY_MAX_ATTEMPTS),
   initial_backoff_ms: z.number().int().min(100).max(30_000).default(DEFAULT_INITIAL_BACKOFF_MS),
-  honor_retry_after: z.boolean().default(true)
+  honor_retry_after: z.boolean().default(true),
+  max_files: z.number().int().min(1).optional()
 });
 
 export const configSchema = z.object({

@@ -262,7 +262,12 @@ export async function runInit(
       };
     }
 
-    const fileChanges = await scanWorkspaceImpl(workspaceRoot, db, options.force === true);
+    const fileChanges = await scanWorkspaceImpl(
+      workspaceRoot,
+      db,
+      options.force === true,
+      { maxFiles: config.indexing.max_files }
+    );
 
     db.close();
 

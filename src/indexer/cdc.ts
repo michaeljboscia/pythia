@@ -171,7 +171,8 @@ export interface FileChange {
 export async function scanWorkspace(
   workspaceRoot: string,
   db: Database.Database,
-  forceReindex: boolean = false
+  forceReindex: boolean = false,
+  options?: { maxFiles?: number }
 ): Promise<FileChange[]> {
   const absoluteWorkspaceRoot = path.resolve(workspaceRoot);
   const filePaths: string[] = [];
@@ -183,6 +184,14 @@ export async function scanWorkspace(
   `).safeIntegers(true);
 
   collectFiles(absoluteWorkspaceRoot, absoluteWorkspaceRoot, [], filePaths);
+  if (options?.maxFiles !== undefined && filePaths.length > options.maxFiles) {
+    const discoveredCount = filePaths.length;
+    console.warn(
+      `[Pythia] File cap reached: ${options.maxFiles.toLocaleString()} of ${discoveredCount.toLocaleString()} discovered files. ` +
+      "Set indexing.max_files higher or add more rules to .pythiaignore."
+    );
+    filePaths.length = options.maxFiles;
+  }
 
   for (const filePath of filePaths) {
     const binaryProbe = readFileSync(filePath, { encoding: null, flag: "r" }).subarray(0, 4096);

@@ -35,6 +35,17 @@ function insertCacheRow(
   `).run(filePath, mtimeNs.toString(), 0, contentHash, new Date().toISOString());
 }
 
+function writeSampleFiles(workspaceRoot: string, count: number): string[] {
+  const filePaths: string[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const filePath = path.join(workspaceRoot, "src", `file-${index}.ts`);
+    mkdirSync(path.dirname(filePath), { recursive: true });
+    writeFileSync(filePath, `export const value${index} = ${index};\n`, "utf8");
+    filePaths.push(filePath);
+  }
+  return filePaths;
+}
+
 test("file with unchanged mtime is not returned", async () => {
   const { cleanup, dbPath, workspaceRoot } = createWorkspace();
   const db = openDb(dbPath);
@@ -182,6 +193,104 @@ test("content_hash uses the expected algo:digest format", async () => {
     assert.equal(changes.length, 1);
     assert.match(changes[0].contentHash, /^(blake3|sha256):[a-f0-9]+$/);
   } finally {
+    db.close();
+    cleanup();
+  }
+});
+
+test("max_files undefined returns all files", async () => {
+  const { cleanup, dbPath, workspaceRoot } = createWorkspace();
+  const db = openDb(dbPath);
+  writeSampleFiles(workspaceRoot, 3);
+
+  try {
+    runMigrations(db);
+
+    const changes = await scanWorkspace(workspaceRoot, db);
+
+    assert.equal(changes.length, 3);
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
+test("max_files at or above file count returns all files without warning", async () => {
+  const { cleanup, dbPath, workspaceRoot } = createWorkspace();
+  const db = openDb(dbPath);
+  writeSampleFiles(workspaceRoot, 2);
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (message: unknown) => {
+    warnings.push(String(message));
+  };
+
+  try {
+    runMigrations(db);
+
+    const changes = await scanWorkspace(workspaceRoot, db, false, { maxFiles: 5 });
+
+    assert.equal(changes.length, 2);
+    assert.equal(warnings.length, 0);
+  } finally {
+    console.warn = originalWarn;
+    db.close();
+    cleanup();
+  }
+});
+
+test("max_files below file count returns capped entries", async () => {
+  const { cleanup, dbPath, workspaceRoot } = createWorkspace();
+  const db = openDb(dbPath);
+  writeSampleFiles(workspaceRoot, 4);
+
+  try {
+    runMigrations(db);
+
+    const changes = await scanWorkspace(workspaceRoot, db, false, { maxFiles: 2 });
+
+    assert.equal(changes.length, 2);
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
+test("max_files set to 1 returns one entry", async () => {
+  const { cleanup, dbPath, workspaceRoot } = createWorkspace();
+  const db = openDb(dbPath);
+  writeSampleFiles(workspaceRoot, 3);
+
+  try {
+    runMigrations(db);
+
+    const changes = await scanWorkspace(workspaceRoot, db, false, { maxFiles: 1 });
+
+    assert.equal(changes.length, 1);
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
+test("max_files warning includes file cap reached", async () => {
+  const { cleanup, dbPath, workspaceRoot } = createWorkspace();
+  const db = openDb(dbPath);
+  writeSampleFiles(workspaceRoot, 3);
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (message: unknown) => {
+    warnings.push(String(message));
+  };
+
+  try {
+    runMigrations(db);
+
+    await scanWorkspace(workspaceRoot, db, false, { maxFiles: 1 });
+
+    assert.equal(warnings.some((entry) => entry.includes("File cap reached")), true);
+  } finally {
+    console.warn = originalWarn;
     db.close();
     cleanup();
   }
