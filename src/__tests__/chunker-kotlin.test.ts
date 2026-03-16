@@ -72,9 +72,14 @@ test("interface declaration emits a class chunk", () => {
   assert.equal(idsForType(chunks, "class").length >= 1, true);
 });
 
-test("anonymous declaration falls back to row-based name", () => {
-  const chunks = parseKotlin("class {}", "src/__tests__/fixtures/kotlin/anonymous.kt");
-  assert.equal(chunks.some((chunk) => chunk.id.includes("anonymous_L")), true);
+test("malformed class still extracts a name from type_identifier", () => {
+  // tree-sitter-kotlin parses "class {}" as (ERROR)(lambda_literal), not class_declaration.
+  // A malformed "class : Base {}" produces class_declaration with type_identifier "Base".
+  // The anonymous_L fallback is effectively unreachable for Kotlin.
+  const chunks = parseKotlin("class : Base {}", "src/__tests__/fixtures/kotlin/anonymous.kt");
+  const classChunks = chunks.filter((c) => c.chunk_type === "class");
+  assert.equal(classChunks.length > 0, true);
+  assert.equal(classChunks[0].id.includes("Base"), true);
 });
 
 test("nested classes emit separate chunks", () => {
