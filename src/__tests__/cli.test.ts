@@ -30,6 +30,28 @@ function createWorkspace(): { cleanup: () => void; workspaceRoot: string } {
   };
 }
 
+async function captureStdout<T>(runner: () => Promise<T>): Promise<{ output: string; result: T }> {
+  const chunks: string[] = [];
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  process.stdout.write = ((chunk: unknown) => {
+    if (typeof chunk === "string") {
+      chunks.push(chunk);
+    } else if (Buffer.isBuffer(chunk)) {
+      chunks.push(chunk.toString("utf8"));
+    } else {
+      chunks.push(String(chunk));
+    }
+    return true;
+  }) as typeof process.stdout.write;
+
+  try {
+    const result = await runner();
+    return { output: chunks.join(""), result };
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+}
+
 test("pythia init on empty dir creates .pythia/lcs.db", async () => {
   const { cleanup, workspaceRoot } = createWorkspace();
 
@@ -88,6 +110,67 @@ test("pythia init twice is idempotent", async () => {
 
     assert.equal(second.initialized, false);
     assert.equal(existsSync(path.join(workspaceRoot, ".pythia", "lcs.db")), true);
+  } finally {
+    cleanup();
+  }
+});
+
+test("pythia init without --perf does not print Peak RSS", async () => {
+  const { cleanup, workspaceRoot } = createWorkspace();
+
+  try {
+    const { output } = await captureStdout(() => runInit({ workspace: workspaceRoot }, {
+      scanWorkspaceImpl: async () => []
+    }));
+
+    assert.equal(output.includes("Peak RSS"), false);
+  } finally {
+    cleanup();
+  }
+});
+
+test("pythia init --perf prints Peak RSS line", async () => {
+  const { cleanup, workspaceRoot } = createWorkspace();
+
+  try {
+    const { output } = await captureStdout(() => runInit({ workspace: workspaceRoot, perf: true }, {
+      scanWorkspaceImpl: async () => []
+    }));
+
+    assert.match(output, /\[Pythia\] Peak RSS: \d+\.\d{2} MB/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("pythia init --perf prints RSS in expected format", async () => {
+  const { cleanup, workspaceRoot } = createWorkspace();
+
+  try {
+    const { output } = await captureStdout(() => runInit({ workspace: workspaceRoot, perf: true }, {
+      scanWorkspaceImpl: async () => []
+    }));
+
+    const match = output.match(/\[Pythia\] Peak RSS: (\d+\.\d{2} MB)/);
+    assert.ok(match);
+    assert.match(match[1], /^\d+\.\d{2} MB$/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("pythia init --perf prints after corpus health summary", async () => {
+  const { cleanup, workspaceRoot } = createWorkspace();
+
+  try {
+    const { output } = await captureStdout(() => runInit({ workspace: workspaceRoot, perf: true }, {
+      scanWorkspaceImpl: async () => []
+    }));
+
+    const healthIndex = output.indexOf("=== Pythia Corpus Health ===");
+    const perfIndex = output.indexOf("[Pythia] Peak RSS:");
+    assert.ok(healthIndex >= 0);
+    assert.ok(perfIndex > healthIndex);
   } finally {
     cleanup();
   }

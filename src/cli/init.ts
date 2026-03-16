@@ -32,6 +32,7 @@ type InitDependencies = {
 type InitOptions = {
   config?: string;
   force?: boolean;
+  perf?: boolean;
   workspace?: string;
 };
 
@@ -49,6 +50,15 @@ type ProjectMarker = {
   name: string;
   rules: string[];
 };
+
+function reportPerfIfRequested(options: InitOptions): void {
+  if (options.perf === true) {
+    // Note: rss here is current RSS, not peak RSS. Node.js does not expose peak RSS
+    // without native addons. This is a practical proxy for post-init memory usage.
+    const rssMb = (process.memoryUsage().rss / 1024 / 1024).toFixed(2);
+    console.log(`[Pythia] Peak RSS: ${rssMb} MB`);
+  }
+}
 
 const PROJECT_MARKERS: ProjectMarker[] = [
   {
@@ -255,6 +265,7 @@ export async function runInit(
         console.log("[Pythia] Tip: run `pythia init --force` to reindex with the updated .pythiaignore.");
       }
 
+      reportPerfIfRequested(options);
       return {
         dbPath,
         filesIndexed: 0,
@@ -273,6 +284,7 @@ export async function runInit(
 
     if (fileChanges.length === 0) {
       reportCorpusHealth(dbPath, openDbImpl);
+      reportPerfIfRequested(options);
       return {
         dbPath,
         filesIndexed: 0,
@@ -315,6 +327,7 @@ export async function runInit(
     }
 
     reportCorpusHealth(dbPath, openDbImpl);
+    reportPerfIfRequested(options);
 
     return {
       dbPath,
@@ -333,6 +346,7 @@ export const initCommand = new Command("init")
   .option("--workspace <path>", "Workspace root to initialize")
   .option("--config <path>", "Path to a Pythia config file")
   .option("--force", "Drop and rebuild derived embedding/index tables before reindexing")
+  .option("--perf", "Print peak RSS memory usage after init completes")
   .action(async (options: InitOptions) => {
     const result = await runInit(options);
 
